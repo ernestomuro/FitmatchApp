@@ -5755,3 +5755,166 @@ body.role-professional .request-box .button.primary:hover {
     margin-bottom: 30px !important;
   }
 }
+
+
+/* Revisión Codex: Matches sin superposiciones responsive */
+#matches .matches-panel > .matches-header {
+  position: relative !important;
+  z-index: 6 !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 280px) !important;
+  gap: clamp(18px, 3vw, 34px) !important;
+  align-items: end !important;
+  margin: 0 0 clamp(18px, 2.5vw, 28px) !important;
+  padding: 0 0 clamp(18px, 2.5vw, 24px) !important;
+  min-height: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(31, 118, 95, 0.16) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  transform: none !important;
+}
+
+#matches .matches-panel > .matches-header::before,
+#matches .matches-panel > .matches-header::after {
+  display: none !important;
+  content: none !important;
+}
+
+#matches .matches-panel > .matches-header > div {
+  min-width: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#matches .matches-panel > .matches-header .micro-label {
+  color: #1f765f !important;
+  opacity: 1 !important;
+}
+
+#matches .matches-panel > .matches-header strong {
+  display: block !important;
+  margin: 8px 0 0 !important;
+  color: #10201b !important;
+  font-size: clamp(1.35rem, 2.1vw, 1.75rem) !important;
+  line-height: 1.14 !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+
+#matches .matches-panel > .matches-header .compact-select {
+  justify-self: end !important;
+  align-self: end !important;
+  display: grid !important;
+  width: min(100%, 280px) !important;
+  min-width: 0 !important;
+  gap: 9px !important;
+  padding: 14px !important;
+  border: 1px solid rgba(31, 118, 95, 0.18) !important;
+  border-radius: 24px !important;
+  background: linear-gradient(145deg, rgba(255, 253, 247, 0.98), rgba(246, 250, 243, 0.94)) !important;
+  box-shadow: 0 14px 34px rgba(24, 50, 41, 0.08) !important;
+  color: #10201b !important;
+  font-weight: 900 !important;
+}
+
+#matches .matches-panel > .matches-header .compact-select select {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 48px !important;
+  padding: 10px 16px !important;
+  border-radius: 18px !important;
+  background: #fffaf0 !important;
+  color: #10201b !important;
+  -webkit-text-fill-color: #10201b !important;
+  opacity: 1 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72) !important;
+}
+
+#matches .match-toolbar {
+  position: relative !important;
+  z-index: 5 !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.8fr) !important;
+  gap: 14px !important;
+  align-items: center !important;
+  clear: both !important;
+  margin: 0 0 clamp(22px, 3vw, 32px) !important;
+  padding: clamp(16px, 2vw, 20px) !important;
+  border: 1px solid rgba(31, 118, 95, 0.16) !important;
+  border-radius: 24px !important;
+  background: rgba(255, 250, 240, 0.92) !important;
+  box-shadow: 0 12px 30px rgba(24, 50, 41, 0.06) !important;
+  transform: none !important;
+}
+
+#matches #resultsSummary,
+#matches .score-guide {
+  position: static !important;
+  z-index: auto !important;
+  margin: 0 !important;
+  color: #10201b !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+  background: transparent !important;
+}
+
+#matches #resultsSummary {
+  font-weight: 900 !important;
+  line-height: 1.35 !important;
+}
+
+#matches .score-guide {
+  justify-self: end !important;
+  max-width: 42ch !important;
+  color: #415c51 !important;
+  font-weight: 760 !important;
+}
+
+#matches .match-network-banner {
+  margin-top: 0 !important;
+}
+
+@media (max-width: 980px) {
+  #matches .matches-panel > .matches-header,
+  #matches .match-toolbar {
+    grid-template-columns: 1fr !important;
+  }
+
+  #matches .matches-panel > .matches-header .compact-select,
+  #matches .score-guide {
+    justify-self: stretch !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  #matches .matches-panel > .matches-header {
+    gap: 16px !important;
+    margin-bottom: 18px !important;
+    padding-bottom: 18px !important;
+  }
+
+  #matches .matches-panel > .matches-header strong {
+    font-size: clamp(1.18rem, 7vw, 1.42rem) !important;
+  }
+
+  #matches .matches-panel > .matches-header .compact-select {
+    padding: 12px !important;
+    border-radius: 20px !important;
+  }
+
+  #matches .matches-panel > .matches-header .compact-select select {
+    min-height: 46px !important;
+  }
+
+  #matches .match-toolbar {
+    padding: 15px !important;
+    border-radius: 20px !important;
+  }
+}
+
