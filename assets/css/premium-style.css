@@ -5726,7 +5726,32 @@ body.role-professional .request-box .button.primary:hover {
 
 @media (max-width: 760px) {
   #matches .matches-header {
-    margin: 0 0 24px !important;
-    padding: 18px !important;
+    margin: -22px 0 38px !important;
+    padding: 14px 16px !important;
+  }
+
+  #matches .compact-select select {
+    min-height: 46px !important;
+  }
+
+  #matches .match-toolbar {
+    margin-bottom: 26px !important;
+  }
+}
+
+
+/* Revisión Codex: ajuste tablet de Matches */
+@media (min-width: 761px) and (max-width: 1180px) {
+  #matches .matches-header {
+    margin: -28px 0 54px !important;
+    padding: 14px 22px !important;
+  }
+
+  #matches .compact-select select {
+    min-height: 48px !important;
+  }
+
+  #matches .match-toolbar {
+    margin-bottom: 30px !important;
   }
 }
