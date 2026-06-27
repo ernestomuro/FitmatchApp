@@ -822,6 +822,43 @@
       </div>
     </div>
 
+
+    <div
+      id="legalModal"
+      class="modal legal-modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="legalModalTitle"
+      aria-describedby="legalModalText"
+      tabindex="-1"
+    >
+      <div class="modal-card legal-card">
+        <p class="eyebrow">Protección y confianza</p>
+        <h2 id="legalModalTitle">Antes de continuar en Fit Match</h2>
+        <p id="legalModalText">
+          Para usar tu cuenta necesitamos que confirmes unas condiciones básicas de privacidad, contacto y uso responsable de la plataforma.
+        </p>
+        <div class="legal-checklist">
+          <label>
+            <input type="checkbox" data-legal-check="terms" />
+            <span>Acepto los términos de uso de Fit Match y entiendo que la plataforma facilita contactos entre personas.</span>
+          </label>
+          <label>
+            <input type="checkbox" data-legal-check="privacy" />
+            <span>Acepto la política de privacidad y el tratamiento de mis datos para crear perfil, calcular afinidad y gestionar contactos.</span>
+          </label>
+          <label>
+            <input type="checkbox" data-legal-check="contact" />
+            <span>Entiendo que mi email o teléfono solo se compartirán dentro de solicitudes o propuestas en las que participe.</span>
+          </label>
+        </div>
+        <p class="legal-note">
+          Nota: esta aceptación es una base funcional para la beta. Los textos legales definitivos deberán revisarse antes de una apertura pública amplia.
+        </p>
+        <button id="acceptLegalTerms" class="button primary full" type="button" disabled>Aceptar y continuar</button>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./assets/js/supabaseConfig.js"></script>
     <script src="./assets/js/data.js"></script>

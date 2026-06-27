@@ -1,8 +1,12 @@
 const STORAGE_KEYS = {
   profileDrafts: "fit-match.profile-drafts.v2",
   registeredProfiles: "fit-match.registered-profiles.v2",
-  contactRequests: "fit-match.contact-requests.v2"
+  contactRequests: "fit-match.contact-requests.v2",
+  ratings: "fit-match.profile-ratings.v1",
+  legalConsents: "fit-match.legal-consents.v1"
 };
+
+const LEGAL_CONSENT_VERSION = "fit-match-beta-legal-v1";
 
 const SUPABASE_CONFIG = window.FIT_MATCH_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient && SUPABASE_CONFIG.url && SUPABASE_CONFIG.publishableKey
@@ -12,6 +16,9 @@ const supabaseClient = window.supabase?.createClient && SUPABASE_CONFIG.url && S
 let currentSession = null;
 let remoteProfiles = [];
 let remoteRequests = [];
+let remoteRatings = [];
+let remotePrivateNotes = {};
+let ratingsRemoteAvailable = true;
 let remoteError = "";
 
 function readStorage(key, fallback) {
@@ -37,6 +44,114 @@ function removeStorage(key) {
   } catch (error) {
     // No-op: clearing persistence should never break the local app.
   }
+}
+
+
+function parseJsonObject(value, fallback = {}) {
+  if (!value) return { ...fallback };
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : { ...fallback };
+  } catch (error) {
+    return { ...fallback };
+  }
+}
+
+function currentUserKey(user = currentSession?.user) {
+  return user?.id || user?.email || "local";
+}
+
+function normalizeRatingSummary(summary = {}) {
+  const count = Number(summary.count) || 0;
+  const average = Number(summary.average) || 0;
+  return {
+    average: count ? Math.round(average * 10) / 10 : 0,
+    count,
+    label: count ? `${Math.round(average * 10) / 10}/5` : "Sin valoraciones"
+  };
+}
+
+function normalizeRating(rating = {}) {
+  const criteria = rating.criteria && typeof rating.criteria === "object" ? rating.criteria : {};
+  const values = Object.values(criteria).map(Number).filter((value) => value >= 1 && value <= 5);
+  const average = Number(rating.averageScore || rating.average_score) || (values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0);
+  return {
+    id: rating.id || createId("rating"),
+    requestId: rating.requestId || rating.request_id || "",
+    raterId: rating.raterId || rating.rater_id || "",
+    targetId: rating.targetId || rating.target_id || "",
+    raterRole: rating.raterRole || rating.rater_role || "",
+    targetRole: rating.targetRole || rating.target_role || "",
+    criteria,
+    averageScore: Math.round(average * 10) / 10,
+    comment: rating.comment || "",
+    createdAt: rating.createdAt || rating.created_at || new Date().toISOString(),
+    updatedAt: rating.updatedAt || rating.updated_at || new Date().toISOString()
+  };
+}
+
+function ratingSummariesByTarget(ratings = []) {
+  return ratings.reduce((map, rating) => {
+    const item = normalizeRating(rating);
+    if (!item.targetId || !item.averageScore) return map;
+    const current = map.get(item.targetId) || { total: 0, count: 0 };
+    current.total += item.averageScore;
+    current.count += 1;
+    map.set(item.targetId, current);
+    return map;
+  }, new Map());
+}
+
+function applyRatingSummaries(profiles = [], ratings = []) {
+  const summaries = ratingSummariesByTarget(ratings);
+  return profiles.map((profile) => {
+    const summary = summaries.get(profile.id);
+    if (!summary) return { ...profile, ratingSummary: normalizeRatingSummary(profile.ratingSummary) };
+    return {
+      ...profile,
+      ratingSummary: normalizeRatingSummary({ average: summary.total / summary.count, count: summary.count })
+    };
+  });
+}
+
+function readRatings() {
+  return readStorage(STORAGE_KEYS.ratings, []).map(normalizeRating);
+}
+
+function writeRatings(ratings) {
+  writeStorage(STORAGE_KEYS.ratings, ratings.map(normalizeRating));
+}
+
+function saveLocalRating(rating) {
+  const normalized = normalizeRating(rating);
+  const ratings = readRatings();
+  const index = ratings.findIndex((item) =>
+    item.requestId === normalized.requestId
+    && item.raterId === normalized.raterId
+    && item.targetId === normalized.targetId
+  );
+  if (index >= 0) {
+    ratings[index] = { ...ratings[index], ...normalized, updatedAt: new Date().toISOString() };
+  } else {
+    ratings.unshift(normalized);
+  }
+  writeRatings(ratings);
+  return normalized;
+}
+
+function localLegalConsents() {
+  return readStorage(STORAGE_KEYS.legalConsents, {});
+}
+
+function writeLocalLegalConsent(userKey, consent) {
+  const consents = localLegalConsents();
+  consents[userKey] = consent;
+  writeStorage(STORAGE_KEYS.legalConsents, consents);
+}
+
+function legalConsentFromNotes(notes = remotePrivateNotes) {
+  const consent = notes?.legalConsent;
+  return consent?.version === LEGAL_CONSENT_VERSION ? consent : null;
 }
 
 function createId(prefix) {
@@ -109,6 +224,7 @@ function normalizeProfile(profile) {
     availability: profile.availability || "Por definir",
     bio: profile.bio || "Perfil creado para pruebas reales de Fit Match.",
     color: profile.color || (profile.role === "client" ? "#176f4d" : "#4b3a63"),
+    ratingSummary: normalizeRatingSummary(profile.ratingSummary),
     createdAt: profile.createdAt || now,
     updatedAt: now
   };
@@ -396,6 +512,8 @@ window.FitMatchDataProvider = {
       if (!session) {
         remoteProfiles = [];
         remoteRequests = [];
+        remoteRatings = [];
+        remotePrivateNotes = {};
       }
     });
 
@@ -471,6 +589,7 @@ window.FitMatchDataProvider = {
       ]);
 
       remoteProfiles = mapRemoteProfiles(profiles, clients, professionals);
+      remotePrivateNotes = {};
 
       try {
         const privateResult = await supabaseClient
@@ -479,7 +598,8 @@ window.FitMatchDataProvider = {
           .eq("user_id", currentSession.user.id)
           .maybeSingle();
         if (!privateResult.error && privateResult.data) {
-          const privateNotes = privateResult.data.private_notes ? JSON.parse(privateResult.data.private_notes) : {};
+          const privateNotes = parseJsonObject(privateResult.data.private_notes);
+          remotePrivateNotes = privateNotes;
           remoteProfiles = remoteProfiles.map((profile) => profile.id === currentSession.user.id
             ? {
                 ...profile,
@@ -495,6 +615,21 @@ window.FitMatchDataProvider = {
         // Los datos privados no deben romper el directorio público si la política aún no los permite.
       }
 
+      try {
+        const ratingRows = await assertNoError(
+          await supabaseClient
+            .from("profile_ratings")
+            .select("*")
+            .order("created_at", { ascending: false })
+        );
+        remoteRatings = (ratingRows || []).map(normalizeRating);
+        ratingsRemoteAvailable = true;
+      } catch (error) {
+        ratingsRemoteAvailable = false;
+        remoteRatings = readRatings();
+      }
+
+      remoteProfiles = applyRatingSummaries(remoteProfiles, remoteRatings);
       const profilesById = new Map(remoteProfiles.map((profile) => [profile.id, profile]));
       const requests = await assertNoError(
         await supabaseClient
@@ -565,7 +700,7 @@ window.FitMatchDataProvider = {
   },
 
   listProfiles(role) {
-    const profiles = canUseRemote() ? remoteProfiles : readProfiles();
+    const profiles = canUseRemote() ? remoteProfiles : applyRatingSummaries(readProfiles(), readRatings());
     return role ? profiles.filter((profile) => profile.role === role) : profiles;
   },
 
@@ -621,7 +756,7 @@ window.FitMatchDataProvider = {
       user_id: user.id,
       contact_email: normalized.email,
       phone: normalized.phone || null,
-      private_notes: JSON.stringify({ birthdate: normalized.birthdate || "", photo: normalized.photo || "" })
+      private_notes: JSON.stringify({ ...remotePrivateNotes, birthdate: normalized.birthdate || "", photo: normalized.photo || "" })
     }));
 
     this.saveProfileDraft(normalized);
@@ -661,6 +796,8 @@ window.FitMatchDataProvider = {
     this.clearProfileDraft();
     remoteProfiles = remoteProfiles.filter((profile) => profile.id !== userId);
     remoteRequests = remoteRequests.filter((request) => request.profile.id !== userId && request.target.id !== userId);
+    remoteRatings = remoteRatings.filter((rating) => rating.raterId !== userId && rating.targetId !== userId);
+    remotePrivateNotes = {};
     await this.refreshRemoteData();
     return this.listProfiles(role);
   },
@@ -780,4 +917,117 @@ window.FitMatchDataProvider = {
     const sentRequests = this.listContactRequests(role, { ...options, profileId, direction: "outgoing" });
     return this.deleteContactRequests(sentRequests.map((request) => request.id), { ...options, role, profileId });
   }
+,
+
+  getLegalConsentVersion() {
+    return LEGAL_CONSENT_VERSION;
+  },
+
+  hasLegalConsent() {
+    const user = currentSession?.user;
+    if (!user) return true;
+    const remoteConsent = legalConsentFromNotes(remotePrivateNotes);
+    if (remoteConsent) return true;
+    const localConsent = localLegalConsents()[currentUserKey(user)];
+    return localConsent?.version === LEGAL_CONSENT_VERSION;
+  },
+
+  async acceptLegalConsent(consent = {}) {
+    const user = currentSession?.user;
+    if (!user) return null;
+    const acceptedAt = new Date().toISOString();
+    const payload = {
+      version: LEGAL_CONSENT_VERSION,
+      acceptedAt,
+      role: getUserAccountRole(user) || consent.role || "",
+      terms: Boolean(consent.terms),
+      privacy: Boolean(consent.privacy),
+      contact: Boolean(consent.contact)
+    };
+
+    writeLocalLegalConsent(currentUserKey(user), payload);
+    remotePrivateNotes = { ...remotePrivateNotes, legalConsent: payload };
+
+    if (canUseRemote()) {
+      try {
+        await assertNoError(await supabaseClient.from("private_profile_data").upsert({
+          user_id: user.id,
+          contact_email: user.email || null,
+          private_notes: JSON.stringify(remotePrivateNotes)
+        }));
+      } catch (error) {
+        // Si la política remota todavía no permite escribir datos privados, la aceptación queda guardada localmente.
+      }
+    }
+
+    return payload;
+  },
+
+  listRatings() {
+    return canUseRemote() ? remoteRatings.map(normalizeRating) : readRatings();
+  },
+
+  getRatingSummary(targetId) {
+    const ratings = this.listRatings().filter((rating) => rating.targetId === targetId);
+    if (!ratings.length) return normalizeRatingSummary();
+    const total = ratings.reduce((sum, rating) => sum + Number(rating.averageScore || 0), 0);
+    return normalizeRatingSummary({ average: total / ratings.length, count: ratings.length });
+  },
+
+  getRatingForRequest(requestId, raterId, targetId) {
+    return this.listRatings().find((rating) =>
+      rating.requestId === requestId
+      && rating.raterId === raterId
+      && rating.targetId === targetId
+    ) || null;
+  },
+
+  async saveRating(payload = {}) {
+    const user = currentSession?.user;
+    const raterId = payload.raterId || user?.id || "local";
+    const normalized = normalizeRating({
+      requestId: payload.requestId,
+      raterId,
+      raterRole: payload.raterRole,
+      targetId: payload.target?.id || payload.targetId,
+      targetRole: payload.target?.role || payload.targetRole,
+      criteria: payload.criteria || {},
+      comment: payload.comment || ""
+    });
+
+    if (!canUseRemote() || !ratingsRemoteAvailable) {
+      const saved = saveLocalRating(normalized);
+      remoteProfiles = applyRatingSummaries(remoteProfiles, readRatings());
+      return saved;
+    }
+
+    const row = {
+      request_id: normalized.requestId || null,
+      rater_id: currentSession.user.id,
+      target_id: normalized.targetId,
+      rater_role: normalized.raterRole,
+      target_role: normalized.targetRole,
+      criteria: normalized.criteria,
+      average_score: normalized.averageScore,
+      comment: normalized.comment || null
+    };
+
+    try {
+      await supabaseClient
+        .from("profile_ratings")
+        .delete()
+        .eq("request_id", row.request_id)
+        .eq("rater_id", row.rater_id)
+        .eq("target_id", row.target_id);
+      const data = await assertNoError(
+        await supabaseClient.from("profile_ratings").insert(row).select("*").single()
+      );
+      await this.refreshRemoteData();
+      return normalizeRating(data);
+    } catch (error) {
+      ratingsRemoteAvailable = false;
+      return saveLocalRating(normalized);
+    }
+  }
+
 };

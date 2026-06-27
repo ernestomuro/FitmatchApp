@@ -133,6 +133,40 @@ const PROFILE_FIELD_COPY = {
 };
 
 
+const RATING_CRITERIA = {
+  professional: [
+    ["communication", "Comunicación"],
+    ["clarity", "Claridad del plan"],
+    ["professionalism", "Profesionalidad"],
+    ["adaptation", "Adaptación"],
+    ["trust", "Confianza"]
+  ],
+  client: [
+    ["clarity", "Claridad"],
+    ["commitment", "Compromiso"],
+    ["communication", "Comunicación"],
+    ["punctuality", "Puntualidad"],
+    ["respect", "Respeto"]
+  ]
+};
+
+function ratingSummaryFor(person) {
+  return dataProvider.getRatingSummary?.(person?.id) || person?.ratingSummary || { average: 0, count: 0, label: "Sin valoraciones" };
+}
+
+function ratingText(summary) {
+  if (!summary?.count) return "Sin valoraciones";
+  return `${summary.average}/5 · ${summary.count} valoración${summary.count === 1 ? "" : "es"}`;
+}
+
+function createRatingBadge(person, className = "rating-badge") {
+  const summary = ratingSummaryFor(person);
+  const badge = createElement("span", className, summary.count ? `★ ${summary.average}/5` : "★ Nuevo");
+  badge.setAttribute("aria-label", summary.count ? ratingText(summary) : "Sin valoraciones todavía");
+  return badge;
+}
+
+
 function createBlankProfile(role) {
   return {
     id: "",
@@ -350,6 +384,9 @@ const profileHomeContacts = document.querySelector("#profileHomeContacts");
 const profileHomeMessages = document.querySelector("#profileHomeMessages");
 const profileHomeAffinity = document.querySelector("#profileHomeAffinity");
 const profileHomeUnreadAlert = document.querySelector("#profileHomeUnreadAlert");
+const legalModal = document.querySelector("#legalModal");
+const acceptLegalTermsButton = document.querySelector("#acceptLegalTerms");
+const legalChecks = document.querySelectorAll("[data-legal-check]");
 const authActionButtons = document.querySelectorAll("[data-auth-action]");
 const appViews = document.querySelectorAll(".app-view");
 const viewButtons = document.querySelectorAll("[data-view]");
@@ -500,6 +537,31 @@ function initReviewMode() {
   setReviewMode(stored === null ? isLocalFile : stored === "true");
 }
 
+
+function updateLegalAcceptState() {
+  if (!acceptLegalTermsButton) return;
+  acceptLegalTermsButton.disabled = !Array.from(legalChecks).every((check) => check.checked);
+}
+
+function openLegalModal() {
+  if (!legalModal || dataProvider.hasLegalConsent?.()) return;
+  legalChecks.forEach((check) => {
+    check.checked = false;
+  });
+  updateLegalAcceptState();
+  legalModal.classList.remove("hidden");
+  legalModal.focus();
+}
+
+function closeLegalModal() {
+  legalModal?.classList.add("hidden");
+}
+
+function maybePromptLegalConsent() {
+  if (!currentUser()) return;
+  window.setTimeout(openLegalModal, 80);
+}
+
 function setAuthLoading(isLoading) {
   authActionButtons.forEach((button) => {
     button.disabled = isLoading;
@@ -563,6 +625,7 @@ function updateAuthPanel(message = "") {
   }
 
   renderProfileHome();
+  if (isConnected) maybePromptLegalConsent();
 }
 
 
@@ -890,6 +953,7 @@ function renderProfileHome() {
   const lastActivityText = formatAccountDate(lastTimestamps[0]);
   const emailText = profile.email || currentUser()?.email || "Email privado";
   const statusText = accountProfileStatus(completion.percent);
+  const ownRatingSummary = ratingSummaryFor(profile);
 
   setAvatarContent(profileHomePhoto, profile);
   if (profileHomeName) profileHomeName.textContent = profile.name || `Perfil ${roleText.toLowerCase()}`;
@@ -908,9 +972,11 @@ function renderProfileHome() {
   if (profileHomeAffinity) profileHomeAffinity.textContent = averageAffinity;
   if (accountContextScore) accountContextScore.textContent = `${completion.percent}%`;
   if (accountContextTitle) accountContextTitle.textContent = completion.percent >= 85 ? "Rendimiento excelente" : "Rendimiento en construcción";
-  if (accountContextCopy) accountContextCopy.textContent = matchCount
-    ? "Tus coincidencias ya tienen señales útiles. Sigue afinando el perfil para mejorar la calidad del contacto."
-    : "Completa más señales para activar recomendaciones con mejor encaje.";
+  if (accountContextCopy) accountContextCopy.textContent = ownRatingSummary.count
+    ? `Tu perfil público ya muestra ${ratingText(ownRatingSummary)}. Las valoraciones refuerzan la confianza antes del contacto.`
+    : (matchCount
+      ? "Tus coincidencias ya tienen señales útiles. Sigue afinando el perfil para mejorar la calidad del contacto."
+      : "Completa más señales para activar recomendaciones con mejor encaje.");
   if (accountContextMatches) accountContextMatches.textContent = String(matchCount);
   if (accountContextContacts) accountContextContacts.textContent = String(activeRequests.length);
   if (accountContextMessages) accountContextMessages.textContent = String(allRequests.length);
@@ -1405,6 +1471,7 @@ function renderMatches() {
       createElement("h3", "", person.name),
       createElement("p", "", profileTitle(person))
     );
+    heading.append(createRatingBadge(person));
     top.append(avatar, heading, score);
 
     if (person.sport) meta.append(createElement("span", "pill sport-pill", person.sport));
@@ -1578,6 +1645,7 @@ function renderProfileDetail(person) {
 
   const detailStats = createElement("div", "stats profile-detail-stats");
   detailStats.append(
+    buildStat("Valoración", ratingText(ratingSummaryFor(person))),
     buildStat(person.role === "client" ? "Presupuesto" : "Precio", priceText(person)),
     buildStat("Ciudad", person.city || "Online"),
     buildStat("Modalidad", label("modes", person.mode)),
@@ -1631,7 +1699,9 @@ function closeModal() {
 function currentProfileContactPayload() {
   return {
     id: profile.id,
+    role: profile.role,
     name: profile.name,
+    title: profileTitle(profile),
     email: profile.email,
     contactEmail: profile.email,
     phone: profile.phone,
@@ -1642,6 +1712,8 @@ function currentProfileContactPayload() {
     mode: profile.mode,
     level: profile.level,
     services: [...profile.services],
+    availability: profile.availability,
+    bio: profile.bio,
     notes: profile.notes
   };
 }
@@ -1661,10 +1733,19 @@ async function sendRequest() {
       profile: currentProfileContactPayload(),
       target: {
         id: selectedMatch.id,
+        role: selectedMatch.role,
         name: selectedMatch.name,
         title: profileTitle(selectedMatch),
         city: selectedMatch.city,
-        sport: selectedMatch.sport || ""
+        goal: selectedMatch.goal,
+        mode: selectedMatch.mode,
+        level: selectedMatch.level,
+        services: selectedMatch.services || [],
+        sport: selectedMatch.sport || "",
+        photo: selectedMatch.photo || "",
+        availability: selectedMatch.availability || "",
+        bio: selectedMatch.bio || "",
+        notes: selectedMatch.notes || ""
       },
       score,
       message,
@@ -1841,6 +1922,123 @@ async function markIncomingRequestAsRead(requestId) {
   }
 }
 
+
+function ratingTargetForRequest(request, direction) {
+  return direction === "incoming" ? request.sender : request.recipient;
+}
+
+function buildRatingPanel(request, direction) {
+  const target = ratingTargetForRequest(request, direction);
+  const existing = dataProvider.getRatingForRequest?.(request.id, profile.id || currentUser()?.id || "local", target.id);
+  const targetRole = target.role || oppositeRole(profile.role);
+  const criteria = RATING_CRITERIA[targetRole] || RATING_CRITERIA.professional;
+  const panel = createElement("div", "rating-panel");
+  const heading = createElement("div", "rating-heading");
+  const title = createElement("strong", "", existing ? "Valoración enviada" : `Valorar ${targetRole === "professional" ? "profesional" : "cliente"}`);
+  const copy = createElement("p", "", existing
+    ? `Tu puntuación para ${target.name}: ${existing.averageScore}/5.`
+    : "Puntúa esta conexión en cinco aspectos. El resumen se mostrará en el perfil público.");
+  heading.append(title, copy);
+  panel.append(heading);
+
+  criteria.forEach(([key, text]) => {
+    const value = Number(existing?.criteria?.[key]) || 0;
+    const row = createElement("div", "rating-row");
+    row.dataset.ratingField = key;
+    row.dataset.ratingValue = String(value || "");
+    row.append(createElement("span", "", text));
+    const stars = createElement("div", "rating-stars");
+    for (let star = 1; star <= 5; star += 1) {
+      const button = createElement("button", star <= value ? "rating-star active" : "rating-star", "★");
+      button.type = "button";
+      button.dataset.ratingStar = String(star);
+      button.setAttribute("aria-label", `${star} de 5 en ${text}`);
+      button.setAttribute("aria-pressed", String(star <= value));
+      stars.append(button);
+    }
+    row.append(stars);
+    panel.append(row);
+  });
+
+  const comment = document.createElement("textarea");
+  comment.className = "rating-comment";
+  comment.rows = 2;
+  comment.placeholder = "Comentario privado opcional para recordar esta valoración.";
+  comment.value = existing?.comment || "";
+  comment.dataset.ratingComment = request.id;
+
+  const actions = createElement("div", "rating-actions");
+  const button = createElement("button", "button secondary rating-save-button", existing ? "Actualizar valoración" : "Guardar valoración");
+  button.type = "button";
+  button.dataset.saveRating = request.id;
+  button.dataset.ratingDirection = direction;
+  button.dataset.ratingTarget = target.id;
+  actions.append(button);
+  panel.append(comment, actions);
+  return panel;
+}
+
+function setRatingRowValue(row, value) {
+  row.dataset.ratingValue = String(value);
+  row.querySelectorAll("[data-rating-star]").forEach((starButton) => {
+    const active = Number(starButton.dataset.ratingStar) <= value;
+    starButton.classList.toggle("active", active);
+    starButton.setAttribute("aria-pressed", String(active));
+  });
+}
+
+async function saveRequestRating(requestId, direction, button) {
+  const requests = dataProvider.listContactRequests(profile.role, { profileId: profile.id, direction });
+  const request = requests.find((item) => item.id === requestId);
+  if (!request) return;
+  const target = ratingTargetForRequest(request, direction);
+  const panel = button.closest(".rating-panel");
+  const criteria = {};
+  let completed = true;
+
+  panel.querySelectorAll("[data-rating-field]").forEach((row) => {
+    const value = Number(row.dataset.ratingValue || 0);
+    if (!value) completed = false;
+    criteria[row.dataset.ratingField] = value;
+  });
+
+  if (!completed) {
+    panel.classList.add("rating-panel-warning");
+    panel.querySelector(".rating-heading p").textContent = "Completa las cinco puntuaciones para guardar la valoración.";
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = "Guardando...";
+  try {
+    await dataProvider.saveRating?.({
+      requestId,
+      raterId: profile.id || currentUser()?.id || "local",
+      raterRole: profile.role,
+      target,
+      targetRole: target.role || oppositeRole(profile.role),
+      criteria,
+      comment: panel.querySelector("[data-rating-comment]")?.value.trim() || ""
+    });
+    await dataProvider.refreshRemoteData?.();
+    requestBox.className = "request-box request-success";
+    requestBox.replaceChildren(
+      createElement("span", "success-kicker", "Valoración guardada"),
+      createElement("strong", "", `Has valorado a ${target.name}`),
+      createElement("p", "", "La puntuación ya se suma al perfil público de esa cuenta.")
+    );
+    renderRequestHistory();
+    refreshMatches();
+    updateProfileStatus();
+  } catch (error) {
+    panel.classList.add("rating-panel-warning");
+    panel.querySelector(".rating-heading p").textContent = error.message || "No se pudo guardar la valoración.";
+  } finally {
+    button.disabled = false;
+    button.textContent = "Guardar valoración";
+  }
+}
+
 function buildRequestCard(request, direction) {
   const card = document.createElement("details");
   card.className = `history-card ${direction === "incoming" ? "incoming-card" : "outgoing-card"} ${request.readAt ? "read-card" : "unread-card"}`;
@@ -1875,7 +2073,7 @@ function buildRequestCard(request, direction) {
 
   const body = createElement("div", "history-card-body");
   const message = createElement("p", "history-message", request.message);
-  body.append(message);
+  body.append(message, buildRatingPanel(request, direction));
 
   if (direction === "incoming") {
     body.append(
@@ -1935,7 +2133,15 @@ async function sendInboxReply(requestId, button) {
         role: originalRequest.sender.role,
         title: originalRequest.sender.title || originalRequest.sender.name,
         city: originalRequest.sender.city,
-        sport: originalRequest.sender.sport || ""
+        goal: originalRequest.sender.goal,
+        mode: originalRequest.sender.mode,
+        level: originalRequest.sender.level,
+        services: originalRequest.sender.services || [],
+        sport: originalRequest.sender.sport || "",
+        photo: originalRequest.sender.photo || "",
+        availability: originalRequest.sender.availability || "",
+        bio: originalRequest.sender.bio || "",
+        notes: originalRequest.sender.notes || ""
       },
       score: originalRequest.score,
       message,
@@ -2317,6 +2523,22 @@ clearRequestsButton.addEventListener("click", async () => {
 });
 
 requestList?.addEventListener("click", (event) => {
+  const ratingStar = event.target.closest("[data-rating-star]");
+  if (ratingStar) {
+    event.preventDefault();
+    event.stopPropagation();
+    setRatingRowValue(ratingStar.closest("[data-rating-field]"), Number(ratingStar.dataset.ratingStar));
+    return;
+  }
+
+  const ratingButton = event.target.closest("[data-save-rating]");
+  if (ratingButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    saveRequestRating(ratingButton.dataset.saveRating, ratingButton.dataset.ratingDirection, ratingButton);
+    return;
+  }
+
   const deleteButton = event.target.closest("[data-delete-request]");
   if (deleteButton) {
     event.preventDefault();
@@ -2401,22 +2623,48 @@ modal.addEventListener("click", (event) => {
   if (event.target === modal) closeModal();
 });
 
-document.addEventListener("keydown", (event) => {
-  const modalIsOpen = !modal.classList.contains("hidden");
 
-  if (event.key === "Escape" && modalIsOpen) {
+legalChecks.forEach((check) => {
+  check.addEventListener("change", updateLegalAcceptState);
+});
+
+acceptLegalTermsButton?.addEventListener("click", async () => {
+  if (acceptLegalTermsButton.disabled) return;
+  acceptLegalTermsButton.disabled = true;
+  acceptLegalTermsButton.textContent = "Guardando...";
+  const payload = Array.from(legalChecks).reduce((items, check) => {
+    items[check.dataset.legalCheck] = check.checked;
+    return items;
+  }, { role: profile.role });
+  try {
+    await dataProvider.acceptLegalConsent?.(payload);
+    closeLegalModal();
+  } finally {
+    acceptLegalTermsButton.textContent = "Aceptar y continuar";
+    updateLegalAcceptState();
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  const legalModalIsOpen = legalModal && !legalModal.classList.contains("hidden");
+  const modalIsOpen = !modal.classList.contains("hidden") || legalModalIsOpen;
+
+  if (event.key === "Escape" && !legalModalIsOpen && !modal.classList.contains("hidden")) {
     closeModal();
   }
 
   if (event.key !== "Tab" || !modalIsOpen) return;
 
-  const focusableElements = getFocusableModalElements();
+  const activeModal = legalModalIsOpen ? legalModal : modal;
+  const focusableElements = Array.from(
+    activeModal.querySelectorAll('a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])')
+  );
   if (!focusableElements.length) return;
 
   const firstElement = focusableElements[0];
   const lastElement = focusableElements[focusableElements.length - 1];
 
-  if (document.activeElement === modal) {
+  if (document.activeElement === activeModal) {
     event.preventDefault();
     if (event.shiftKey) {
       lastElement.focus();
@@ -2455,6 +2703,7 @@ async function startApp() {
   }
 
   updateAuthPanel();
+  maybePromptLegalConsent();
   const initialView = window.location.hash || (currentUser() ? "account" : "home");
   showView(initialView, { push: false, focus: false });
 }
