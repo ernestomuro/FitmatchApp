@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-labelledby="title">
+  <title id="title">Fit Match mark</title>
+  <rect width="120" height="120" rx="24" fill="#101815"/>
+  <path d="M20 82V38h51L60 50H36v13h20L44 75h-8v7z" fill="#fffefa"/>
+  <path d="M62 82V43l18 18 24-30v51H90V62L80 75 68 63v19z" fill="#86a56f"/>
+  <path d="M20 26h58L67 38H20z" fill="#fffefa"/>
+  <circle cx="66" cy="84" r="4" fill="#d9584a"/>
+</svg>

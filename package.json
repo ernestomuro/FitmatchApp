@@ -1,0 +1,11 @@
+{
+  "name": "fit-match",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Primera version funcional de Fit Match para conectar clientes con profesionales fitness por afinidad.",
+  "scripts": {
+    "dev": "python3 -m http.server 4173",
+    "start": "python3 -m http.server 4173",
+    "check": "node --check assets/js/app.js && node --check assets/js/data.js && node --check assets/js/dataProvider.js"
+  }
+}

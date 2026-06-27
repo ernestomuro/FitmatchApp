@@ -1,0 +1,831 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Fit Match conecta clientes con entrenadores, nutricionistas y profesionales fitness mediante afinidad de perfil."
+    />
+    <meta name="theme-color" content="#050605" />
+    <meta property="og:title" content="Fit Match" />
+    <meta
+      property="og:description"
+      content="Primera versión funcional de Fit Match para conectar clientes con profesionales fitness compatibles."
+    />
+    <meta property="og:type" content="website" />
+    <title>Fit Match</title>
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./assets/css/styles.css" />
+    <link rel="stylesheet" href="./assets/css/premium-style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">FM</div>
+        <div>
+          <strong>Fit Match</strong>
+          <span>Clientes y profesionales compatibles</span>
+        </div>
+      </div>
+      <nav class="nav" aria-label="Navegación principal">
+        <button class="nav-link active" type="button" data-view="home" aria-current="page">Inicio</button>
+        <button class="nav-link" type="button" data-view="account">Cuenta</button>
+        <button class="nav-link" type="button" data-view="register">Perfil</button>
+        <button class="nav-link" type="button" data-view="matches">Matches</button>
+        <button class="nav-link" type="button" data-view="contacts">Contactos</button>
+      </nav>
+      <button id="reviewToggle" class="review-toggle" type="button" aria-pressed="false">
+        Montaje
+      </button>
+    </header>
+
+    <main>
+      <section id="home" class="app-view active-view" data-view-name="home">
+        <div class="hero app-hero split-entry-hero">
+          <div class="hero-copy">
+            <p class="eyebrow">Fit Match</p>
+            <h1>Entrena con quien realmente encaja contigo.</h1>
+            <p>
+              Encontrar el profesional adecuado no debería depender del azar, recomendaciones improvisadas o cientos de perfiles sin contexto.
+              Fit Match conecta clientes y profesionales según objetivos, experiencia, especialidad y compatibilidad real.
+            </p>
+            <div class="route-pills" aria-label="Dos caminos de Fit Match">
+              <span>Compatibilidad real</span>
+              <span>Menos ruido</span>
+              <span>Mejores resultados</span>
+            </div>
+            <div class="trust-row" aria-label="Valores principales de Fit Match">
+              <span>Objetivos claros</span>
+              <span>Criterio profesional</span>
+              <span>Conexiones de calidad</span>
+            </div>
+            <p class="review-note">
+              Nota montaje: esta pantalla debe explicar valor antes de pedir acción. Primero deseo,
+              luego confianza, después elección de camino.
+            </p>
+          </div>
+          <aside class="purpose-card" aria-label="Para qué sirve Fit Match">
+            <span class="micro-label">Conexión inteligente</span>
+            <strong>No es un directorio más.</strong>
+            <p>
+              Fit Match ordena la información importante para que cada contacto tenga contexto,
+              intención y una razón clara para empezar.
+            </p>
+            <figure class="network-visual-card primary-network" aria-label="Red visual de conexiones Fit Match">
+              <img src="./assets/visuals/fit-match-network.svg" alt="Fit Match conectando clientes, entrenadores, nutricionistas y fisioterapeutas en una red de afinidad" />
+            </figure>
+            <article class="fit-context-card fit-context-home" aria-label="Tu matching en Fit Match">
+              <div class="fit-context-score">
+                <strong>87%</strong>
+                <span>encaje orientativo</span>
+              </div>
+              <div class="fit-context-body">
+                <span class="micro-label">Tu matching en Fit Match</span>
+                <strong>Coincidencias reales que importan.</strong>
+                <p>Analizamos señales concretas para conectar personas y profesionales compatibles.</p>
+              </div>
+              <div class="fit-context-route" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+              </div>
+              <div class="fit-context-signals" aria-hidden="true">
+                <span>Objetivos alineados</span>
+                <span>Metodología compatible</span>
+                <span>Ubicación cercana</span>
+                <span>Experiencia óptima</span>
+              </div>
+            </article>
+            <p class="review-note">
+              Nota montaje: este bloque sustituye al mensaje frío de demo. Debe vender confianza,
+              no tecnología.
+            </p>
+          </aside>
+        </div>
+
+        <section class="home-story" aria-labelledby="homeStoryTitle">
+          <div class="home-story-copy">
+            <p class="eyebrow">POR QUÉ EXISTE</p>
+            <h2 id="homeStoryTitle">Elegir un profesional no debería ser cuestión de suerte.</h2>
+            <p>
+              Cada persona tiene objetivos, limitaciones, preferencias y circunstancias diferentes.
+              Un gran profesional no es necesariamente el adecuado para todos.
+              Fit Match nace para ordenar ese primer encuentro y ayudar a que clientes y profesionales comiencen la relación con expectativas claras, afinidad real y mayores posibilidades de éxito.
+            </p>
+          </div>
+          <div class="value-grid" aria-label="Principios de Fit Match">
+            <article class="value-card calm-card">
+              <span>01</span>
+              <strong>Claridad</strong>
+              <p>El cliente define objetivos, necesidades y preferencias para recibir propuestas realmente relevantes.</p>
+            </article>
+            <article class="value-card focus-card">
+              <span>02</span>
+              <strong>Criterio</strong>
+              <p>Los profesionales aparecen cuando su experiencia, metodología y especialidad encajan con la búsqueda realizada.</p>
+            </article>
+            <article class="value-card trust-card">
+              <span>03</span>
+              <strong>Confianza</strong>
+              <p>Cada coincidencia incluye razones visibles para comprender por qué existe compatibilidad.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="how-it-works" aria-label="Cómo funciona Fit Match">
+          <div class="flow-step">
+            <span>DEFINE</span>
+            <strong>Tu punto de partida</strong>
+            <p>Describe tus objetivos, preferencias, experiencia y contexto. Cuanta más información aportes, mejores serán las recomendaciones.</p>
+          </div>
+          <div class="flow-line" aria-hidden="true"></div>
+          <div class="flow-step">
+            <span>CRUZA</span>
+            <strong>Compatibilidad real</strong>
+            <p>Fit Match analiza perfiles de clientes y profesionales para identificar afinidades relevantes y mostrar las opciones más adecuadas.</p>
+          </div>
+          <div class="flow-line" aria-hidden="true"></div>
+          <div class="flow-step">
+            <span>CONTACTA</span>
+            <strong>Empieza con sentido</strong>
+            <p>Cada solicitud incluye contexto real para facilitar conversaciones más útiles y conexiones de calidad.</p>
+          </div>
+        </section>
+
+        <div class="path-grid" aria-label="Selecciona tipo de cuenta">
+          <article class="path-card client-path">
+            <span class="path-number">01</span>
+            <p class="eyebrow">PARA CLIENTES</p>
+            <h2>Soy cliente</h2>
+            <p>
+              Describe tus objetivos y preferencias. Fit Match te mostrará los profesionales más adecuados para ayudarte a conseguirlos.
+            </p>
+            <p class="review-note">
+              Nota montaje: ruta cliente. Aquí probamos necesidad, contexto y solicitud.
+            </p>
+            <button class="button primary" type="button" data-start-role="client">Encontrar profesional</button>
+          </article>
+
+          <article class="path-card professional-path">
+            <span class="path-number">02</span>
+            <p class="eyebrow">PARA PROFESIONALES</p>
+            <h2>Soy profesional</h2>
+            <p>
+              Presenta tu experiencia, especialidades y metodología para conectar con clientes que realmente buscan lo que ofreces.
+            </p>
+            <p class="review-note">
+              Nota montaje: ruta profesional. Aquí probamos oferta, disponibilidad y propuesta.
+            </p>
+            <button class="button primary" type="button" data-start-role="professional">Unirme a Fit Match</button>
+          </article>
+        </div>
+
+        <div class="product-strip app-status-strip" aria-label="Estado de producto">
+          <div>
+            <span>Base</span>
+            <strong>Compatibilidad real</strong>
+          </div>
+          <div>
+            <span>Experiencia</span>
+            <strong>Menos ruido</strong>
+          </div>
+          <div>
+            <span>Resultado</span>
+            <strong>Mejores resultados</strong>
+          </div>
+        </div>
+      </section>
+
+      <section id="account" class="workspace account-view app-view" data-view-name="account" hidden>
+        <div class="screen-header account-header">
+          <div>
+            <p class="eyebrow">Cuenta Fit Match</p>
+            <h2>Cuenta y acceso.</h2>
+            <p>
+              Has elegido una ruta. Ahora puedes ingresar si ya tienes cuenta o crear una nueva
+              antes de completar el perfil que se cruzará en matches.
+            </p>
+            <p class="review-note">
+              Nota montaje: esta pantalla concentra solo acceso y confianza. El cuestionario vive en su propia página.
+            </p>
+          </div>
+          <div class="screen-actions">
+            <button class="button quiet" type="button" data-view="home">Volver al inicio</button>
+          </div>
+        </div>
+
+        <div class="account-layout account-dashboard-layout">
+          <section id="authPanel" class="auth-panel account-command" aria-live="polite">
+            <section id="accountWelcomeCard" class="account-welcome-card">
+              <div class="account-route-summary">
+                <span class="micro-label">Ruta seleccionada</span>
+                <strong id="accountRoleTitle">Cliente</strong>
+                <p id="accountRoleCopy">Busca profesionales compatibles con tu objetivo y contexto.</p>
+              </div>
+              <div class="account-choice-note">
+                <span class="micro-label">Cuenta Fit Match</span>
+                <strong id="authTitle">Bienvenido a Fit Match</strong>
+                <p id="authStatus">Inicia sesión para acceder a tus matches, contactos y perfil.</p>
+                <p id="connectedAccountEmail" class="connected-account-email" hidden></p>
+              </div>
+              <form id="authForm" class="auth-form" autocomplete="off">
+                <div id="authLoginFields" class="auth-login-fields">
+                  <label>
+                    Email de cuenta
+                    <input id="authEmailInput" name="login-email" type="email" autocomplete="email" placeholder="tu@email.com" required />
+                  </label>
+                  <label>
+                    Contraseña
+                    <input id="authPasswordInput" name="login-password" type="password" autocomplete="current-password" placeholder="Tu contraseña" required />
+                  </label>
+                </div>
+                <div class="auth-actions">
+                  <button id="signInButton" class="button primary" type="submit" data-auth-action="signin">Iniciar sesión</button>
+                  <button id="createAccountRouteButton" class="button secondary" type="button" data-view="register">Crear cuenta cliente</button>
+                  <button class="button quiet" id="signOutButton" type="button" hidden>Cerrar sesión</button>
+                </div>
+              </form>
+            </section>
+
+            <section id="profileHomeCard" class="profile-home-card account-dashboard-card" aria-live="polite" hidden>
+              <div class="profile-home-main account-hero-main">
+                <div id="profileHomePhoto" class="profile-home-photo" aria-hidden="true">FM</div>
+                <div class="account-identity">
+                  <span class="micro-label">Mi panel personal</span>
+                  <strong id="profileHomeName">Tu perfil</strong>
+                  <p id="profileHomeSummary">Revisa tus coincidencias, contactos y perfil desde una zona limpia.</p>
+                  <div class="account-identity-grid" aria-label="Resumen personal">
+                    <span><small>Email</small><strong id="accountEmailValue">Sin email</strong></span>
+                    <span><small>Tipo de cuenta</small><strong id="accountRoleValue">Cliente</strong></span>
+                    <span><small>Ciudad</small><strong id="accountCityValue">Pendiente</strong></span>
+                    <span><small>Objetivo principal</small><strong id="accountGoalValue">Pendiente</strong></span>
+                    <span><small>Estado</small><strong id="accountStatusValue">Activo</strong></span>
+                    <span><small>Perfil</small><strong id="accountCompletionValue">0% completo</strong></span>
+                  </div>
+                </div>
+              </div>
+              <article class="fit-context-card fit-context-dashboard" aria-label="Rendimiento de tu cuenta Fit Match">
+                <div class="fit-context-score">
+                  <strong id="accountContextScore">0%</strong>
+                  <span>perfil activo</span>
+                </div>
+                <div class="fit-context-body">
+                  <span class="micro-label">Tu rendimiento en Fit Match</span>
+                  <strong id="accountContextTitle">Resumen de compatibilidad</strong>
+                  <p id="accountContextCopy">Tus coincidencias y contactos aparecerán aquí cuando tu perfil tenga actividad.</p>
+                </div>
+                <div class="fit-context-dashboard-stats" aria-label="Resumen contextual">
+                  <span><strong id="accountContextMatches">0</strong><small>matches</small></span>
+                  <span><strong id="accountContextContacts">0</strong><small>contactos</small></span>
+                  <span><strong id="accountContextMessages">0</strong><small>mensajes</small></span>
+                  <span><strong id="accountContextDelta">--</strong><small>afinidad</small></span>
+                </div>
+              </article>
+              <div class="profile-home-metrics account-kpi-grid" aria-label="Indicadores de tu cuenta">
+                <span><strong id="profileHomeMatches">0</strong><small>matches posibles</small></span>
+                <span><strong id="profileHomeContacts">0</strong><small>contactos activos</small></span>
+                <span><strong id="profileHomeMessages">0</strong><small>mensajes o solicitudes</small></span>
+                <span><strong id="profileHomeAffinity">--</strong><small>afinidad media</small></span>
+              </div>
+              <p id="profileHomeUnreadAlert" class="profile-home-alert" hidden></p>
+              <div class="profile-home-actions account-quick-actions">
+                <button class="button primary" type="button" data-view="matches">Ver matches</button>
+                <button class="button secondary" type="button" data-view="contacts">Contactos y mensajes</button>
+                <button class="button quiet" type="button" data-view="register">Editar perfil</button>
+                <button class="button quiet" type="button" data-sign-out>Cerrar sesión</button>
+              </div>
+            </section>
+
+            <section id="accountWorkspace" class="account-workspace-card" hidden>
+              <div class="account-section-title">
+                <span class="micro-label">Mi espacio Fit Match</span>
+                <strong id="accountWorkspaceTitle">Tu centro de operaciones</strong>
+                <p id="accountWorkspaceCopy">Resumen práctico de tu ruta, tus señales de matching y tu actividad.</p>
+              </div>
+              <div class="account-detail-grid" aria-label="Detalles de tu espacio Fit Match">
+                <span><small id="accountDetailPrimaryLabel">Objetivo principal</small><strong id="accountDetailPrimary">Pendiente</strong></span>
+                <span><small id="accountDetailSecondaryLabel">Modalidad</small><strong id="accountDetailSecondary">Pendiente</strong></span>
+                <span><small>Ciudad o zona</small><strong id="accountDetailCity">Pendiente</strong></span>
+                <span><small>Nivel</small><strong id="accountDetailLevel">Pendiente</strong></span>
+                <span><small>Matches disponibles</small><strong id="accountDetailMatches">0</strong></span>
+                <span><small id="accountDetailContactsLabel">Contactos activos</small><strong id="accountDetailContacts">0</strong></span>
+                <span><small>Perfil completado</small><strong id="accountDetailCompletion">0%</strong></span>
+                <span><small>Última actividad</small><strong id="accountDetailActivity">Sin actividad</strong></span>
+              </div>
+            </section>
+          </section>
+
+          <aside id="accountAside" class="account-aside account-personal-aside" aria-label="Progreso y actividad de la cuenta">
+            <span id="accountAsideLabel" class="micro-label">Cuenta Fit Match</span>
+            <strong id="accountAsideTitle">Bienvenido a Fit Match</strong>
+            <p id="accountAsideCopy">Inicia sesión para acceder a tus matches, contactos y perfil.</p>
+
+            <div id="accountProgressCard" class="account-progress-card" hidden>
+              <div class="account-mini-heading">
+                <span class="micro-label">Tu perfil</span>
+                <strong id="accountProgressTitle">Perfil completado: 0%</strong>
+              </div>
+              <div class="account-progress-track" aria-hidden="true"><span id="accountProgressBar"></span></div>
+              <div class="account-field-columns">
+                <div>
+                  <small>Completado</small>
+                  <ul id="accountCompletedFields"></ul>
+                </div>
+                <div>
+                  <small>Pendiente</small>
+                  <ul id="accountPendingFields"></ul>
+                </div>
+              </div>
+              <p id="accountProfileRecommendation" class="account-recommendation">Completa disponibilidad y preferencias para mejorar tus resultados.</p>
+            </div>
+
+            <div id="accountActivityCard" class="account-activity-card" hidden>
+              <div class="account-mini-heading">
+                <span class="micro-label">Actividad</span>
+                <strong>Resumen rápido</strong>
+              </div>
+              <div class="account-activity-grid">
+                <span><small>Matches</small><strong id="accountActivityMatches">0</strong></span>
+                <span><small>Contactos abiertos</small><strong id="accountActivityContacts">0</strong></span>
+                <span><small>Solicitudes pendientes</small><strong id="accountActivityPending">0</strong></span>
+                <span><small>Última actualización</small><strong id="accountActivityUpdated">Sin actividad</strong></span>
+              </div>
+            </div>
+
+            <figure class="side-network-visual" aria-hidden="true">
+              <img src="./assets/visuals/fit-match-pattern.svg" alt="" />
+            </figure>
+            <div id="accountSteps" class="account-steps" aria-hidden="true">
+              <span>01 Cuenta</span>
+              <span>02 Perfil</span>
+              <span>03 Matches</span>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="onboarding" class="workspace app-workspace app-view" data-view-name="register" hidden>
+        <div class="section-heading app-section-heading">
+          <p class="eyebrow">Cuestionario</p>
+          <h2 id="onboardingTitle">Cuéntale a Fit Match qué necesitas</h2>
+          <p id="onboardingCopy">
+            Crea tu cuenta y completa tu perfil en una sola ruta. Al guardar, Fit Match podrá cruzarlo con perfiles compatibles.
+          </p>
+          <p class="review-note">
+            Nota montaje: esta zona es el laboratorio del perfil activo. Debe sentirse como una
+            página de cliente o una página de profesional, no como ambos roles mezclados.
+          </p>
+        </div>
+
+        <div class="screen-actions top-actions">
+          <button class="button quiet" type="button" data-view="home">Volver al inicio</button>
+        </div>
+
+        <div class="register-layout">
+          <div class="role-hemispheres" aria-label="Ruta activa de Fit Match">
+            <div class="hemisphere-card client-hemisphere">
+              <span>Ruta cliente</span>
+              <strong>Necesidad, objetivo y contexto personal</strong>
+              <small>Registra lo que buscas, tu deporte, tus límites y cómo quieres avanzar.</small>
+            </div>
+            <div class="hemisphere-card professional-hemisphere">
+              <span>Ruta profesional</span>
+              <strong>Servicio, método y criterio de trabajo</strong>
+              <small>Registra lo que ofreces, a quién ayudas y qué tipo de cliente encaja contigo.</small>
+            </div>
+          </div>
+          <p class="review-note register-review-note">
+            Nota montaje: ahora solo se muestra la ruta activa. El otro rol existe, pero no aparece
+            al lado compitiendo visualmente.
+          </p>
+
+          <figure class="profile-network-strip" aria-hidden="true">
+            <img src="./assets/visuals/fit-match-pattern.svg" alt="" />
+          </figure>
+
+          <article id="profileContextCard" class="fit-context-card fit-context-profile" aria-label="Compatibilidad del perfil">
+            <div class="fit-context-score">
+              <strong id="profileContextScore">79%</strong>
+              <span id="profileContextScoreLabel">perfil en progreso</span>
+            </div>
+            <div class="fit-context-body">
+              <span id="profileContextKicker" class="micro-label">Tu perfil y tus matches</span>
+              <strong id="profileContextTitle">Vas por buen camino.</strong>
+              <p id="profileContextCopy">Completa tu perfil para recibir matches aún más precisos.</p>
+            </div>
+            <div class="fit-context-route" aria-hidden="true">
+              <span></span><span></span><span></span><span></span>
+            </div>
+            <div id="profileContextSignals" class="fit-context-signals" aria-hidden="true">
+              <span>Objetivos definidos</span>
+              <span>Preferencias claras</span>
+              <span>Disponibilidad importante</span>
+              <span>Nivel adecuado</span>
+            </div>
+          </article>
+
+          <aside class="panel profile-panel">
+            <div class="role-switch hidden-role-switch" role="tablist" aria-label="Tipo de usuario">
+              <button
+                id="clientRole"
+                class="role-option active"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                aria-controls="matches"
+                data-role="client"
+              >
+                Cliente
+              </button>
+              <button
+                id="professionalRole"
+                class="role-option"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="matches"
+                data-role="professional"
+              >
+                Profesional
+              </button>
+            </div>
+
+            <form id="profileForm" class="profile-form" novalidate>
+              <div class="form-note" id="roleHelp">
+                <strong>Paso 1</strong>
+                <span>Completa tu perfil como cliente para descubrir profesionales recomendados.</span>
+              </div>
+
+              <section id="signupFields" class="credential-panel" aria-labelledby="signupFieldsTitle">
+                <span class="micro-label">Crear cuenta</span>
+                <strong id="signupFieldsTitle">1. Datos de acceso</strong>
+                <p>Email y contraseña se usarán para guardar tu perfil y volver a entrar más adelante.</p>
+                <div class="credential-create-fields">
+                  <label>
+                    Email de cuenta
+                    <input id="emailInput" name="signup-email" type="email" value="" autocomplete="email" aria-describedby="emailHint" />
+                    <span id="emailHint" class="field-hint">No se muestra en las tarjetas públicas de match.</span>
+                  </label>
+                  <label>
+                    Contraseña
+                    <input id="signupPasswordInput" name="signup-password" type="password" minlength="6" autocomplete="new-password" aria-describedby="signupPasswordHint" />
+                    <span id="signupPasswordHint" class="field-hint">Mínimo 6 caracteres.</span>
+                  </label>
+                  <label>
+                    Confirmar contraseña
+                    <input id="signupPasswordConfirmInput" name="signup-password-confirm" type="password" minlength="6" autocomplete="new-password" aria-describedby="signupPasswordConfirmHint" />
+                    <span id="signupPasswordConfirmHint" class="field-hint">Debe coincidir con la contraseña anterior.</span>
+                  </label>
+                </div>
+                <div class="credential-connected-note" aria-live="polite">
+                  <strong>Cuenta conectada</strong>
+                  <p id="signupConnectedEmail">Ya has ingresado. Puedes completar o actualizar tu perfil sin volver a escribir la contraseña.</p>
+                  <button id="signupSignOutButton" class="button secondary" type="button">Cerrar sesión y crear otra cuenta</button>
+                </div>
+              </section>
+
+              <div class="form-section-title">
+                <span class="micro-label">Datos personales</span>
+                <strong>2. Identidad básica</strong>
+                <p>Estos datos ayudan a ordenar tu cuenta. Tu email, teléfono y fecha de nacimiento no aparecen en las tarjetas públicas.</p>
+              </div>
+
+              <label>
+                Nombre
+                <input id="nameInput" type="text" value="" required aria-describedby="nameHint" />
+                <span id="nameHint" class="field-hint">Usa tu nombre o el nombre profesional con el que quieres aparecer.</span>
+              </label>
+
+              <div class="photo-field" aria-label="Foto de perfil">
+                <div id="photoPreview" class="profile-photo-preview" aria-hidden="true">FM</div>
+                <label>
+                  Foto de perfil
+                  <input id="photoInput" type="file" accept="image/*" aria-describedby="photoHint" />
+                  <span id="photoHint" class="field-hint">Se mostrará en tu tarjeta pública. La app la reduce antes de guardarla.</span>
+                </label>
+                <button id="removePhotoButton" class="button quiet" type="button" hidden>Quitar foto</button>
+              </div>
+
+              <label>
+                Fecha de nacimiento
+                <input id="birthdateInput" type="date" value="" aria-describedby="birthdateHint" />
+                <span id="birthdateHint" class="field-hint">Dato privado para futuras validaciones de cuenta y segmentación responsable.</span>
+              </label>
+
+              <label>
+                Teléfono de contacto
+                <input id="phoneInput" type="tel" value="" autocomplete="tel" aria-describedby="phoneHint" />
+                <span id="phoneHint" class="field-hint">Solo se comparte dentro de una solicitud o propuesta recibida, nunca en las tarjetas públicas.</span>
+              </label>
+
+              <label>
+                Ciudad
+                <input id="cityInput" type="text" value="" aria-describedby="cityHint" />
+                <span id="cityHint" class="field-hint">Ayuda a priorizar coincidencias presenciales o híbridas.</span>
+              </label>
+
+              <div class="form-section-title compact-section-title">
+                <span class="micro-label">Matching</span>
+                <strong>3. Criterios para cruzar perfiles</strong>
+                <p>Objetivo, deporte, modalidad, nivel, servicios y observaciones definen la afinidad.</p>
+              </div>
+
+              <label>
+                <span id="goalLabel">Objetivo principal</span>
+                <select id="goalInput" aria-describedby="goalHint">
+                  <option value="fuerza">Ganar fuerza</option>
+                  <option value="perdida-grasa">Perder grasa</option>
+                  <option value="nutricion">Mejorar nutrición</option>
+                  <option value="movilidad">Movilidad y salud</option>
+                  <option value="rendimiento">Rendimiento deportivo</option>
+                  <option value="hipertrofia">Hipertrofia</option>
+                  <option value="resistencia">Resistencia cardiovascular</option>
+                  <option value="rehabilitacion">Recuperación o rehabilitación</option>
+                  <option value="competicion">Preparar competición</option>
+                  <option value="tecnica">Mejorar técnica deportiva</option>
+                  <option value="deporte-especifico">Deporte específico</option>
+                  <option value="salud">Salud y hábitos</option>
+                  <option value="flexibilidad">Flexibilidad y movilidad</option>
+                  <option value="postparto">Postparto y readaptación</option>
+                </select>
+                <span id="goalHint" class="field-hint">El objetivo pesa bastante en el porcentaje de afinidad.</span>
+              </label>
+
+              <label>
+                <span id="sportLabel">Deporte o disciplina concreta</span>
+                <input id="sportInput" type="text" value="" placeholder="Ej. pádel, fútbol, hyrox, jiu jitsu, running" aria-describedby="sportHint" />
+                <span id="sportHint" class="field-hint">Si ambas partes escriben deportes o disciplinas parecidas, subirá la afinidad.</span>
+              </label>
+
+              <label>
+                <span id="modeLabel">Modalidad</span>
+                <select id="modeInput" aria-describedby="modeHint">
+                  <option value="online">Online</option>
+                  <option value="presencial">Presencial</option>
+                  <option value="hibrido">Híbrido</option>
+                </select>
+                <span id="modeHint" class="field-hint">Define cómo quieres trabajar: a distancia, en persona o mixto.</span>
+              </label>
+
+              <label>
+                <span id="levelLabel">Nivel</span>
+                <select id="levelInput" aria-describedby="levelHint">
+                  <option value="principiante">Principiante</option>
+                  <option value="intermedio">Intermedio</option>
+                  <option value="avanzado">Avanzado</option>
+                </select>
+                <span id="levelHint" class="field-hint">Sirve para ajustar la recomendación a tu punto de partida.</span>
+              </label>
+
+              <fieldset>
+                <legend id="servicesLegend">Servicios de interés</legend>
+                <p class="field-hint">Marca los servicios si quieres afinar el match. Puedes combinar entrenamiento, nutrición o fisioterapia.</p>
+                <label class="check-row">
+                  <input name="services" type="checkbox" value="entrenador" />
+                  Entrenador personal
+                </label>
+                <label class="check-row">
+                  <input name="services" type="checkbox" value="nutricionista" />
+                  Nutricionista
+                </label>
+                <label class="check-row">
+                  <input name="services" type="checkbox" value="rehabilitacion" />
+                  Rehabilitación
+                </label>
+                <label class="check-row">
+                  <input name="services" type="checkbox" value="fisioterapia" />
+                  Fisioterapia
+                </label>
+                <label class="check-row">
+                  <input name="services" type="checkbox" value="running" />
+                  Running
+                </label>
+                <label class="check-row">
+                  <input name="services" type="checkbox" value="fuerza" />
+                  Fuerza
+                </label>
+                <label class="check-row">
+                  <input name="services" type="checkbox" value="movilidad" />
+                  Movilidad
+                </label>
+                <label class="check-row">
+                  <input name="services" type="checkbox" value="deportes" />
+                  Deporte específico
+                </label>
+                <label class="check-row">
+                  <input name="services" type="checkbox" value="readaptacion" />
+                  Readaptación
+                </label>
+              </fieldset>
+
+              <label>
+                <span id="priceLabel">Presupuesto por sesión</span>
+                <input id="priceInput" type="number" min="0" step="1" value="" aria-describedby="priceHint" />
+                <span id="priceHint" class="field-hint">Como cliente es presupuesto; como profesional es precio orientativo.</span>
+              </label>
+
+              <label>
+                <span id="availabilityLabel">Disponibilidad</span>
+                <input id="availabilityInput" type="text" value="" placeholder="Ej. tardes, online, fines de semana" aria-describedby="availabilityHint" />
+                <span id="availabilityHint" class="field-hint">Ayuda a detectar si el contacto tiene sentido.</span>
+              </label>
+
+              <label>
+                <span id="bioLabel">Descripción pública breve</span>
+                <textarea id="bioInput" rows="3" placeholder="Qué buscas u ofreces, experiencia, enfoque o preferencias principales." aria-describedby="bioHint"></textarea>
+                <span id="bioHint" class="field-hint">Se mostrará en las tarjetas de match, sin enseñar tu email.</span>
+              </label>
+
+              <label>
+                <span id="notesLabel">Observaciones para afinar el match</span>
+                <textarea id="notesInput" rows="4" placeholder="Ej. lesión de rodilla, preparación de media maratón, pádel competitivo, hipertrofia, disponibilidad mañanas." aria-describedby="notesHint"></textarea>
+                <span id="notesHint" class="field-hint">Fit Match cruza palabras relevantes de estas notas con la otra parte.</span>
+              </label>
+
+              <div class="form-actions">
+                <button class="button primary full" type="submit">Guardar perfil y buscar matches</button>
+              </div>
+            </form>
+
+            <div class="profile-status" aria-live="polite">
+              <span class="micro-label">Estado del perfil</span>
+              <strong id="profileStatusTitle">Tu perfil aún no está guardado</strong>
+              <p id="profileStatusCopy">Completa tus datos y guarda tu perfil para calcular matches compatibles.</p>
+              <div class="status-meter" aria-hidden="true"><span id="profileStatusBar"></span></div>
+              <div class="status-grid">
+                <span><strong id="savedRoleLabel">Cliente</strong> Rol activo</span>
+                <span><strong id="savedRequestsCount">0</strong> Contactos</span>
+              </div>
+              <button class="button quiet full" id="clearProfiles" type="button">Eliminar mi perfil y datos guardados</button>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="matches" class="workspace matches-view app-view" data-view-name="matches" role="tabpanel" aria-labelledby="clientRole" hidden>
+        <div class="screen-header">
+          <div>
+            <p class="eyebrow">Tu zona de matches</p>
+            <h2 id="matchesTitle">Perfiles afines</h2>
+            <p id="matchesCopy">
+              Ordenamos los perfiles por afinidad. El porcentaje resume las
+              coincidencias entre tus preferencias y cada perfil.
+            </p>
+            <p class="review-note">
+              Nota montaje: aquí se cruzan los hemisferios. No se editan datos; solo se comparan
+              perfiles compatibles y se prepara el contacto.
+            </p>
+          </div>
+          <div class="screen-actions">
+            <button class="button quiet" type="button" data-view="register">Volver al cuestionario</button>
+            <button class="button secondary" type="button" data-view="contacts">Ver contactos</button>
+          </div>
+        </div>
+
+        <article class="fit-context-card fit-context-matches" aria-label="Compatibilidad de tus resultados">
+          <div class="fit-context-score">
+            <strong id="matchesContextScore">91%</strong>
+            <span>alta afinidad</span>
+          </div>
+          <div class="fit-context-body">
+            <span class="micro-label">Compatibilidad con tus resultados</span>
+            <strong>Perfiles ordenados por señales reales.</strong>
+            <p>El porcentaje resume objetivo, modalidad, nivel, servicios, ubicación y notas compartidas.</p>
+          </div>
+          <div class="fit-context-route" aria-hidden="true">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <div class="fit-context-signals" aria-hidden="true">
+            <span>Objetivos alineados</span>
+            <span>Especialidad compatible</span>
+            <span>Ubicación cercana</span>
+            <span>Interés real</span>
+          </div>
+        </article>
+
+        <div class="matches-panel app-panel">
+          <div class="matches-header">
+            <div>
+              <span class="micro-label">Resultados</span>
+              <strong>Perfiles compatibles para tu cuenta</strong>
+            </div>
+            <label class="compact-select">
+              Orden
+              <select id="sortInput" aria-label="Ordenar matches">
+                <option value="score">Mejor match</option>
+                <option value="price">Precio más bajo</option>
+                <option value="recent">Más reciente</option>
+              </select>
+            </label>
+          </div>
+          <div class="match-toolbar">
+            <p id="resultsSummary" role="status" aria-live="polite">Calculando afinidad...</p>
+            <span class="score-guide">Abre cada perfil para revisar detalles antes de contactar.</span>
+          </div>
+          <figure class="panel-network-banner match-network-banner" aria-hidden="true">
+            <img src="./assets/visuals/fit-match-pattern.svg" alt="" />
+          </figure>
+          <div id="matchList" class="match-list"></div>
+        </div>
+      </section>
+
+      <section id="solicitudes" class="requests app-requests app-view" data-view-name="contacts" hidden>
+        <div class="screen-header">
+          <div>
+            <p class="eyebrow">Siguiente paso</p>
+            <h2 id="requestsTitle">Entrada de solicitudes</h2>
+            <p id="requestsCopy">
+              Usa esta zona para leer lo que recibes y revisar lo que envías dentro de Fit Match.
+            </p>
+            <p class="review-note">
+              Nota montaje: esta pantalla debe sentirse como cierre de acción. Más adelante aquí
+              vivirán estados reales, aceptación, calendario y conversación.
+            </p>
+          </div>
+          <div class="screen-actions">
+            <button class="button quiet" type="button" data-view="matches">Volver a matches</button>
+            <button class="button secondary" type="button" data-view="register">Editar mi perfil</button>
+          </div>
+        </div>
+        <div class="requests-column">
+          <article class="fit-context-card fit-context-contact" aria-label="Compatibilidad de la conversación">
+            <div class="fit-context-score">
+              <strong>88%</strong>
+              <span>con potencial</span>
+            </div>
+            <div class="fit-context-body">
+              <span class="micro-label">Compatibilidad en esta conversación</span>
+              <strong>La calidad del contacto también importa.</strong>
+              <p>Las solicitudes guardan contexto para que el primer mensaje no llegue frío.</p>
+            </div>
+            <div class="fit-context-route" aria-hidden="true">
+              <span></span><span></span><span></span><span></span>
+            </div>
+            <div class="fit-context-signals" aria-hidden="true">
+              <span>Objetivos claros</span>
+              <span>Comunicación fluida</span>
+              <span>Expectativas alineadas</span>
+              <span>Respuesta pendiente</span>
+            </div>
+          </article>
+          <figure class="panel-network-banner contact-network-banner" aria-hidden="true">
+            <img src="./assets/visuals/fit-match-pattern.svg" alt="" />
+          </figure>
+          <div id="requestBox" class="request-box">
+            <strong>Aún no hay contacto preparado</strong>
+            <p>Elige un perfil compatible y pulsa “Solicitar servicio” para preparar el contacto.</p>
+          </div>
+          <div class="request-history">
+            <div class="history-heading">
+              <div>
+                <span class="micro-label">Actividad local</span>
+                <strong id="historyTitle">Entrada y enviadas</strong>
+              </div>
+              <button id="clearRequests" class="button quiet" type="button">Selecciona mensajes</button>
+            </div>
+            <div id="requestList" class="request-list" aria-live="polite"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="brand">
+        <div class="brand-mark">FM</div>
+        <div>
+          <strong>Fit Match</strong>
+          <span>Primera conexión real con Supabase</span>
+        </div>
+      </div>
+      <span>Ahora puedes crear cuentas, guardar perfiles y preparar el matching sobre Supabase.</span>
+    </footer>
+
+    <div
+      id="modal"
+      class="modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modalTitle"
+      aria-describedby="modalText"
+      tabindex="-1"
+    >
+      <div class="modal-card">
+        <button id="closeModal" class="icon-button" type="button" aria-label="Cerrar">×</button>
+        <p class="eyebrow">Perfil seleccionado</p>
+        <h2 id="modalTitle">Solicitar servicio</h2>
+        <p id="modalText"></p>
+        <div id="profileDetail" class="profile-detail" hidden></div>
+        <label class="modal-field" for="messageInput">
+          Mensaje inicial
+          <textarea id="messageInput" rows="5">Hola, me interesa tu perfil. Me gustaría saber disponibilidad y cómo sería el primer plan.</textarea>
+        </label>
+        <button id="sendRequest" class="button primary full" type="button">Enviar solicitud</button>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./assets/js/supabaseConfig.js"></script>
+    <script src="./assets/js/data.js"></script>
+    <script src="./assets/js/dataProvider.js"></script>
+    <script src="./assets/js/app.js"></script>
+  </body>
+</html>
