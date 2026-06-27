@@ -5429,3 +5429,304 @@ body.role-professional .request-box .button.primary:hover {
     height: 36px;
   }
 }
+
+
+/* Revisión Codex: ilustraciones descriptivas y capas limpias */
+.network-visual-card,
+.side-network-visual,
+.profile-network-strip,
+.panel-network-banner {
+  isolation: isolate !important;
+  pointer-events: none !important;
+}
+
+.network-visual-card img,
+.side-network-visual img,
+.profile-network-strip img,
+.panel-network-banner img {
+  object-fit: contain !important;
+  padding: clamp(10px, 1.8vw, 18px) !important;
+  filter: saturate(0.92) contrast(1.02) brightness(1.01) !important;
+}
+
+.primary-network {
+  min-height: 240px !important;
+  background:
+    radial-gradient(circle at 80% 12%, rgba(255, 122, 106, 0.08), transparent 30%),
+    linear-gradient(145deg, #fffaf0, #edf5ec) !important;
+}
+
+.side-network-visual {
+  min-height: 170px !important;
+}
+
+.profile-network-strip,
+.panel-network-banner {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255, 122, 106, 0.055), transparent 32%),
+    linear-gradient(145deg, #fffaf0, #edf5ec) !important;
+}
+
+.profile-network-strip {
+  min-height: 132px !important;
+  max-height: 168px !important;
+  margin-bottom: clamp(18px, 3vw, 26px) !important;
+}
+
+.panel-network-banner {
+  position: relative !important;
+  z-index: 0 !important;
+  min-height: 142px !important;
+  max-height: 176px !important;
+  margin: 20px 0 22px !important;
+}
+
+.network-visual-card::after,
+.side-network-visual::after,
+.profile-network-strip::after,
+.panel-network-banner::after {
+  opacity: 0.34 !important;
+  mix-blend-mode: normal !important;
+}
+
+.matches-panel,
+.requests-column {
+  position: relative !important;
+  overflow: visible !important;
+}
+
+.matches-header,
+.match-toolbar,
+.match-list,
+.request-history,
+.request-box {
+  position: relative !important;
+  z-index: 3 !important;
+}
+
+.compact-select {
+  position: relative !important;
+  z-index: 6 !important;
+  min-width: min(100%, 240px) !important;
+}
+
+.compact-select select {
+  position: relative !important;
+  z-index: 7 !important;
+  background-color: rgba(255, 253, 247, 0.96) !important;
+  box-shadow: 0 12px 28px rgba(15, 46, 43, 0.08) !important;
+}
+
+.fit-context-card .fit-context-route {
+  overflow: hidden !important;
+}
+
+#matches .fit-context-card .fit-context-route,
+#solicitudes .fit-context-card .fit-context-route {
+  opacity: 0.54 !important;
+}
+
+@media (max-width: 760px) {
+  .network-visual-card img,
+  .side-network-visual img,
+  .profile-network-strip img,
+  .panel-network-banner img {
+    padding: 8px !important;
+  }
+
+  .panel-network-banner {
+    min-height: 118px !important;
+    max-height: 142px !important;
+    margin: 16px 0 18px !important;
+  }
+
+  .profile-network-strip {
+    min-height: 108px !important;
+    max-height: 132px !important;
+  }
+}
+
+
+/* Revisión Codex: cabecera de Matches sin solapes */
+#matches .matches-panel {
+  isolation: isolate !important;
+  overflow: visible !important;
+}
+
+#matches .matches-panel::before,
+#matches .matches-panel::after {
+  display: none !important;
+  content: none !important;
+}
+
+#matches .matches-header {
+  position: relative !important;
+  z-index: 8 !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 260px) !important;
+  gap: clamp(18px, 3vw, 32px) !important;
+  align-items: center !important;
+  margin: 0 0 16px !important;
+  padding: clamp(18px, 2.2vw, 24px) !important;
+  border: 1px solid rgba(31, 118, 95, 0.18) !important;
+  border-radius: 28px !important;
+  background:
+    linear-gradient(145deg, rgba(255, 253, 247, 0.98), rgba(246, 250, 243, 0.96)) !important;
+  box-shadow: 0 18px 44px rgba(24, 50, 41, 0.08) !important;
+  overflow: visible !important;
+}
+
+#matches .matches-header > div,
+#matches .matches-header .compact-select {
+  min-width: 0 !important;
+}
+
+#matches .matches-header .micro-label {
+  color: #1f765f !important;
+  text-shadow: none !important;
+}
+
+#matches .matches-header strong {
+  display: block !important;
+  margin-top: 6px !important;
+  color: #10201b !important;
+  opacity: 1 !important;
+  line-height: 1.16 !important;
+  text-shadow: none !important;
+}
+
+#matches .compact-select {
+  justify-self: end !important;
+  align-self: stretch !important;
+  display: grid !important;
+  width: min(100%, 260px) !important;
+  min-width: 0 !important;
+  gap: 8px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #10201b !important;
+  font-weight: 900 !important;
+}
+
+#matches .compact-select select {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 56px !important;
+  border-radius: 22px !important;
+  border: 1px solid rgba(31, 118, 95, 0.24) !important;
+  background: #fffaf0 !important;
+  color: #10201b !important;
+  -webkit-text-fill-color: #10201b !important;
+  opacity: 1 !important;
+  font-weight: 850 !important;
+  text-shadow: none !important;
+  box-shadow: 0 14px 30px rgba(24, 50, 41, 0.08) !important;
+}
+
+#matches .match-toolbar {
+  position: relative !important;
+  z-index: 6 !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.1fr) minmax(220px, 0.9fr) !important;
+  gap: 14px !important;
+  align-items: center !important;
+  margin: 0 0 18px !important;
+  padding: clamp(16px, 2vw, 20px) !important;
+  border: 1px solid rgba(31, 118, 95, 0.16) !important;
+  border-radius: 26px !important;
+  background: rgba(255, 250, 240, 0.92) !important;
+  box-shadow: 0 14px 32px rgba(24, 50, 41, 0.06) !important;
+}
+
+#matches #resultsSummary,
+#matches .score-guide {
+  color: #10201b !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+  background: transparent !important;
+}
+
+#matches #resultsSummary {
+  font-weight: 900 !important;
+  line-height: 1.35 !important;
+}
+
+#matches .score-guide {
+  justify-self: end !important;
+  max-width: 44ch !important;
+  color: #415c51 !important;
+  font-weight: 780 !important;
+}
+
+#matches .match-network-banner {
+  z-index: 1 !important;
+  min-height: 118px !important;
+  max-height: 138px !important;
+  margin: 4px 0 22px !important;
+  opacity: 0.9 !important;
+}
+
+#matches .match-list {
+  z-index: 4 !important;
+}
+
+@media (max-width: 760px) {
+  #matches .matches-header,
+  #matches .match-toolbar {
+    grid-template-columns: 1fr !important;
+  }
+
+  #matches .compact-select,
+  #matches .score-guide {
+    justify-self: stretch !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  #matches .match-network-banner {
+    min-height: 104px !important;
+    max-height: 124px !important;
+  }
+}
+
+
+/* Revisión Codex: aire entre cabecera y resumen de Matches */
+#matches .matches-header {
+  margin: clamp(-34px, -2.4vw, -24px) 0 clamp(48px, 5vw, 64px) !important;
+  padding: clamp(12px, 1.45vw, 18px) clamp(18px, 2.4vw, 28px) !important;
+  min-height: auto !important;
+}
+
+#matches .matches-header strong {
+  font-size: clamp(1.15rem, 1.8vw, 1.45rem) !important;
+}
+
+#matches .compact-select {
+  align-self: center !important;
+}
+
+#matches .compact-select select {
+  min-height: 48px !important;
+  padding-block: 9px !important;
+}
+
+#matches .match-toolbar {
+  z-index: 9 !important;
+  margin-top: 0 !important;
+  margin-bottom: clamp(20px, 3vw, 30px) !important;
+}
+
+#matches #resultsSummary,
+#matches .score-guide {
+  position: relative !important;
+  z-index: 10 !important;
+}
+
+@media (max-width: 760px) {
+  #matches .matches-header {
+    margin: 0 0 24px !important;
+    padding: 18px !important;
+  }
+}

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" role="img" aria-labelledby="title desc">
+  <title id="title">Panel personal Fit Match</title>
+  <desc id="desc">Ilustración de un panel personal con avatar, métricas, matches y mensajes.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffaf0"/><stop offset="1" stop-color="#edf5ec"/></linearGradient>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#0f2e2b" flood-opacity="0.12"/></filter>
+  </defs>
+  <rect width="900" height="420" rx="30" fill="url(#bg)"/>
+  <g opacity="0.25" stroke="#cfded4"><path d="M55 82H845M55 338H845"/><path d="M110 45v330M790 45v330"/></g>
+  <g filter="url(#s)">
+    <rect x="110" y="74" width="680" height="272" rx="30" fill="#fffdf7" stroke="#dbe7dd"/>
+    <rect x="150" y="120" width="250" height="178" rx="24" fill="#f5faf4" stroke="#dbe7dd"/>
+    <circle cx="205" cy="176" r="34" fill="#143d33"/>
+    <path d="M188 182c8-28 42-28 51 0" fill="none" stroke="#fffaf0" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="214" cy="163" r="13" fill="none" stroke="#fffaf0" stroke-width="5"/>
+    <rect x="258" y="147" width="100" height="12" rx="6" fill="#0f2e2b" opacity="0.88"/>
+    <rect x="258" y="174" width="72" height="9" rx="5" fill="#8faa90" opacity="0.75"/>
+    <rect x="258" y="198" width="112" height="9" rx="5" fill="#dbe7dd"/>
+    <rect x="258" y="222" width="84" height="9" rx="5" fill="#dbe7dd"/>
+    <rect x="444" y="120" width="132" height="76" rx="22" fill="#f7fbf3" stroke="#dbe7dd"/>
+    <text x="476" y="152" font-family="Inter, Arial" font-size="32" font-weight="900" fill="#0f2e2b">5</text>
+    <text x="476" y="177" font-family="Inter, Arial" font-size="13" font-weight="800" fill="#66766d">matches</text>
+    <rect x="602" y="120" width="136" height="76" rx="22" fill="#fff8f2" stroke="#f6c8c1"/>
+    <text x="634" y="152" font-family="Inter, Arial" font-size="32" font-weight="900" fill="#0f2e2b">2</text>
+    <text x="634" y="177" font-family="Inter, Arial" font-size="13" font-weight="800" fill="#66766d">mensajes</text>
+    <rect x="444" y="224" width="294" height="74" rx="22" fill="#f9fbf5" stroke="#dbe7dd"/>
+    <path d="M475 260h178" stroke="#dbe7dd" stroke-width="12" stroke-linecap="round"/>
+    <path d="M475 260h126" stroke="#2f8a6f" stroke-width="12" stroke-linecap="round"/>
+    <circle cx="690" cy="260" r="25" fill="#fffdf7" stroke="#ffb6ad" stroke-width="2"/>
+    <path d="M678 262l9 9 17-24" fill="none" stroke="#ff7a6a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <path d="M236 341C325 378 425 381 508 346S645 302 742 334" fill="none" stroke="#ff7a6a" stroke-width="4" stroke-dasharray="10 14" opacity="0.36"/>
+</svg>

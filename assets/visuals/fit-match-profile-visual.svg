@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 300" role="img" aria-labelledby="title desc">
+  <title id="title">Perfil y cuestionario Fit Match</title>
+  <desc id="desc">Ilustración de un formulario de perfil con objetivo, deporte, servicios y señales de compatibilidad.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffaf0"/><stop offset="1" stop-color="#edf5ec"/></linearGradient>
+    <filter id="s" x="-20%" y="-40%" width="140%" height="180%"><feDropShadow dx="0" dy="13" stdDeviation="12" flood-color="#0f2e2b" flood-opacity="0.10"/></filter>
+  </defs>
+  <rect width="980" height="300" rx="28" fill="url(#bg)"/>
+  <g filter="url(#s)">
+    <rect x="90" y="48" width="355" height="204" rx="28" fill="#fffdf7" stroke="#dbe7dd"/>
+    <circle cx="146" cy="111" r="33" fill="#143d33"/>
+    <path d="M126 121c10-28 42-28 52 0" fill="none" stroke="#fffaf0" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="152" cy="100" r="12" fill="none" stroke="#fffaf0" stroke-width="5"/>
+    <rect x="196" y="84" width="134" height="13" rx="7" fill="#0f2e2b" opacity="0.85"/>
+    <rect x="196" y="112" width="180" height="10" rx="5" fill="#dbe7dd"/>
+    <rect x="196" y="137" width="108" height="10" rx="5" fill="#dbe7dd"/>
+    <rect x="126" y="178" width="82" height="42" rx="17" fill="#f5faf4" stroke="#dbe7dd"/>
+    <path d="M149 199h36M156 190v18M178 190v18" stroke="#0f2e2b" stroke-width="4" stroke-linecap="round"/>
+    <rect x="225" y="178" width="82" height="42" rx="17" fill="#fff6f1" stroke="#ffcabf"/>
+    <path d="M247 199l11 10 26-28" fill="none" stroke="#ff7a6a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="324" y="178" width="82" height="42" rx="17" fill="#f5faf4" stroke="#dbe7dd"/>
+    <path d="M348 197c10-18 26-20 36-8-15 1-21 8-24 22z" fill="none" stroke="#2f8a6f" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <g filter="url(#s)">
+    <rect x="540" y="62" width="350" height="176" rx="28" fill="#fffdf7" stroke="#dbe7dd"/>
+    <text x="585" y="106" font-family="Inter, Arial" font-size="17" font-weight="900" letter-spacing="3" fill="#0f2e2b">SEÑALES DEL PERFIL</text>
+    <path d="M585 139h210" stroke="#dbe7dd" stroke-width="10" stroke-linecap="round"/>
+    <path d="M585 139h158" stroke="#2f8a6f" stroke-width="10" stroke-linecap="round"/>
+    <path d="M585 177h210" stroke="#dbe7dd" stroke-width="10" stroke-linecap="round"/>
+    <path d="M585 177h122" stroke="#ff7a6a" stroke-width="10" stroke-linecap="round"/>
+    <circle cx="832" cy="157" r="34" fill="#f5faf4" stroke="#dbe7dd"/>
+    <path d="M817 158l12 12 22-29" fill="none" stroke="#2f8a6f" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <path d="M446 150C485 115 511 113 540 137" fill="none" stroke="#8faa90" stroke-width="4" opacity="0.42"/>
+  <path d="M438 195C479 235 516 234 547 203" fill="none" stroke="#ff7a6a" stroke-width="4" stroke-dasharray="10 12" opacity="0.38"/>
+</svg>

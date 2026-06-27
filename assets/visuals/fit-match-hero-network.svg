@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" role="img" aria-labelledby="title desc">
+  <title id="title">Fit Match conectando personas y profesionales</title>
+  <desc id="desc">Ilustración premium con una red suave entre clientes, entrenadores, nutricionistas y fisioterapeutas.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fffaf0"/>
+      <stop offset="0.55" stop-color="#f4f8ef"/>
+      <stop offset="1" stop-color="#edf5ec"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f2e2b"/>
+      <stop offset="1" stop-color="#2f8a6f"/>
+    </linearGradient>
+    <linearGradient id="coral" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff7a6a"/>
+      <stop offset="1" stop-color="#d86b62"/>
+    </linearGradient>
+    <filter id="shadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#0f2e2b" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+  <rect width="960" height="600" rx="34" fill="url(#bg)"/>
+  <g opacity="0.32" stroke="#cfded4" stroke-width="1">
+    <path d="M80 105H880M80 495H880"/>
+    <path d="M130 75v450M830 75v450"/>
+  </g>
+  <g fill="none" stroke-linecap="round">
+    <path d="M124 358C228 188 373 184 486 292S734 441 846 258" stroke="#0f2e2b" stroke-width="4" opacity="0.24"/>
+    <path d="M120 220C257 258 367 350 506 315S698 147 842 188" stroke="#ff7a6a" stroke-width="4" stroke-dasharray="13 16" opacity="0.42"/>
+    <path d="M186 455C316 389 399 390 492 432S678 505 802 391" stroke="#8faa90" stroke-width="3" opacity="0.32"/>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="360" y="202" width="240" height="196" rx="34" fill="#fffdf7" stroke="#dbe7dd"/>
+    <circle cx="480" cy="300" r="74" fill="#edf6ed" stroke="#bdd5c5" stroke-width="2"/>
+    <path d="M419 288h54l-13 25h-41z" fill="#0f2e2b"/>
+    <path d="M421 322v63h32v-38h49l22-25z" fill="#0f2e2b"/>
+    <path d="M512 322l48-56v119h-34v-45l-38 39-38-39v45h-31v-86l69 73 24-26z" fill="#2f8a6f"/>
+    <circle cx="480" cy="246" r="17" fill="url(#coral)"/>
+    <text x="480" y="430" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800" letter-spacing="9" fill="#0f2e2b">FIT MATCH</text>
+  </g>
+  <g filter="url(#shadow)" font-family="Inter, Arial, sans-serif" fill="#0f2e2b">
+    <g transform="translate(92 142)">
+      <rect width="210" height="92" rx="24" fill="#fffdf7" stroke="#dbe7dd"/>
+      <circle cx="48" cy="45" r="22" fill="#f4fbf3" stroke="#8faa90" stroke-width="2"/>
+      <circle cx="48" cy="36" r="8" fill="none" stroke="#0f2e2b" stroke-width="3"/>
+      <path d="M31 62c5-13 28-13 34 0" fill="none" stroke="#0f2e2b" stroke-width="3" stroke-linecap="round"/>
+      <text x="88" y="38" font-size="14" font-weight="900" letter-spacing="2">CLIENTE</text>
+      <text x="88" y="62" font-size="12" fill="#66766d">objetivo y contexto</text>
+    </g>
+    <g transform="translate(662 138)">
+      <rect width="210" height="96" rx="24" fill="#fffdf7" stroke="#dbe7dd"/>
+      <circle cx="48" cy="48" r="23" fill="#f4fbf3" stroke="#ffb6ad" stroke-width="2"/>
+      <path d="M34 49h28M39 41v16M57 41v16" stroke="#0f2e2b" stroke-width="4" stroke-linecap="round"/>
+      <text x="88" y="40" font-size="14" font-weight="900" letter-spacing="2">ENTRENADOR</text>
+      <text x="88" y="64" font-size="12" fill="#66766d">método y guía</text>
+    </g>
+    <g transform="translate(116 392)">
+      <rect width="198" height="86" rx="23" fill="#fffdf7" stroke="#dbe7dd"/>
+      <circle cx="44" cy="43" r="20" fill="#f4fbf3" stroke="#dbe7dd"/>
+      <path d="M34 45c9-20 24-22 31-11-12 1-18 7-20 18z" fill="none" stroke="#2f8a6f" stroke-width="3" stroke-linecap="round"/>
+      <path d="M35 58l29-29" stroke="#ff7a6a" stroke-width="3" stroke-linecap="round"/>
+      <text x="80" y="38" font-size="14" font-weight="900" letter-spacing="2">NUTRICIÓN</text>
+      <text x="80" y="60" font-size="12" fill="#66766d">hábitos reales</text>
+    </g>
+    <g transform="translate(650 392)">
+      <rect width="206" height="88" rx="23" fill="#fffdf7" stroke="#dbe7dd"/>
+      <circle cx="44" cy="44" r="20" fill="#fff6f1" stroke="#ffb6ad"/>
+      <path d="M37 31c9 12 9 26 0 38M51 31c-9 12-9 26 0 38M44 34v32" fill="none" stroke="#0f2e2b" stroke-width="3" stroke-linecap="round"/>
+      <text x="80" y="38" font-size="14" font-weight="900" letter-spacing="2">FISIO</text>
+      <text x="80" y="60" font-size="12" fill="#66766d">recuperación</text>
+    </g>
+  </g>
+  <g fill="#ff7a6a" opacity="0.8">
+    <circle cx="704" cy="306" r="8"/><circle cx="260" cy="300" r="7"/><circle cx="488" cy="472" r="5"/>
+  </g>
+</svg>

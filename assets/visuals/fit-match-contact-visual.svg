@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 300" role="img" aria-labelledby="title desc">
+  <title id="title">Contacto y conversación Fit Match</title>
+  <desc id="desc">Ilustración de mensajes, email, teléfono y una conexión clara entre cliente y profesional.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffaf0"/><stop offset="1" stop-color="#edf5ec"/></linearGradient>
+    <filter id="s" x="-20%" y="-40%" width="140%" height="180%"><feDropShadow dx="0" dy="14" stdDeviation="13" flood-color="#0f2e2b" flood-opacity="0.11"/></filter>
+  </defs>
+  <rect width="980" height="300" rx="28" fill="url(#bg)"/>
+  <path d="M168 151C292 82 405 92 490 150S670 225 812 141" fill="none" stroke="#0f2e2b" stroke-width="4" opacity="0.22"/>
+  <path d="M168 191C295 236 390 217 488 175S658 116 812 176" fill="none" stroke="#ff7a6a" stroke-width="4" stroke-dasharray="10 13" opacity="0.38"/>
+  <g filter="url(#s)">
+    <rect x="106" y="78" width="255" height="144" rx="30" fill="#fffdf7" stroke="#dbe7dd"/>
+    <circle cx="160" cy="148" r="34" fill="#143d33"/>
+    <path d="M141 158c10-29 40-29 50 0" fill="none" stroke="#fffaf0" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="166" cy="136" r="12" fill="none" stroke="#fffaf0" stroke-width="5"/>
+    <rect x="213" y="116" width="98" height="11" rx="6" fill="#0f2e2b" opacity="0.86"/>
+    <rect x="213" y="144" width="118" height="9" rx="5" fill="#dbe7dd"/>
+    <rect x="213" y="166" width="84" height="9" rx="5" fill="#dbe7dd"/>
+  </g>
+  <g filter="url(#s)">
+    <rect x="394" y="96" width="192" height="108" rx="28" fill="#fffdf7" stroke="#bdd5c5"/>
+    <path d="M435 132h110v54H435z" fill="none" stroke="#2f8a6f" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M438 134l52 38 52-38" fill="none" stroke="#2f8a6f" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="560" cy="112" r="18" fill="#ff7a6a"/>
+    <path d="M554 112l5 5 10-13" fill="none" stroke="#fffaf0" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <g filter="url(#s)">
+    <rect x="626" y="78" width="255" height="144" rx="30" fill="#fffdf7" stroke="#dbe7dd"/>
+    <circle cx="826" cy="148" r="34" fill="#2f8a6f"/>
+    <path d="M806 158c10-29 40-29 50 0" fill="none" stroke="#fffaf0" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="832" cy="136" r="12" fill="none" stroke="#fffaf0" stroke-width="5"/>
+    <path d="M675 124c21 45 49 74 94 91" fill="none" stroke="#ff7a6a" stroke-width="8" stroke-linecap="round"/>
+    <path d="M689 121c8 13 18 21 31 27" fill="none" stroke="#0f2e2b" stroke-width="5" stroke-linecap="round"/>
+    <rect x="668" y="88" width="82" height="32" rx="16" fill="#f5faf4" stroke="#dbe7dd"/>
+    <path d="M689 104c10 11 24 11 36 0" fill="none" stroke="#0f2e2b" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <g font-family="Inter, Arial" font-weight="900" fill="#0f2e2b" opacity="0.8">
+    <text x="448" y="245" font-size="15" letter-spacing="3">EMAIL</text>
+    <text x="642" y="245" font-size="15" letter-spacing="3">TELÉFONO</text>
+  </g>
+</svg>
