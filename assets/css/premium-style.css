@@ -5546,8 +5546,7 @@ body.role-professional .request-box .button.primary:hover {
   }
 }
 
-
-/* Revisión Codex: cabecera de Matches sin solapes */
+/* Revisión Codex: Matches estable en escritorio, iPad y móvil */
 #matches .matches-panel {
   isolation: isolate !important;
   overflow: visible !important;
@@ -5559,205 +5558,6 @@ body.role-professional .request-box .button.primary:hover {
   content: none !important;
 }
 
-#matches .matches-header {
-  position: relative !important;
-  z-index: 8 !important;
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 260px) !important;
-  gap: clamp(18px, 3vw, 32px) !important;
-  align-items: center !important;
-  margin: 0 0 16px !important;
-  padding: clamp(18px, 2.2vw, 24px) !important;
-  border: 1px solid rgba(31, 118, 95, 0.18) !important;
-  border-radius: 28px !important;
-  background:
-    linear-gradient(145deg, rgba(255, 253, 247, 0.98), rgba(246, 250, 243, 0.96)) !important;
-  box-shadow: 0 18px 44px rgba(24, 50, 41, 0.08) !important;
-  overflow: visible !important;
-}
-
-#matches .matches-header > div,
-#matches .matches-header .compact-select {
-  min-width: 0 !important;
-}
-
-#matches .matches-header .micro-label {
-  color: #1f765f !important;
-  text-shadow: none !important;
-}
-
-#matches .matches-header strong {
-  display: block !important;
-  margin-top: 6px !important;
-  color: #10201b !important;
-  opacity: 1 !important;
-  line-height: 1.16 !important;
-  text-shadow: none !important;
-}
-
-#matches .compact-select {
-  justify-self: end !important;
-  align-self: stretch !important;
-  display: grid !important;
-  width: min(100%, 260px) !important;
-  min-width: 0 !important;
-  gap: 8px !important;
-  padding: 0 !important;
-  border: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  color: #10201b !important;
-  font-weight: 900 !important;
-}
-
-#matches .compact-select select {
-  width: 100% !important;
-  min-width: 0 !important;
-  min-height: 56px !important;
-  border-radius: 22px !important;
-  border: 1px solid rgba(31, 118, 95, 0.24) !important;
-  background: #fffaf0 !important;
-  color: #10201b !important;
-  -webkit-text-fill-color: #10201b !important;
-  opacity: 1 !important;
-  font-weight: 850 !important;
-  text-shadow: none !important;
-  box-shadow: 0 14px 30px rgba(24, 50, 41, 0.08) !important;
-}
-
-#matches .match-toolbar {
-  position: relative !important;
-  z-index: 6 !important;
-  display: grid !important;
-  grid-template-columns: minmax(0, 1.1fr) minmax(220px, 0.9fr) !important;
-  gap: 14px !important;
-  align-items: center !important;
-  margin: 0 0 18px !important;
-  padding: clamp(16px, 2vw, 20px) !important;
-  border: 1px solid rgba(31, 118, 95, 0.16) !important;
-  border-radius: 26px !important;
-  background: rgba(255, 250, 240, 0.92) !important;
-  box-shadow: 0 14px 32px rgba(24, 50, 41, 0.06) !important;
-}
-
-#matches #resultsSummary,
-#matches .score-guide {
-  color: #10201b !important;
-  opacity: 1 !important;
-  text-shadow: none !important;
-  background: transparent !important;
-}
-
-#matches #resultsSummary {
-  font-weight: 900 !important;
-  line-height: 1.35 !important;
-}
-
-#matches .score-guide {
-  justify-self: end !important;
-  max-width: 44ch !important;
-  color: #415c51 !important;
-  font-weight: 780 !important;
-}
-
-#matches .match-network-banner {
-  z-index: 1 !important;
-  min-height: 118px !important;
-  max-height: 138px !important;
-  margin: 4px 0 22px !important;
-  opacity: 0.9 !important;
-}
-
-#matches .match-list {
-  z-index: 4 !important;
-}
-
-@media (max-width: 760px) {
-  #matches .matches-header,
-  #matches .match-toolbar {
-    grid-template-columns: 1fr !important;
-  }
-
-  #matches .compact-select,
-  #matches .score-guide {
-    justify-self: stretch !important;
-    width: 100% !important;
-    max-width: none !important;
-  }
-
-  #matches .match-network-banner {
-    min-height: 104px !important;
-    max-height: 124px !important;
-  }
-}
-
-
-/* Revisión Codex: aire entre cabecera y resumen de Matches */
-#matches .matches-header {
-  margin: clamp(-34px, -2.4vw, -24px) 0 clamp(48px, 5vw, 64px) !important;
-  padding: clamp(12px, 1.45vw, 18px) clamp(18px, 2.4vw, 28px) !important;
-  min-height: auto !important;
-}
-
-#matches .matches-header strong {
-  font-size: clamp(1.15rem, 1.8vw, 1.45rem) !important;
-}
-
-#matches .compact-select {
-  align-self: center !important;
-}
-
-#matches .compact-select select {
-  min-height: 48px !important;
-  padding-block: 9px !important;
-}
-
-#matches .match-toolbar {
-  z-index: 9 !important;
-  margin-top: 0 !important;
-  margin-bottom: clamp(20px, 3vw, 30px) !important;
-}
-
-#matches #resultsSummary,
-#matches .score-guide {
-  position: relative !important;
-  z-index: 10 !important;
-}
-
-@media (max-width: 760px) {
-  #matches .matches-header {
-    margin: -22px 0 38px !important;
-    padding: 14px 16px !important;
-  }
-
-  #matches .compact-select select {
-    min-height: 46px !important;
-  }
-
-  #matches .match-toolbar {
-    margin-bottom: 26px !important;
-  }
-}
-
-
-/* Revisión Codex: ajuste tablet de Matches */
-@media (min-width: 761px) and (max-width: 1180px) {
-  #matches .matches-header {
-    margin: -28px 0 54px !important;
-    padding: 14px 22px !important;
-  }
-
-  #matches .compact-select select {
-    min-height: 48px !important;
-  }
-
-  #matches .match-toolbar {
-    margin-bottom: 30px !important;
-  }
-}
-
-
-/* Revisión Codex: Matches sin superposiciones responsive */
 #matches .matches-panel > .matches-header {
   position: relative !important;
   z-index: 6 !important;
@@ -5856,13 +5656,13 @@ body.role-professional .request-box .button.primary:hover {
   position: static !important;
   z-index: auto !important;
   margin: 0 !important;
-  color: #10201b !important;
   opacity: 1 !important;
   text-shadow: none !important;
   background: transparent !important;
 }
 
 #matches #resultsSummary {
+  color: #10201b !important;
   font-weight: 900 !important;
   line-height: 1.35 !important;
 }
@@ -5878,15 +5678,43 @@ body.role-professional .request-box .button.primary:hover {
   margin-top: 0 !important;
 }
 
-@media (max-width: 980px) {
-  #matches .matches-panel > .matches-header,
-  #matches .match-toolbar {
-    grid-template-columns: 1fr !important;
+@media (max-width: 1180px) {
+  #matches .matches-panel > .matches-header {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 18px !important;
+    margin: 0 0 28px !important;
+    padding: 0 0 24px !important;
   }
 
-  #matches .matches-panel > .matches-header .compact-select,
+  #matches .matches-panel > .matches-header .compact-select {
+    order: -1 !important;
+    align-self: flex-end !important;
+    width: min(100%, 260px) !important;
+    padding: 10px 12px !important;
+    border-radius: 20px !important;
+    gap: 6px !important;
+  }
+
+  #matches .matches-panel > .matches-header .compact-select select {
+    min-height: 44px !important;
+    padding: 8px 14px !important;
+    border-radius: 16px !important;
+  }
+
+  #matches .matches-panel > .matches-header > div {
+    order: 0 !important;
+  }
+
+  #matches .match-toolbar {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    margin-bottom: 30px !important;
+  }
+
   #matches .score-guide {
-    justify-self: stretch !important;
+    justify-self: start !important;
     width: 100% !important;
     max-width: none !important;
   }
@@ -5895,8 +5723,8 @@ body.role-professional .request-box .button.primary:hover {
 @media (max-width: 640px) {
   #matches .matches-panel > .matches-header {
     gap: 16px !important;
-    margin-bottom: 18px !important;
-    padding-bottom: 18px !important;
+    margin-bottom: 24px !important;
+    padding-bottom: 22px !important;
   }
 
   #matches .matches-panel > .matches-header strong {
@@ -5904,17 +5732,20 @@ body.role-professional .request-box .button.primary:hover {
   }
 
   #matches .matches-panel > .matches-header .compact-select {
-    padding: 12px !important;
-    border-radius: 20px !important;
+    align-self: stretch !important;
+    width: 100% !important;
+    padding: 10px !important;
+    border-radius: 18px !important;
   }
 
   #matches .matches-panel > .matches-header .compact-select select {
-    min-height: 46px !important;
+    min-height: 42px !important;
   }
 
   #matches .match-toolbar {
     padding: 15px !important;
     border-radius: 20px !important;
+    margin-bottom: 28px !important;
   }
 }
 
