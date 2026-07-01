@@ -161,9 +161,89 @@ function ratingText(summary) {
 
 function createRatingBadge(person, className = "rating-badge") {
   const summary = ratingSummaryFor(person);
-  const badge = createElement("span", className, summary.count ? `★ ${summary.average}/5` : "★ Nuevo");
+  const text = summary.count ? `★ ${summary.average}/5 · ${summary.count}` : "★ Nuevo";
+  const badge = createElement("span", className, text);
   badge.setAttribute("aria-label", summary.count ? ratingText(summary) : "Sin valoraciones todavía");
   return badge;
+}
+
+function ratingCriteriaForRole(role) {
+  return RATING_CRITERIA[role] || RATING_CRITERIA.professional;
+}
+
+function roundRating(value) {
+  return Math.round(Number(value || 0) * 10) / 10;
+}
+
+function ratingBreakdownFor(person) {
+  const criteria = ratingCriteriaForRole(person?.role);
+  const ratings = (dataProvider.listRatings?.() || []).filter((rating) => rating.targetId === person?.id);
+  const summary = ratingSummaryFor(person);
+  const rows = criteria.map(([key, labelText]) => {
+    const values = ratings
+      .map((rating) => Number(rating.criteria?.[key]))
+      .filter((value) => value >= 1 && value <= 5);
+    const average = values.length
+      ? roundRating(values.reduce((sum, value) => sum + value, 0) / values.length)
+      : 0;
+    return {
+      key,
+      label: labelText,
+      average,
+      count: values.length
+    };
+  });
+  return { summary, rows };
+}
+
+function createReadOnlyStars(value, labelText) {
+  const rounded = Math.round(Number(value || 0));
+  const stars = createElement("span", "rating-read-stars");
+  stars.setAttribute("aria-label", value ? `${value}/5 en ${labelText}` : `Sin puntuación en ${labelText}`);
+  for (let index = 1; index <= 5; index += 1) {
+    stars.append(createElement("span", index <= rounded ? "rating-read-star filled" : "rating-read-star", "★"));
+  }
+  return stars;
+}
+
+function createRatingBreakdownSection(person) {
+  const breakdown = ratingBreakdownFor(person);
+  const section = createElement("div", "profile-detail-section rating-breakdown-section");
+  const heading = createElement("div", "rating-breakdown-heading");
+  const score = createElement("div", "rating-breakdown-score");
+  const scoreValue = createElement("strong", "", breakdown.summary.count ? String(breakdown.summary.average) : "--");
+  const scoreMeta = createElement("span", "", breakdown.summary.count ? `/5 · ${breakdown.summary.count} valoración${breakdown.summary.count === 1 ? "" : "es"}` : "Sin valoraciones");
+  score.append(scoreValue, scoreMeta);
+
+  const copy = createElement("div", "rating-breakdown-copy");
+  copy.append(
+    createElement("span", "micro-label", "Valoración pública"),
+    createElement("strong", "", breakdown.summary.count ? "Media general por criterios" : "Aún sin puntuaciones públicas"),
+    createElement("p", "", breakdown.summary.count
+      ? "La nota se calcula con cinco criterios valorados después del contacto. Así puedes entender de dónde sale la media general."
+      : "Cuando esta cuenta reciba valoraciones, aquí aparecerá la media general y el detalle por criterio.")
+  );
+  heading.append(score, copy);
+
+  const list = createElement("div", "rating-breakdown-list");
+  breakdown.rows.forEach((row) => {
+    const item = createElement("div", "rating-breakdown-row");
+    const labelBlock = createElement("div", "rating-breakdown-label");
+    labelBlock.append(
+      createElement("strong", "", row.label),
+      createElement("small", "", row.count ? `${row.count} valoración${row.count === 1 ? "" : "es"}` : "Pendiente")
+    );
+    const valueBlock = createElement("div", "rating-breakdown-value");
+    valueBlock.append(
+      createReadOnlyStars(row.average, row.label),
+      createElement("span", "", row.count ? `${row.average}/5` : "--")
+    );
+    item.append(labelBlock, valueBlock);
+    list.append(item);
+  });
+
+  section.append(heading, list);
+  return section;
 }
 
 
@@ -1664,8 +1744,10 @@ function renderProfileDetail(person) {
     reasons
   );
 
+  const ratingBreakdown = createRatingBreakdownSection(person);
+
   profileDetail.hidden = false;
-  profileDetail.replaceChildren(identity, detailStats, services, notes);
+  profileDetail.replaceChildren(identity, detailStats, ratingBreakdown, services, notes);
 }
 
 function openRequestModal(matchId, opener) {
