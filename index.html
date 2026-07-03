@@ -11,7 +11,7 @@
     <meta property="og:title" content="Fit Match" />
     <meta
       property="og:description"
-      content="Primera versión funcional de Fit Match para conectar clientes con profesionales fitness compatibles."
+      content="Fit Match conecta clientes y profesionales fitness mediante compatibilidad real, confianza y contexto."
     />
     <meta property="og:type" content="website" />
     <title>Fit Match</title>
@@ -34,10 +34,8 @@
         <button class="nav-link" type="button" data-view="register">Perfil</button>
         <button class="nav-link" type="button" data-view="matches">Matches</button>
         <button class="nav-link" type="button" data-view="contacts">Contactos</button>
+        <button class="nav-link" type="button" data-view="trust">Confianza</button>
       </nav>
-      <button id="reviewToggle" class="review-toggle" type="button" aria-pressed="false">
-        Montaje
-      </button>
     </header>
 
     <main>
@@ -47,10 +45,13 @@
             <p class="eyebrow">Fit Match</p>
             <h1>Entrena con quien realmente encaja contigo.</h1>
             <p>
-              Encontrar el profesional adecuado no debería depender del azar, recomendaciones improvisadas o cientos de perfiles sin contexto.
-              Fit Match conecta clientes y profesionales según objetivos, experiencia, especialidad y compatibilidad real.
+              Encuentra profesionales que encajan con tu objetivo, tu contexto y tu forma de avanzar. Menos búsqueda sin criterio. Más conexiones con sentido.
             </p>
-            <div class="route-pills" aria-label="Dos caminos de Fit Match">
+            <div class="hero-actions" aria-label="Empezar en Fit Match">
+              <button class="button primary" type="button" data-start-role="client">Encontrar profesional</button>
+              <button class="button secondary" type="button" data-start-role="professional">Crear perfil profesional</button>
+            </div>
+            <div class="route-pills" aria-label="Tres ideas principales de Fit Match">
               <span>Compatibilidad real</span>
               <span>Menos ruido</span>
               <span>Mejores resultados</span>
@@ -60,17 +61,12 @@
               <span>Criterio profesional</span>
               <span>Conexiones de calidad</span>
             </div>
-            <p class="review-note">
-              Nota montaje: esta pantalla debe explicar valor antes de pedir acción. Primero deseo,
-              luego confianza, después elección de camino.
-            </p>
           </div>
           <aside class="purpose-card" aria-label="Para qué sirve Fit Match">
             <span class="micro-label">Conexión inteligente</span>
             <strong>No es un directorio más.</strong>
             <p>
-              Fit Match ordena la información importante para que cada contacto tenga contexto,
-              intención y una razón clara para empezar.
+              Ordenamos lo importante para que cada contacto empiece con contexto, intención y confianza.
             </p>
             <figure class="network-visual-card primary-network" aria-label="Red visual de conexiones Fit Match">
               <img src="./assets/visuals/fit-match-hero-network.svg" alt="Fit Match conectando clientes, entrenadores, nutricionistas y fisioterapeutas en una red de afinidad" />
@@ -95,10 +91,6 @@
                 <span>Experiencia óptima</span>
               </div>
             </article>
-            <p class="review-note">
-              Nota montaje: este bloque sustituye al mensaje frío de demo. Debe vender confianza,
-              no tecnología.
-            </p>
           </aside>
         </div>
 
@@ -107,26 +99,24 @@
             <p class="eyebrow">POR QUÉ EXISTE</p>
             <h2 id="homeStoryTitle">Elegir un profesional no debería ser cuestión de suerte.</h2>
             <p>
-              Cada persona tiene objetivos, limitaciones, preferencias y circunstancias diferentes.
-              Un gran profesional no es necesariamente el adecuado para todos.
-              Fit Match nace para ordenar ese primer encuentro y ayudar a que clientes y profesionales comiencen la relación con expectativas claras, afinidad real y mayores posibilidades de éxito.
+              Cada persona parte de un contexto distinto. Fit Match ayuda a ordenar ese primer encuentro para que cliente y profesional lleguen con expectativas claras, afinidad real y más posibilidades de éxito.
             </p>
           </div>
           <div class="value-grid" aria-label="Principios de Fit Match">
             <article class="value-card calm-card">
               <span>01</span>
               <strong>Claridad</strong>
-              <p>El cliente define objetivos, necesidades y preferencias para recibir propuestas realmente relevantes.</p>
+              <p>El cliente define lo que necesita para recibir perfiles realmente relevantes.</p>
             </article>
             <article class="value-card focus-card">
               <span>02</span>
               <strong>Criterio</strong>
-              <p>Los profesionales aparecen cuando su experiencia, metodología y especialidad encajan con la búsqueda realizada.</p>
+              <p>Los profesionales aparecen cuando su experiencia encaja con la búsqueda.</p>
             </article>
             <article class="value-card trust-card">
               <span>03</span>
               <strong>Confianza</strong>
-              <p>Cada coincidencia incluye razones visibles para comprender por qué existe compatibilidad.</p>
+              <p>Cada coincidencia muestra razones claras para confiar en el encaje.</p>
             </article>
           </div>
         </section>
@@ -135,19 +125,19 @@
           <div class="flow-step">
             <span>DEFINE</span>
             <strong>Tu punto de partida</strong>
-            <p>Describe tus objetivos, preferencias, experiencia y contexto. Cuanta más información aportes, mejores serán las recomendaciones.</p>
+            <p>Describe objetivo, contexto y preferencias. Cuanto más claro seas, mejor será el encaje.</p>
           </div>
           <div class="flow-line" aria-hidden="true"></div>
           <div class="flow-step">
             <span>CRUZA</span>
             <strong>Compatibilidad real</strong>
-            <p>Fit Match analiza perfiles de clientes y profesionales para identificar afinidades relevantes y mostrar las opciones más adecuadas.</p>
+            <p>Cruzamos señales relevantes para mostrar opciones con sentido.</p>
           </div>
           <div class="flow-line" aria-hidden="true"></div>
           <div class="flow-step">
             <span>CONTACTA</span>
             <strong>Empieza con sentido</strong>
-            <p>Cada solicitud incluye contexto real para facilitar conversaciones más útiles y conexiones de calidad.</p>
+            <p>El contacto llega con contexto para empezar mejor la conversación.</p>
           </div>
         </section>
 
@@ -157,10 +147,7 @@
             <p class="eyebrow">PARA CLIENTES</p>
             <h2>Soy cliente</h2>
             <p>
-              Describe tus objetivos y preferencias. Fit Match te mostrará los profesionales más adecuados para ayudarte a conseguirlos.
-            </p>
-            <p class="review-note">
-              Nota montaje: ruta cliente. Aquí probamos necesidad, contexto y solicitud.
+              Cuenta qué necesitas y descubre profesionales que encajan con tu objetivo.
             </p>
             <button class="button primary" type="button" data-start-role="client">Encontrar profesional</button>
           </article>
@@ -170,10 +157,7 @@
             <p class="eyebrow">PARA PROFESIONALES</p>
             <h2>Soy profesional</h2>
             <p>
-              Presenta tu experiencia, especialidades y metodología para conectar con clientes que realmente buscan lo que ofreces.
-            </p>
-            <p class="review-note">
-              Nota montaje: ruta profesional. Aquí probamos oferta, disponibilidad y propuesta.
+              Presenta tu experiencia y conecta con clientes que buscan justo lo que ofreces.
             </p>
             <button class="button primary" type="button" data-start-role="professional">Unirme a Fit Match</button>
           </article>
@@ -199,13 +183,9 @@
         <div class="screen-header account-header">
           <div>
             <p class="eyebrow">Cuenta Fit Match</p>
-            <h2>Cuenta y acceso.</h2>
+            <h2>Tu entrada a Fit Match.</h2>
             <p>
-              Has elegido una ruta. Ahora puedes ingresar si ya tienes cuenta o crear una nueva
-              antes de completar el perfil que se cruzará en matches.
-            </p>
-            <p class="review-note">
-              Nota montaje: esta pantalla concentra solo acceso y confianza. El cuestionario vive en su propia página.
+              Accede a tu cuenta o crea una nueva para ver matches, contactos y tu perfil personal.
             </p>
           </div>
           <div class="screen-actions">
@@ -231,7 +211,7 @@
                 <div id="authLoginFields" class="auth-login-fields">
                   <label>
                     Email de cuenta
-                    <input id="authEmailInput" name="login-email" type="email" autocomplete="email" placeholder="tu@email.com" required />
+                    <input id="authEmailInput" name="login-email" type="email" inputmode="email" autocomplete="email" placeholder="tu@email.com" maxlength="254" pattern="[^\s@]+@[^\s@]+\.[^\s@]{2,}" required />
                   </label>
                   <label>
                     Contraseña
@@ -244,6 +224,12 @@
                   <button class="button quiet" id="signOutButton" type="button" hidden>Cerrar sesión</button>
                 </div>
               </form>
+              <aside class="account-trust-shortcut" aria-label="Confianza y privacidad">
+                <span class="micro-label">Datos bajo control</span>
+                <strong>Nunca vendemos tus datos personales.</strong>
+                <p>Solo tú decides con quién contactar. Tu perfil es editable y puedes solicitar la eliminación de tu información cuando quieras.</p>
+                <button class="button quiet" type="button" data-view="trust">Confianza y Legal</button>
+              </aside>
             </section>
 
             <section id="profileHomeCard" class="profile-home-card account-dashboard-card" aria-live="polite" hidden>
@@ -312,6 +298,71 @@
                 <span><small>Última actividad</small><strong id="accountDetailActivity">Sin actividad</strong></span>
               </div>
             </section>
+
+            <section id="proPanel" class="pro-panel account-workspace-card" hidden>
+              <div class="pro-panel-hero">
+                <div>
+                  <span class="micro-label">Fit Match PRO</span>
+                  <strong id="proPanelTitle">Fit Match PRO está en desarrollo.</strong>
+                  <p id="proPanelCopy">Estamos preparando herramientas avanzadas para profesionales que quieran mejorar su perfil, analizar su visibilidad y conseguir mejores conexiones dentro de la plataforma.</p>
+                </div>
+                <span id="proStatusBadge" class="pro-status-badge">En construcción</span>
+              </div>
+
+              <div class="pro-principle-card">
+                <strong>Compatibilidad primero.</strong>
+                <p>Fit Match PRO no vende posiciones. La prioridad del algoritmo seguirá siendo la compatibilidad real entre cliente y profesional.</p>
+              </div>
+
+              <article class="koro-coach-card" aria-label="KORO Profile Coach">
+                <div class="koro-coach-heading">
+                  <span class="micro-label">KORO Profile Coach</span>
+                  <strong>Tu asesor inteligente para mejorar tu perfil profesional.</strong>
+                  <p>KORO analizará tu perfil, tus especialidades, tus fotos, tus certificaciones, tu disponibilidad y tus estadísticas para ayudarte a mejorar tu visibilidad, confianza y conversión dentro de Fit Match.</p>
+                </div>
+                <div class="koro-score-card">
+                  <span>Calidad del perfil</span>
+                  <strong id="proProfileScore">0 / 100</strong>
+                  <p id="proScoreState">Vista previa limitada.</p>
+                </div>
+              </article>
+
+              <div class="pro-score-actions">
+                <span class="micro-label">Para llegar a excelente</span>
+                <ul id="proScoreActions"></ul>
+              </div>
+
+              <div class="pro-feature-grid" aria-label="Beneficios futuros de Fit Match PRO">
+                <span>Perfil destacado</span>
+                <span>Estadísticas avanzadas</span>
+                <span>Vídeo de presentación</span>
+                <span>Galería ampliada</span>
+                <span>Insignia PRO</span>
+                <span>Verificación profesional</span>
+                <span>Prioridad moderada en igualdad de compatibilidad</span>
+                <span>KORO Profile Coach</span>
+                <span>Recomendaciones de conversión</span>
+                <span>Informe mensual del perfil</span>
+              </div>
+
+              <div class="pro-metric-grid koro-analysis-grid" aria-label="Análisis futuro de KORO Profile Coach">
+                <span><small>Perfil completado</small><strong id="proMetricViews">0%</strong></span>
+                <span><small>Matches</small><strong id="proMetricMatches">0</strong></span>
+                <span><small>Contactos</small><strong id="proMetricContacts">0</strong></span>
+                <span><small>Conversión</small><strong id="proMetricConversion">Preview</strong></span>
+              </div>
+
+              <div class="pro-recommendation-card">
+                <span class="micro-label">Recomendaciones inteligentes</span>
+                <ul id="proRecommendations"></ul>
+                <p id="proLockMessage">Disponible próximamente en Fit Match PRO.</p>
+              </div>
+
+              <div class="pro-actions">
+                <button id="proInterestButton" class="button primary" type="button">Quiero probar Fit Match PRO</button>
+              </div>
+              <p id="proPaymentNote" class="pro-payment-note">Fit Match PRO todavía no cobra ni activa suscripciones. Este botón solo registra tu interés para avisarte cuando esté disponible.</p>
+            </section>
           </section>
 
           <aside id="accountAside" class="account-aside account-personal-aside" aria-label="Progreso y actividad de la cuenta">
@@ -366,13 +417,9 @@
       <section id="onboarding" class="workspace app-workspace app-view" data-view-name="register" hidden>
         <div class="section-heading app-section-heading">
           <p class="eyebrow">Cuestionario</p>
-          <h2 id="onboardingTitle">Cuéntale a Fit Match qué necesitas</h2>
+          <h2 id="onboardingTitle">Construye un perfil claro</h2>
           <p id="onboardingCopy">
-            Crea tu cuenta y completa tu perfil en una sola ruta. Al guardar, Fit Match podrá cruzarlo con perfiles compatibles.
-          </p>
-          <p class="review-note">
-            Nota montaje: esta zona es el laboratorio del perfil activo. Debe sentirse como una
-            página de cliente o una página de profesional, no como ambos roles mezclados.
+            Completa lo esencial para que tus matches tengan contexto y sentido desde el primer contacto.
           </p>
         </div>
 
@@ -393,10 +440,6 @@
               <small>Registra lo que ofreces, a quién ayudas y qué tipo de cliente encaja contigo.</small>
             </div>
           </div>
-          <p class="review-note register-review-note">
-            Nota montaje: ahora solo se muestra la ruta activa. El otro rol existe, pero no aparece
-            al lado compitiendo visualmente.
-          </p>
 
           <figure class="profile-network-strip" aria-hidden="true">
             <img src="./assets/visuals/fit-match-profile-visual.svg" alt="" />
@@ -462,7 +505,7 @@
                 <div class="credential-create-fields">
                   <label>
                     Email de cuenta
-                    <input id="emailInput" name="signup-email" type="email" value="" autocomplete="email" aria-describedby="emailHint" />
+                    <input id="emailInput" name="signup-email" type="email" inputmode="email" value="" autocomplete="email" maxlength="254" pattern="[^\s@]+@[^\s@]+\.[^\s@]{2,}" aria-describedby="emailHint" />
                     <span id="emailHint" class="field-hint">No se muestra en las tarjetas públicas de match.</span>
                   </label>
                   <label>
@@ -481,6 +524,30 @@
                   <p id="signupConnectedEmail">Ya has ingresado. Puedes completar o actualizar tu perfil sin volver a escribir la contraseña.</p>
                   <button id="signupSignOutButton" class="button secondary" type="button">Cerrar sesión y crear otra cuenta</button>
                 </div>
+                <section class="signup-legal-panel" aria-labelledby="signupLegalTitle">
+                  <span class="micro-label">Privacidad y confianza</span>
+                  <strong id="signupLegalTitle">Antes de finalizar el registro</strong>
+                  <p>Tu información te pertenece. Fit Match utiliza tus datos únicamente para ayudarte a encontrar conexiones profesionales compatibles. Puedes acceder, modificar o eliminar tu información cuando quieras.</p>
+                  <div class="signup-legal-checks">
+                    <label>
+                      <input type="checkbox" data-signup-legal-check="privacy" />
+                      <span>He leído y acepto la <button class="text-link-button" type="button" data-open-legal-doc="privacy">Política de Privacidad</button>.</span>
+                    </label>
+                    <label>
+                      <input type="checkbox" data-signup-legal-check="terms" />
+                      <span>Acepto los <button class="text-link-button" type="button" data-open-legal-doc="terms">Términos y Condiciones</button>.</span>
+                    </label>
+                    <label>
+                      <input type="checkbox" data-signup-legal-check="truthful" />
+                      <span>Confirmo que la información de mi perfil es veraz.</span>
+                    </label>
+                    <label>
+                      <input type="checkbox" data-signup-legal-check="newsletter" data-optional="true" />
+                      <span>Deseo recibir novedades y mejoras de Fit Match. <small>Opcional</small></span>
+                    </label>
+                  </div>
+                  <button class="button quiet compact-trust-link" type="button" data-view="trust">Ver Centro de Confianza</button>
+                </section>
               </section>
 
               <div class="form-section-title">
@@ -507,19 +574,19 @@
 
               <label>
                 Fecha de nacimiento
-                <input id="birthdateInput" type="date" value="" aria-describedby="birthdateHint" />
+                <input id="birthdateInput" type="date" value="" autocomplete="bday" aria-describedby="birthdateHint" />
                 <span id="birthdateHint" class="field-hint">Dato privado para futuras validaciones de cuenta y segmentación responsable.</span>
               </label>
 
               <label>
                 Teléfono de contacto
-                <input id="phoneInput" type="tel" value="" autocomplete="tel" aria-describedby="phoneHint" />
+                <input id="phoneInput" type="tel" value="" inputmode="tel" autocomplete="tel" maxlength="20" pattern="\+?[0-9\s().-]{7,20}" aria-describedby="phoneHint" />
                 <span id="phoneHint" class="field-hint">Solo se comparte dentro de una solicitud o propuesta recibida, nunca en las tarjetas públicas.</span>
               </label>
 
               <label>
                 Ciudad
-                <input id="cityInput" type="text" value="" aria-describedby="cityHint" />
+                <input id="cityInput" type="text" value="" autocomplete="address-level2" maxlength="60" aria-describedby="cityHint" />
                 <span id="cityHint" class="field-hint">Ayuda a priorizar coincidencias presenciales o híbridas.</span>
               </label>
 
@@ -667,12 +734,7 @@
             <p class="eyebrow">Tu zona de matches</p>
             <h2 id="matchesTitle">Perfiles afines</h2>
             <p id="matchesCopy">
-              Ordenamos los perfiles por afinidad. El porcentaje resume las
-              coincidencias entre tus preferencias y cada perfil.
-            </p>
-            <p class="review-note">
-              Nota montaje: aquí se cruzan los hemisferios. No se editan datos; solo se comparan
-              perfiles compatibles y se prepara el contacto.
+              Ordenamos los perfiles por afinidad para que revises primero las conexiones con más sentido.
             </p>
           </div>
           <div class="screen-actions">
@@ -734,11 +796,7 @@
             <p class="eyebrow">Siguiente paso</p>
             <h2 id="requestsTitle">Entrada de solicitudes</h2>
             <p id="requestsCopy">
-              Usa esta zona para leer lo que recibes y revisar lo que envías dentro de Fit Match.
-            </p>
-            <p class="review-note">
-              Nota montaje: esta pantalla debe sentirse como cierre de acción. Más adelante aquí
-              vivirán estados reales, aceptación, calendario y conversación.
+              Revisa conversaciones, contactos y valoraciones desde una zona clara y privada.
             </p>
           </div>
           <div class="screen-actions">
@@ -777,26 +835,150 @@
           <div class="request-history">
             <div class="history-heading">
               <div>
-                <span class="micro-label">Actividad local</span>
+                <span class="micro-label">Mensajes y solicitudes</span>
                 <strong id="historyTitle">Entrada y enviadas</strong>
               </div>
               <button id="clearRequests" class="button quiet" type="button">Selecciona mensajes</button>
             </div>
             <div id="requestList" class="request-list" aria-live="polite"></div>
           </div>
+          <div class="rating-history" aria-label="Valoraciones de contactos">
+            <div class="history-heading rating-history-heading">
+              <div>
+                <span class="micro-label">Valoraciones</span>
+                <strong id="ratingHistoryTitle">Experiencia y reputación</strong>
+                <p>Valora contactos reales aparte de los mensajes. Tu puntuación se suma al perfil público por criterios.</p>
+              </div>
+            </div>
+            <div id="ratingList" class="rating-list" aria-live="polite"></div>
+          </div>
         </div>
+      </section>
+      <section id="trust" class="workspace trust-center app-view" data-view-name="trust" hidden>
+        <div class="screen-header trust-header">
+          <div>
+            <p class="eyebrow">Confianza y Legal</p>
+            <h2>Tu información, tus decisiones.</h2>
+            <p>
+              Fit Match está diseñado para crear conexiones profesionales con criterio, transparencia y respeto por los datos personales.
+            </p>
+          </div>
+          <div class="screen-actions">
+            <button class="button quiet" type="button" data-view="home">Volver al inicio</button>
+            <button class="button secondary" type="button" data-view="register">Crear cuenta</button>
+          </div>
+        </div>
+
+        <section class="trust-hero-card" aria-label="Resumen de privacidad Fit Match">
+          <div>
+            <span class="micro-label">Protección de tus datos</span>
+            <strong>Tu privacidad es una prioridad.</strong>
+            <p>
+              Usamos tus datos para crear tu perfil, calcular afinidades, mostrar matches y facilitar contactos profesionales.
+              No vendemos datos personales ni los cedemos con fines comerciales.
+            </p>
+          </div>
+          <div class="trust-shield" aria-hidden="true">
+            <span>✓</span>
+          </div>
+        </section>
+
+        <div class="trust-message-grid" aria-label="Mensajes de confianza">
+          <article><strong>Nunca vendemos tus datos personales.</strong><p>Fit Match no comparte tu información con fines comerciales.</p></article>
+          <article><strong>Solo tú decides con quién contactar.</strong><p>El contacto directo aparece dentro de solicitudes donde participas.</p></article>
+          <article><strong>Tu perfil es editable.</strong><p>Puedes revisar y actualizar tu información en cualquier momento.</p></article>
+          <article><strong>Control para profesionales.</strong><p>Cada profesional mantiene el control sobre la información que muestra.</p></article>
+        </div>
+
+        <div class="legal-document-grid" aria-label="Documentos legales Fit Match">
+          <article class="legal-document-card">
+            <span class="micro-label">RGPD + LOPDGDD</span>
+            <h3>Política de Privacidad</h3>
+            <p>Qué datos recopilamos, para qué los utilizamos, qué no hacemos y cómo puedes ejercer tus derechos.</p>
+            <button class="button secondary" type="button" data-open-legal-doc="privacy">Leer política</button>
+          </article>
+          <article class="legal-document-card">
+            <span class="micro-label">Uso responsable</span>
+            <h3>Términos y Condiciones</h3>
+            <p>Fit Match es una plataforma tecnológica: no presta directamente servicios deportivos ni garantiza resultados.</p>
+            <button class="button secondary" type="button" data-open-legal-doc="terms">Leer términos</button>
+          </article>
+          <article class="legal-document-card">
+            <span class="micro-label">Estructura legal</span>
+            <h3>Aviso Legal</h3>
+            <p>Base preparada para completar titular, NIF, dirección, email y dominio cuando se constituya la empresa.</p>
+            <button class="button secondary" type="button" data-open-legal-doc="legalNotice">Ver aviso</button>
+          </article>
+          <article class="legal-document-card">
+            <span class="micro-label">Cookies técnicas</span>
+            <h3>Política de Cookies</h3>
+            <p>Actualmente solo se contemplan cookies o almacenamiento técnico para que la app funcione correctamente.</p>
+            <button class="button secondary" type="button" data-open-legal-doc="cookies">Ver cookies</button>
+          </article>
+          <article class="legal-document-card">
+            <span class="micro-label">Comunidad</span>
+            <h3>Código de Conducta</h3>
+            <p>Normas de respeto, veracidad, privacidad y uso profesional dentro de Fit Match.</p>
+            <button class="button secondary" type="button" data-open-legal-doc="conduct">Leer código</button>
+          </article>
+          <article class="legal-document-card">
+            <span class="micro-label">Seguridad</span>
+            <h3>Protección de tus datos</h3>
+            <p>Datos cifrados, información controlada por cada usuario e infraestructura segura para la beta.</p>
+            <button class="button secondary" type="button" data-open-legal-doc="security">Ver protección</button>
+          </article>
+          <article class="legal-document-card">
+            <span class="micro-label">Tus derechos</span>
+            <h3>Derechos del Usuario</h3>
+            <p>Acceder, modificar, descargar, eliminar o solicitar la cancelación de tu cuenta.</p>
+            <button class="button secondary" type="button" data-open-legal-doc="rights">Ver derechos</button>
+          </article>
+          <article class="legal-document-card">
+            <span class="micro-label">RGPD</span>
+            <h3>Contacto RGPD</h3>
+            <p>Canal preparado para solicitudes de privacidad, eliminación de datos y consultas de protección.</p>
+            <button class="button secondary" type="button" data-open-legal-doc="rgpdContact">Ver contacto</button>
+          </article>
+        </div>
+
+        <section class="mission-card" aria-labelledby="missionTitle">
+          <span class="micro-label">Nuestra misión</span>
+          <h3 id="missionTitle">Elegir un profesional no debería depender del azar.</h3>
+          <p>
+            Creemos que cada persona merece encontrar al profesional adecuado para su situación concreta.
+            Y que cada profesional merece ser descubierto por las personas para las que realmente puede aportar valor.
+          </p>
+          <p>Fit Match existe para reducir el ruido. Para aportar contexto. Y para que las conexiones comiencen con criterio.</p>
+        </section>
+
+        <section class="user-rights-card" aria-label="Derechos del usuario">
+          <div>
+            <span class="micro-label">Derechos del Usuario</span>
+            <strong>Accede, modifica o elimina tu información.</strong>
+            <p>Puedes actualizar tu perfil desde la app. La solicitud de eliminación completa quedará disponible como flujo guiado en la siguiente fase.</p>
+          </div>
+          <button id="requestAccountDeletion" class="button primary" type="button">Solicitar eliminación de cuenta</button>
+        </section>
       </section>
     </main>
 
-    <footer class="footer">
+    <footer class="footer app-footer">
       <div class="brand">
         <div class="brand-mark">FM</div>
         <div>
           <strong>Fit Match</strong>
-          <span>Primera conexión real con Supabase</span>
+          <span>Conexiones profesionales con criterio</span>
         </div>
       </div>
-      <span>Ahora puedes crear cuentas, guardar perfiles y preparar el matching sobre Supabase.</span>
+      <nav class="footer-links" aria-label="Enlaces legales">
+        <button type="button" data-open-legal-doc="privacy">Privacidad</button>
+        <button type="button" data-open-legal-doc="terms">Términos</button>
+        <button type="button" data-open-legal-doc="cookies">Cookies</button>
+        <button type="button" data-open-legal-doc="conduct">Código de Conducta</button>
+        <button type="button" data-open-legal-doc="security">Seguridad</button>
+        <button type="button" data-view="trust">Contacto</button>
+      </nav>
+      <span>Tu información te pertenece. Fit Match no vende datos personales ni comparte información con fines comerciales.</span>
     </footer>
 
     <div
@@ -824,6 +1006,25 @@
 
 
     <div
+      id="ratingsModal"
+      class="modal ratings-modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ratingsModalTitle"
+      aria-describedby="ratingsModalText"
+      tabindex="-1"
+    >
+      <div class="modal-card ratings-modal-card">
+        <button id="closeRatingsModal" class="icon-button" type="button" aria-label="Cerrar valoraciones">×</button>
+        <p class="eyebrow">Reputación pública</p>
+        <h2 id="ratingsModalTitle">Valoraciones</h2>
+        <p id="ratingsModalText">Consulta la media por criterios y comentarios públicos de experiencias reales.</p>
+        <div id="ratingsModalContent" class="ratings-modal-content"></div>
+      </div>
+    </div>
+
+
+    <div
       id="legalModal"
       class="modal legal-modal hidden"
       role="dialog"
@@ -836,26 +1037,52 @@
         <p class="eyebrow">Protección y confianza</p>
         <h2 id="legalModalTitle">Antes de continuar en Fit Match</h2>
         <p id="legalModalText">
-          Para usar tu cuenta necesitamos que confirmes unas condiciones básicas de privacidad, contacto y uso responsable de la plataforma.
+          Para usar tu cuenta necesitamos confirmar unas condiciones básicas de privacidad, veracidad y uso responsable de la plataforma.
         </p>
         <div class="legal-checklist">
           <label>
-            <input type="checkbox" data-legal-check="terms" />
-            <span>Acepto los términos de uso de Fit Match y entiendo que la plataforma facilita contactos entre personas.</span>
+            <input type="checkbox" data-legal-check="privacy" />
+            <span>He leído y acepto la <button class="text-link-button" type="button" data-open-legal-doc="privacy">Política de Privacidad</button>.</span>
           </label>
           <label>
-            <input type="checkbox" data-legal-check="privacy" />
-            <span>Acepto la política de privacidad y el tratamiento de mis datos para crear perfil, calcular afinidad y gestionar contactos.</span>
+            <input type="checkbox" data-legal-check="terms" />
+            <span>Acepto los <button class="text-link-button" type="button" data-open-legal-doc="terms">Términos y Condiciones</button>.</span>
+          </label>
+          <label>
+            <input type="checkbox" data-legal-check="truthful" />
+            <span>Confirmo que la información de mi perfil es veraz y puedo actualizarla cuando cambie.</span>
           </label>
           <label>
             <input type="checkbox" data-legal-check="contact" />
             <span>Entiendo que mi email o teléfono solo se compartirán dentro de solicitudes o propuestas en las que participe.</span>
           </label>
+          <label>
+            <input type="checkbox" data-legal-check="newsletter" data-optional="true" />
+            <span>Deseo recibir novedades y mejoras de Fit Match. <small>Opcional</small></span>
+          </label>
         </div>
         <p class="legal-note">
-          Nota: esta aceptación es una base funcional para la beta. Los textos legales definitivos deberán revisarse antes de una apertura pública amplia.
+          Base legal funcional para beta en España. Antes de una apertura comercial amplia, conviene revisar estos textos con asesoría legal.
         </p>
         <button id="acceptLegalTerms" class="button primary full" type="button" disabled>Aceptar y continuar</button>
+      </div>
+    </div>
+
+    <div
+      id="legalDocModal"
+      class="modal legal-doc-modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="legalDocTitle"
+      aria-describedby="legalDocIntro"
+      tabindex="-1"
+    >
+      <div class="modal-card legal-doc-card">
+        <button id="closeLegalDocModal" class="icon-button" type="button" aria-label="Cerrar documento legal">×</button>
+        <p id="legalDocKicker" class="eyebrow">Confianza y Legal</p>
+        <h2 id="legalDocTitle">Documento legal</h2>
+        <p id="legalDocIntro"></p>
+        <div id="legalDocContent" class="legal-doc-content"></div>
       </div>
     </div>
 

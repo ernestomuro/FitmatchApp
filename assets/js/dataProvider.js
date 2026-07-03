@@ -3,10 +3,11 @@ const STORAGE_KEYS = {
   registeredProfiles: "fit-match.registered-profiles.v2",
   contactRequests: "fit-match.contact-requests.v2",
   ratings: "fit-match.profile-ratings.v1",
-  legalConsents: "fit-match.legal-consents.v1"
+  legalConsents: "fit-match.legal-consents.v1",
+  proSubscriptions: "fit-match.pro-subscriptions.v1"
 };
 
-const LEGAL_CONSENT_VERSION = "fit-match-beta-legal-v1";
+const LEGAL_CONSENT_VERSION = "fit-match-beta-legal-v2";
 
 const SUPABASE_CONFIG = window.FIT_MATCH_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient && SUPABASE_CONFIG.url && SUPABASE_CONFIG.publishableKey
@@ -18,6 +19,7 @@ let remoteProfiles = [];
 let remoteRequests = [];
 let remoteRatings = [];
 let remotePrivateNotes = {};
+let remoteProSubscription = null;
 let ratingsRemoteAvailable = true;
 let remoteError = "";
 
@@ -71,9 +73,65 @@ function normalizeRatingSummary(summary = {}) {
   };
 }
 
+function proDefaultSubscription(overrides = {}) {
+  const status = String(overrides.status || "FREE").toUpperCase();
+  const trialEndsAt = overrides.trialEndsAt || overrides.trial_ends_at || "";
+  const expiredTrial = status === "TRIAL" && trialEndsAt && new Date(trialEndsAt).getTime() < Date.now();
+  return {
+    profileId: overrides.profileId || overrides.profile_id || currentSession?.user?.id || "local",
+    role: overrides.role || "professional",
+    status: expiredTrial ? "FREE" : status,
+    plan: overrides.plan || "free",
+    startedAt: overrides.startedAt || overrides.started_at || "",
+    trialEndsAt: expiredTrial ? "" : trialEndsAt,
+    currentPeriodEnd: overrides.currentPeriodEnd || overrides.current_period_end || "",
+    stripeCustomerId: overrides.stripeCustomerId || overrides.stripe_customer_id || "",
+    stripeSubscriptionId: overrides.stripeSubscriptionId || overrides.stripe_subscription_id || "",
+    proInterest: Boolean(overrides.proInterest || overrides.pro_interest),
+    profileScore: Number(overrides.profileScore || overrides.profile_score) || 0,
+    profileRecommendations: Array.isArray(overrides.profileRecommendations || overrides.profile_recommendations)
+      ? [...(overrides.profileRecommendations || overrides.profile_recommendations)]
+      : [],
+    updatedAt: overrides.updatedAt || overrides.updated_at || new Date().toISOString()
+  };
+}
+
+function publicProMetaFromSubscription(subscription = {}, extras = {}) {
+  const normalized = proDefaultSubscription(subscription);
+  return {
+    proStatus: normalized.status,
+    proPlan: normalized.plan,
+    proTrialEndsAt: normalized.trialEndsAt,
+    proStartedAt: normalized.startedAt,
+    proInterest: normalized.proInterest,
+    profileScore: normalized.profileScore,
+    profileRecommendations: normalized.profileRecommendations,
+    verified: Boolean(extras.verified)
+  };
+}
+
+function isProActiveStatus(status = "") {
+  return ["PRO", "TRIAL"].includes(String(status || "").toUpperCase());
+}
+
+function readProSubscriptions() {
+  return readStorage(STORAGE_KEYS.proSubscriptions, {});
+}
+
+function writeProSubscription(profileId, subscription) {
+  const subscriptions = readProSubscriptions();
+  subscriptions[profileId || "local"] = proDefaultSubscription(subscription);
+  writeStorage(STORAGE_KEYS.proSubscriptions, subscriptions);
+  return subscriptions[profileId || "local"];
+}
+
 function normalizeRating(rating = {}) {
   const criteria = rating.criteria && typeof rating.criteria === "object" ? rating.criteria : {};
-  const values = Object.values(criteria).map(Number).filter((value) => value >= 1 && value <= 5);
+  const publicComment = rating.publicComment || rating.public_comment || criteria._publicComment || "";
+  const values = Object.entries(criteria)
+    .filter(([key]) => !String(key).startsWith("_"))
+    .map(([, value]) => Number(value))
+    .filter((value) => value >= 1 && value <= 5);
   const average = Number(rating.averageScore || rating.average_score) || (values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0);
   return {
     id: rating.id || createId("rating"),
@@ -84,6 +142,7 @@ function normalizeRating(rating = {}) {
     targetRole: rating.targetRole || rating.target_role || "",
     criteria,
     averageScore: Math.round(average * 10) / 10,
+    publicComment,
     comment: rating.comment || "",
     createdAt: rating.createdAt || rating.created_at || new Date().toISOString(),
     updatedAt: rating.updatedAt || rating.updated_at || new Date().toISOString()
@@ -225,6 +284,14 @@ function normalizeProfile(profile) {
     bio: profile.bio || "Perfil creado para pruebas reales de Fit Match.",
     color: profile.color || (profile.role === "client" ? "#176f4d" : "#4b3a63"),
     ratingSummary: normalizeRatingSummary(profile.ratingSummary),
+    proStatus: proDefaultSubscription({ status: profile.proStatus, trialEndsAt: profile.proTrialEndsAt }).status,
+    proPlan: profile.proPlan || "free",
+    proTrialEndsAt: profile.proTrialEndsAt || "",
+    proStartedAt: profile.proStartedAt || "",
+    proInterest: Boolean(profile.proInterest),
+    profileScore: Number(profile.profileScore) || 0,
+    profileRecommendations: Array.isArray(profile.profileRecommendations) ? [...profile.profileRecommendations] : [],
+    verified: Boolean(profile.verified),
     createdAt: profile.createdAt || now,
     updatedAt: now
   };
@@ -253,6 +320,7 @@ function oppositeRequestRole(role) {
 const CONTACT_EMAIL_PREFIX = "contact_email:";
 const CONTACT_PHONE_PREFIX = "contact_phone:";
 const PROFILE_PHOTO_PREFIX = "profile_photo:";
+const PRO_META_PREFIX = "pro_meta:";
 const READ_AT_PREFIX = "read_at:";
 const READ_BY_PREFIX = "read_by:";
 const DELETED_BY_PREFIX = "deleted_by:";
@@ -261,6 +329,7 @@ function unpackProfileNotes(value = "") {
   const lines = String(value || "").split(/\n+/);
   const visibleLines = [];
   let photo = "";
+  let proMeta = {};
 
   lines.forEach((line) => {
     const cleanLine = line.trim();
@@ -269,20 +338,26 @@ function unpackProfileNotes(value = "") {
       photo = decodeContactValue(cleanLine.slice(PROFILE_PHOTO_PREFIX.length));
       return;
     }
+    if (cleanLine.startsWith(PRO_META_PREFIX)) {
+      proMeta = parseJsonObject(decodeContactValue(cleanLine.slice(PRO_META_PREFIX.length)));
+      return;
+    }
     visibleLines.push(line);
   });
 
   return {
     notes: visibleLines.join("\n").trim(),
-    photo
+    photo,
+    proMeta
   };
 }
 
-function packProfileNotes(notes = "", photo = "") {
+function packProfileNotes(notes = "", photo = "", proMeta = {}) {
   const cleanNotes = unpackProfileNotes(notes).notes;
   const parts = [];
   if (cleanNotes) parts.push(cleanNotes);
   if (photo) parts.push(`${PROFILE_PHOTO_PREFIX}${encodeContactValue(photo)}`);
+  if (proMeta && Object.keys(proMeta).length) parts.push(`${PRO_META_PREFIX}${encodeContactValue(JSON.stringify(proMeta))}`);
   return parts.join("\n");
 }
 
@@ -452,6 +527,15 @@ function appProfileFromRemote(profileRow, detailsRow, role) {
     bio: detailsRow.bio || "",
     notes: parsedNotes.notes,
     photo: parsedNotes.photo,
+    ...publicProMetaFromSubscription({
+      status: parsedNotes.proMeta.proStatus,
+      plan: parsedNotes.proMeta.proPlan,
+      trialEndsAt: parsedNotes.proMeta.proTrialEndsAt,
+      startedAt: parsedNotes.proMeta.proStartedAt,
+      proInterest: parsedNotes.proMeta.proInterest,
+      profileScore: parsedNotes.proMeta.profileScore,
+      profileRecommendations: parsedNotes.proMeta.profileRecommendations
+    }, { verified: parsedNotes.proMeta.verified }),
     createdAt: detailsRow.created_at,
     updatedAt: detailsRow.updated_at,
     color: role === "client" ? "#176f4d" : "#4b3a63"
@@ -514,6 +598,7 @@ window.FitMatchDataProvider = {
         remoteRequests = [];
         remoteRatings = [];
         remotePrivateNotes = {};
+        remoteProSubscription = null;
       }
     });
 
@@ -576,6 +661,7 @@ window.FitMatchDataProvider = {
     currentSession = null;
     remoteProfiles = [];
     remoteRequests = [];
+    remoteProSubscription = null;
   },
 
   async refreshRemoteData() {
@@ -600,6 +686,7 @@ window.FitMatchDataProvider = {
         if (!privateResult.error && privateResult.data) {
           const privateNotes = parseJsonObject(privateResult.data.private_notes);
           remotePrivateNotes = privateNotes;
+          remoteProSubscription = proDefaultSubscription(privateNotes.proSubscription || { profileId: currentSession.user.id, role: getUserAccountRole(), status: "FREE" });
           remoteProfiles = remoteProfiles.map((profile) => profile.id === currentSession.user.id
             ? {
                 ...profile,
@@ -607,12 +694,17 @@ window.FitMatchDataProvider = {
                 contactEmail: privateResult.data.contact_email || currentSession.user.email || "",
                 phone: privateResult.data.phone || "",
                 birthdate: privateNotes.birthdate || "",
-                photo: profile.photo || privateNotes.photo || ""
+                photo: profile.photo || privateNotes.photo || "",
+                ...(profile.role === "professional" ? publicProMetaFromSubscription(remoteProSubscription, { verified: profile.verified }) : {})
               }
             : profile);
         }
       } catch (error) {
         // Los datos privados no deben romper el directorio público si la política aún no los permite.
+      }
+
+      if (!remoteProSubscription && currentSession?.user?.id) {
+        remoteProSubscription = proDefaultSubscription({ profileId: currentSession.user.id, role: getUserAccountRole(), status: "FREE" });
       }
 
       try {
@@ -722,8 +814,16 @@ window.FitMatchDataProvider = {
     }
 
     const user = currentSession.user;
-    const normalized = normalizeProfile({ ...profile, id: user.id, email: user.email || profile.email });
     const existingActiveProfile = remoteProfiles.find((item) => item.id === user.id);
+    const subscription = profile.role === "professional"
+      ? this.getProSubscription(user.id)
+      : proDefaultSubscription({ profileId: user.id, role: profile.role, status: "FREE" });
+    const normalized = normalizeProfile({
+      ...profile,
+      id: user.id,
+      email: user.email || profile.email,
+      ...publicProMetaFromSubscription(subscription, { verified: profile.role === "professional" && (existingActiveProfile?.verified || profile.verified) })
+    });
     if (existingActiveProfile && existingActiveProfile.role !== normalized.role) {
       throw new Error(`Esta cuenta ya está registrada como ${existingActiveProfile.role === "client" ? "cliente" : "profesional"}. Usa otro email para la otra ruta.`);
     }
@@ -742,7 +842,11 @@ window.FitMatchDataProvider = {
       services: normalized.services,
       availability: normalized.availability,
       bio: normalized.bio,
-      match_notes: packProfileNotes(normalized.notes, normalized.photo),
+      match_notes: packProfileNotes(
+        normalized.notes,
+        normalized.photo,
+        normalized.role === "professional" ? publicProMetaFromSubscription(subscription, { verified: normalized.verified }) : {}
+      ),
       is_active: true,
       [priceField(normalized.role)]: normalized.price || null
     };
@@ -756,7 +860,12 @@ window.FitMatchDataProvider = {
       user_id: user.id,
       contact_email: normalized.email,
       phone: normalized.phone || null,
-      private_notes: JSON.stringify({ ...remotePrivateNotes, birthdate: normalized.birthdate || "", photo: normalized.photo || "" })
+      private_notes: JSON.stringify({
+        ...remotePrivateNotes,
+        ...(normalized.role === "professional" ? { proSubscription: subscription } : {}),
+        birthdate: normalized.birthdate || "",
+        photo: normalized.photo || ""
+      })
     }));
 
     this.saveProfileDraft(normalized);
@@ -798,6 +907,7 @@ window.FitMatchDataProvider = {
     remoteRequests = remoteRequests.filter((request) => request.profile.id !== userId && request.target.id !== userId);
     remoteRatings = remoteRatings.filter((rating) => rating.raterId !== userId && rating.targetId !== userId);
     remotePrivateNotes = {};
+    remoteProSubscription = null;
     await this.refreshRemoteData();
     return this.listProfiles(role);
   },
@@ -942,7 +1052,9 @@ window.FitMatchDataProvider = {
       role: getUserAccountRole(user) || consent.role || "",
       terms: Boolean(consent.terms),
       privacy: Boolean(consent.privacy),
-      contact: Boolean(consent.contact)
+      truthful: Boolean(consent.truthful),
+      contact: Boolean(consent.contact),
+      newsletter: Boolean(consent.newsletter)
     };
 
     writeLocalLegalConsent(currentUserKey(user), payload);
@@ -961,6 +1073,96 @@ window.FitMatchDataProvider = {
     }
 
     return payload;
+  },
+
+  getProSubscription(profileId) {
+    const ownId = currentSession?.user?.id || "";
+    const targetId = profileId || ownId || "local";
+    if (canUseRemote() && (!profileId || targetId === ownId)) {
+      return proDefaultSubscription(remoteProSubscription || { profileId: targetId, role: getUserAccountRole(), status: "FREE" });
+    }
+    const stored = readProSubscriptions()[targetId];
+    const profileRow = this.listProfiles().find((item) => item.id === targetId);
+    return proDefaultSubscription(stored || {
+      profileId: targetId,
+      role: profileRow?.role || "professional",
+      status: profileRow?.proStatus || "FREE",
+      plan: profileRow?.proPlan || "free",
+      trialEndsAt: profileRow?.proTrialEndsAt || "",
+      startedAt: profileRow?.proStartedAt || "",
+      proInterest: profileRow?.proInterest || false,
+      profileScore: profileRow?.profileScore || 0,
+      profileRecommendations: profileRow?.profileRecommendations || []
+    });
+  },
+
+  async registerProInterest(profile = {}) {
+    const user = currentSession?.user;
+    const profileId = canUseRemote() ? user?.id : profile.id;
+    if (!profileId) throw new Error("Guarda primero tu perfil profesional para registrar tu interés.");
+    if ((profile.role || getUserAccountRole(user)) !== "professional") {
+      throw new Error("Fit Match PRO está pensado para cuentas profesionales.");
+    }
+
+    const recommendations = this.getProRecommendations(profile);
+    const metrics = this.getProMetrics(profile);
+    const current = this.getProSubscription(profileId);
+    const subscription = proDefaultSubscription({
+      ...current,
+      profileId,
+      role: "professional",
+      status: current.status || "FREE",
+      plan: current.plan || "free",
+      proInterest: true,
+      profileScore: metrics.profileStrength || 0,
+      profileRecommendations: recommendations,
+      updatedAt: new Date().toISOString()
+    });
+
+    if (!canUseRemote()) {
+      writeProSubscription(profileId, subscription);
+      return subscription;
+    }
+
+    remoteProSubscription = subscription;
+    remotePrivateNotes = { ...remotePrivateNotes, proSubscription: subscription };
+    await assertNoError(await supabaseClient.from("private_profile_data").upsert({
+      user_id: profileId,
+      contact_email: user.email || null,
+      private_notes: JSON.stringify(remotePrivateNotes)
+    }));
+
+    await this.refreshRemoteData();
+    return subscription;
+  },
+
+  getProMetrics(profile = {}) {
+    const allRequests = this.listContactRequests(profile.role, { profileId: profile.id });
+    const activeContacts = allRequests.filter((request) => !["rejected", "cancelled"].includes(request.status)).length;
+    const ratings = this.listRatings().filter((rating) => rating.targetId === profile.id);
+    const directorySize = profile.role === "professional" ? this.listProfiles("client").length : this.listProfiles("professional").length;
+    const completedSignals = [profile.photo, profile.bio, profile.availability, profile.services?.length, profile.sport || profile.notes, profile.price].filter(Boolean).length;
+    const matches = Math.max(0, directorySize);
+    const views = Math.max(0, matches * 12 + activeContacts * 11 + ratings.length * 9 + completedSignals * 5);
+    const conversion = views ? Math.min(99, Math.round((activeContacts / views) * 100)) : 0;
+    return {
+      views,
+      matches,
+      contacts: activeContacts,
+      conversion,
+      profileStrength: Math.min(100, 45 + completedSignals * 8 + ratings.length * 3)
+    };
+  },
+
+  getProRecommendations(profile = {}) {
+    const recommendations = [];
+    if (!profile.photo) recommendations.push("Añade una foto clara para aumentar confianza.");
+    if (!profile.bio || profile.bio.length < 80) recommendations.push("Amplía tu presentación profesional con método y experiencia.");
+    if (!profile.availability) recommendations.push("Completa disponibilidad para facilitar el primer contacto.");
+    if (!profile.services?.length) recommendations.push("Marca servicios concretos para mejorar el cruce de matches.");
+    if (!profile.sport && !profile.notes) recommendations.push("Añade deportes, casos ideales o criterios de trabajo.");
+    if (!recommendations.length) recommendations.push("Tu perfil tiene una base sólida. El siguiente paso será añadir vídeo, certificaciones y calendario.");
+    return recommendations.slice(0, 4);
   },
 
   listRatings() {
@@ -991,7 +1193,11 @@ window.FitMatchDataProvider = {
       raterRole: payload.raterRole,
       targetId: payload.target?.id || payload.targetId,
       targetRole: payload.target?.role || payload.targetRole,
-      criteria: payload.criteria || {},
+      criteria: {
+        ...(payload.criteria || {}),
+        ...(payload.publicComment ? { _publicComment: payload.publicComment } : {})
+      },
+      publicComment: payload.publicComment || "",
       comment: payload.comment || ""
     });
 

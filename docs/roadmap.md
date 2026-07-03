@@ -41,11 +41,14 @@ Estado actual.
 - Plantillas de primer contacto.
 - Historial completo de conversación.
 
-## Fase 5: Reservas y pagos
+## Fase 5: Fit Match PRO, reservas y pagos
 
+- Fit Match PRO en construccion para profesionales.
+- KORO Profile Coach como asistente futuro de perfil, posicionamiento y conversion.
+- Registro de interes PRO sin cobros activos.
 - Calendario de disponibilidad.
-- Reserva de sesión.
-- Pago inicial o suscripción.
+- Reserva de sesion.
+- Pago inicial o suscripcion cuando Stripe este listo.
 - Historial de pagos.
 - Cancelaciones y reprogramaciones.
 

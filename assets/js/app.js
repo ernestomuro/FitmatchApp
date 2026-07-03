@@ -12,14 +12,14 @@ const ROLE_COPY = {
     submit: "Guardar perfil cliente y ver profesionales",
     matchesTitle: "Profesionales compatibles",
     matchesCopy:
-      "Los resultados usan profesionales disponibles en Supabase cuando hay sesión, o perfiles locales mientras pruebas sin entrar.",
+      "Revisa primero los profesionales con mayor compatibilidad y abre cada perfil antes de contactar.",
     requestTitle: "Solicitudes preparadas",
     requestCopy:
-      "Elige un profesional compatible y prepara una solicitud. Con sesión iniciada quedará registrada en Supabase.",
+      "Elige un profesional compatible y prepara una solicitud con contexto real.",
     cardAction: "Solicitar servicio",
     modalTitle: "Solicitar servicio",
     modalText:
-      "Vas a preparar una solicitud local con el perfil del cliente y el profesional seleccionado.",
+      "Vas a preparar una solicitud con tu perfil y el profesional seleccionado.",
     sendAction: "Enviar solicitud",
     sentPrefix: "Solicitud preparada para",
     sentNext:
@@ -35,14 +35,14 @@ const ROLE_COPY = {
     submit: "Guardar perfil profesional y ver clientes",
     matchesTitle: "Clientes compatibles",
     matchesCopy:
-      "Los resultados usan clientes disponibles en Supabase cuando hay sesión, o perfiles locales mientras pruebas sin entrar.",
+      "Revisa primero los clientes con mayor compatibilidad y abre cada perfil antes de proponer contacto.",
     requestTitle: "Propuestas preparadas",
     requestCopy:
-      "Elige un cliente compatible y prepara una propuesta. Con sesión iniciada quedará registrada en Supabase.",
+      "Elige un cliente compatible y prepara una propuesta clara y contextual.",
     cardAction: "Proponer plan",
     modalTitle: "Proponer plan",
     modalText:
-      "Vas a preparar una propuesta local con el perfil profesional y el cliente seleccionado.",
+      "Vas a preparar una propuesta con tu perfil profesional y el cliente seleccionado.",
     sendAction: "Enviar propuesta",
     sentPrefix: "Propuesta preparada para",
     sentNext:
@@ -175,9 +175,23 @@ function roundRating(value) {
   return Math.round(Number(value || 0) * 10) / 10;
 }
 
+function ratingsForPerson(person) {
+  return (dataProvider.listRatings?.() || []).filter((rating) => rating.targetId === person?.id);
+}
+
+function publicRatingCommentsFor(person) {
+  return ratingsForPerson(person)
+    .map((rating) => ({
+      ...rating,
+      publicComment: (rating.publicComment || rating.criteria?._publicComment || "").trim()
+    }))
+    .filter((rating) => rating.publicComment)
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
+}
+
 function ratingBreakdownFor(person) {
   const criteria = ratingCriteriaForRole(person?.role);
-  const ratings = (dataProvider.listRatings?.() || []).filter((rating) => rating.targetId === person?.id);
+  const ratings = ratingsForPerson(person);
   const summary = ratingSummaryFor(person);
   const rows = criteria.map(([key, labelText]) => {
     const values = ratings
@@ -206,7 +220,7 @@ function createReadOnlyStars(value, labelText) {
   return stars;
 }
 
-function createRatingBreakdownSection(person) {
+function createRatingBreakdownSection(person, { showDetailsButton = true } = {}) {
   const breakdown = ratingBreakdownFor(person);
   const section = createElement("div", "profile-detail-section rating-breakdown-section");
   const heading = createElement("div", "rating-breakdown-heading");
@@ -243,6 +257,23 @@ function createRatingBreakdownSection(person) {
   });
 
   section.append(heading, list);
+
+  if (showDetailsButton) {
+    const comments = publicRatingCommentsFor(person);
+    const actions = createElement("div", "rating-breakdown-actions");
+    const button = createElement("button", "button secondary", comments.length ? `Ver valoraciones (${comments.length})` : "Ver valoraciones");
+    button.type = "button";
+    button.dataset.openRatingDetails = person.id;
+    button.setAttribute("aria-label", `Ver valoraciones públicas de ${person.name || profileTitle(person)}`);
+    actions.append(
+      button,
+      createElement("small", "", comments.length
+        ? "Incluye comentarios públicos destacados y el detalle por criterio."
+        : "Aún no hay comentarios públicos, pero puedes ver cómo se calcula la reputación.")
+    );
+    section.append(actions);
+  }
+
   return section;
 }
 
@@ -265,7 +296,12 @@ function createBlankProfile(role) {
     price: "",
     availability: "",
     bio: "",
-    notes: ""
+    notes: "",
+    proStatus: "FREE",
+    proPlan: "free",
+    proTrialEndsAt: "",
+    proStartedAt: "",
+    verified: false
   };
 }
 
@@ -278,6 +314,7 @@ const profile = {
 
 let selectedMatch = null;
 let modalOpener = null;
+let ratingsModalOpener = null;
 let renderTimer = null;
 let isProcessingPhoto = false;
 let selectedRequestIds = new Set();
@@ -340,6 +377,10 @@ const sortInput = document.querySelector("#sortInput");
 const modal = document.querySelector("#modal");
 const modalTitle = document.querySelector("#modalTitle");
 const modalText = document.querySelector("#modalText");
+const ratingsModal = document.querySelector("#ratingsModal");
+const ratingsModalTitle = document.querySelector("#ratingsModalTitle");
+const ratingsModalText = document.querySelector("#ratingsModalText");
+const ratingsModalContent = document.querySelector("#ratingsModalContent");
 const profileDetail = document.querySelector("#profileDetail");
 const messageInput = document.querySelector("#messageInput");
 const requestBox = document.querySelector("#requestBox");
@@ -361,6 +402,8 @@ const profileStatusBar = document.querySelector("#profileStatusBar");
 const savedRoleLabel = document.querySelector("#savedRoleLabel");
 const savedRequestsCount = document.querySelector("#savedRequestsCount");
 const requestList = document.querySelector("#requestList");
+const ratingList = document.querySelector("#ratingList");
+const ratingHistoryTitle = document.querySelector("#ratingHistoryTitle");
 const clearRequestsButton = document.querySelector("#clearRequests");
 const historyTitle = document.querySelector("#historyTitle");
 const priceLabel = document.querySelector("#priceLabel");
@@ -464,15 +507,116 @@ const profileHomeContacts = document.querySelector("#profileHomeContacts");
 const profileHomeMessages = document.querySelector("#profileHomeMessages");
 const profileHomeAffinity = document.querySelector("#profileHomeAffinity");
 const profileHomeUnreadAlert = document.querySelector("#profileHomeUnreadAlert");
+const proPanel = document.querySelector("#proPanel");
+const proStatusBadge = document.querySelector("#proStatusBadge");
+const proPanelTitle = document.querySelector("#proPanelTitle");
+const proPanelCopy = document.querySelector("#proPanelCopy");
+const proMetricViews = document.querySelector("#proMetricViews");
+const proMetricMatches = document.querySelector("#proMetricMatches");
+const proMetricContacts = document.querySelector("#proMetricContacts");
+const proMetricConversion = document.querySelector("#proMetricConversion");
+const proRecommendations = document.querySelector("#proRecommendations");
+const proProfileScore = document.querySelector("#proProfileScore");
+const proScoreState = document.querySelector("#proScoreState");
+const proScoreActions = document.querySelector("#proScoreActions");
+const proLockMessage = document.querySelector("#proLockMessage");
+const proInterestButton = document.querySelector("#proInterestButton");
+const proPaymentNote = document.querySelector("#proPaymentNote");
 const legalModal = document.querySelector("#legalModal");
 const acceptLegalTermsButton = document.querySelector("#acceptLegalTerms");
 const legalChecks = document.querySelectorAll("[data-legal-check]");
+const signupLegalChecks = document.querySelectorAll("[data-signup-legal-check]");
+const legalDocModal = document.querySelector("#legalDocModal");
+const legalDocKicker = document.querySelector("#legalDocKicker");
+const legalDocTitle = document.querySelector("#legalDocTitle");
+const legalDocIntro = document.querySelector("#legalDocIntro");
+const legalDocContent = document.querySelector("#legalDocContent");
+const closeLegalDocModalButton = document.querySelector("#closeLegalDocModal");
+const requestAccountDeletionButton = document.querySelector("#requestAccountDeletion");
 const authActionButtons = document.querySelectorAll("[data-auth-action]");
 const appViews = document.querySelectorAll(".app-view");
 const viewButtons = document.querySelectorAll("[data-view]");
 const roleStartButtons = document.querySelectorAll("[data-start-role]");
-const reviewToggle = document.querySelector("#reviewToggle");
-const REVIEW_MODE_KEY = "fit-match.review-mode";
+
+const LEGAL_DOCUMENTS = {
+  privacy: {
+    kicker: "Política de Privacidad",
+    title: "Política de Privacidad Fit Match",
+    intro: "Fit Match utiliza datos personales para crear perfiles, calcular afinidades y facilitar conexiones profesionales con contexto.",
+    sections: [
+      ["Qué datos recopilamos", ["Nombre y datos de cuenta como email.", "Ciudad y datos básicos del perfil.", "Objetivos, especialidad, modalidad, nivel, servicios y preferencias.", "Información de contacto como email o teléfono cuando decides participar en una solicitud."]],
+      ["Para qué los utilizamos", ["Crear y mantener tu perfil.", "Calcular afinidades y mostrar matches compatibles.", "Facilitar solicitudes, propuestas y contacto entre usuarios.", "Mejorar la experiencia y seguridad de la plataforma."]],
+      ["Qué no hacemos", ["No vendemos datos personales.", "No cedemos información con fines comerciales.", "No mostramos email, teléfono ni datos privados en tarjetas públicas sin autorización."]],
+      ["Derechos del usuario", ["Puedes acceder, modificar, descargar o eliminar tu información.", "Puedes solicitar la cancelación de tu cuenta y la eliminación completa de datos cuando proceda."]],
+      ["Conservación", ["Conservamos los datos mientras exista la cuenta o mientras sea necesario por obligaciones legales o de seguridad."]]
+    ]
+  },
+  terms: {
+    kicker: "Términos y Condiciones",
+    title: "Términos y Condiciones Fit Match",
+    intro: "Fit Match es una plataforma tecnológica que ayuda a conectar clientes y profesionales mediante afinidad de perfil.",
+    sections: [
+      ["Naturaleza del servicio", ["Fit Match no presta directamente servicios deportivos, nutricionales, sanitarios ni de entrenamiento.", "La plataforma facilita descubrimiento, compatibilidad y contacto entre usuarios."]],
+      ["Responsabilidad de usuarios", ["Cada profesional es responsable de su actividad, formación, comunicaciones y servicios ofrecidos.", "Cada cliente decide libremente con quién contactar y qué acuerdos aceptar."]],
+      ["Resultados y salud", ["Fit Match no garantiza resultados físicos, deportivos, económicos ni profesionales.", "La plataforma no sustituye asesoramiento médico, diagnóstico, tratamiento ni seguimiento sanitario."]],
+      ["Acuerdos entre usuarios", ["Los precios, horarios, servicios, cancelaciones y condiciones concretas se acuerdan directamente entre cliente y profesional."]]
+    ]
+  },
+  legalNotice: {
+    kicker: "Aviso Legal",
+    title: "Aviso Legal",
+    intro: "Estructura preparada para completar cuando la empresa esté constituida y el dominio definitivo esté activo.",
+    sections: [
+      ["Datos pendientes", ["Titular de la plataforma: pendiente de completar.", "NIF/CIF: pendiente de completar.", "Dirección: pendiente de completar.", "Email legal: pendiente de completar.", "Dominio oficial: pendiente de completar."]],
+      ["Uso de la plataforma", ["El usuario se compromete a utilizar Fit Match de forma lícita, responsable y respetuosa."]]
+    ]
+  },
+  cookies: {
+    kicker: "Política de Cookies",
+    title: "Política de Cookies",
+    intro: "En esta fase Fit Match solo contempla cookies o almacenamiento técnico necesario para que la app funcione.",
+    sections: [
+      ["Uso actual", ["Sesión de usuario y funcionamiento técnico de Supabase.", "Preferencias necesarias como ruta seleccionada, consentimiento o estado local de la interfaz."]],
+      ["Futuro", ["La estructura queda preparada para Analytics, Pixel u otras herramientas, pero no se activa un banner complejo hasta que existan cookies no técnicas.", "Si se añaden herramientas de medición o publicidad, se pedirá consentimiento específico cuando corresponda."]]
+    ]
+  },
+  conduct: {
+    kicker: "Código de Conducta",
+    title: "Código de Conducta Fit Match",
+    intro: "Fit Match nace para crear conexiones profesionales basadas en la confianza, el respeto y la transparencia.",
+    sections: [
+      ["Todos los usuarios aceptan", ["Mantener información veraz.", "Tratar con respeto al resto de usuarios.", "No utilizar lenguaje ofensivo.", "No realizar spam.", "No utilizar la plataforma para fines ilícitos.", "Mantener una actitud profesional.", "Respetar la privacidad de otros usuarios.", "Informar si detectan perfiles falsos."]],
+      ["Principio final", ["La confianza es el activo más importante de Fit Match."]]
+    ]
+  },
+  security: {
+    kicker: "Seguridad y Protección de Datos",
+    title: "Protección de tus datos",
+    intro: "Tu privacidad es una prioridad. Fit Match muestra solo la información necesaria para crear conexiones profesionales útiles.",
+    sections: [
+      ["Cómo protegemos la información", ["Los datos viajan cifrados mediante conexiones seguras.", "Cada usuario controla su información y puede editar su perfil.", "Solo se muestra la información necesaria para facilitar conexiones profesionales.", "No compartimos datos con terceros para publicidad.", "Utilizamos infraestructura segura para proteger la información."]]
+    ]
+  },
+  rights: {
+    kicker: "Derechos del Usuario",
+    title: "Derechos del Usuario",
+    intro: "Cualquier usuario puede mantener control sobre su información dentro de Fit Match.",
+    sections: [
+      ["Puedes solicitar", ["Modificar tu perfil.", "Recibir una copia de tus datos.", "Eliminar tu cuenta.", "Solicitar la eliminación completa de tu información."]],
+      ["Estado actual", ["La edición de perfil ya está disponible. La descarga guiada y eliminación completa quedarán preparadas para la siguiente fase de beta."]]
+    ]
+  },
+  rgpdContact: {
+    kicker: "Contacto RGPD",
+    title: "Contacto RGPD",
+    intro: "Canal preparado para solicitudes de privacidad y protección de datos.",
+    sections: [
+      ["Contacto", ["Email RGPD: pendiente de activar antes de la apertura pública amplia.", "Mientras la app esté en beta controlada, las solicitudes se gestionarán manualmente por el responsable del proyecto."]],
+      ["Qué puedes pedir", ["Acceso a tus datos.", "Rectificación o actualización.", "Eliminación de cuenta o datos.", "Consulta sobre privacidad."]]
+    ]
+  }
+};
+
 const viewAliases = {
   home: "home",
   inicio: "home",
@@ -489,7 +633,11 @@ const viewAliases = {
   contacts: "contacts",
   contacto: "contacts",
   contactos: "contacts",
-  solicitudes: "contacts"
+  solicitudes: "contacts",
+  trust: "trust",
+  confianza: "trust",
+  legal: "trust",
+  privacidad: "trust"
 };
 let activeView = "home";
 
@@ -541,6 +689,11 @@ function showView(viewName, { push = true, focus = true } = {}) {
 
   updateNavigationState(nextView);
 
+  if (nextView === "trust") {
+    markTrustCenterVisited();
+    updateSignupLegalState();
+  }
+
   if (nextView === "account") {
     updateAuthPanel();
   }
@@ -558,6 +711,11 @@ function showView(viewName, { push = true, focus = true } = {}) {
   }
 
   window.scrollTo({ top: 0, behavior: "auto" });
+  if (nextView === "trust") {
+    window.requestAnimationFrame(() => {
+      document.querySelector('#trust')?.scrollIntoView({ block: "start", behavior: "auto" });
+    });
+  }
 
   if (focus) {
     const activeScreen = document.querySelector(`.app-view[data-view-name="${nextView}"]`);
@@ -603,24 +761,88 @@ function updateRoleModeClass() {
   document.body.classList.toggle("role-professional", profile.role === "professional");
 }
 
-function setReviewMode(enabled) {
-  document.body.classList.toggle("review-mode", enabled);
-  if (!reviewToggle) return;
-  reviewToggle.classList.toggle("active", enabled);
-  reviewToggle.setAttribute("aria-pressed", String(enabled));
-  reviewToggle.textContent = enabled ? "Montaje activo" : "Montaje";
+const TRUST_VISITED_KEY = "fit-match.trust-visited.v1";
+
+function hasVisitedTrustCenter() {
+  return window.localStorage.getItem(TRUST_VISITED_KEY) === "true";
 }
 
-function initReviewMode() {
-  const stored = window.localStorage.getItem(REVIEW_MODE_KEY);
-  const isLocalFile = window.location.protocol === "file:";
-  setReviewMode(stored === null ? isLocalFile : stored === "true");
+function markTrustCenterVisited() {
+  window.localStorage.setItem(TRUST_VISITED_KEY, "true");
 }
 
+function requiredChecksCompleted(checks) {
+  return Array.from(checks).filter((check) => check.dataset.optional !== "true").every((check) => check.checked);
+}
+
+function signupLegalPayload() {
+  return Array.from(signupLegalChecks).reduce((items, check) => {
+    items[check.dataset.signupLegalCheck] = check.checked;
+    return items;
+  }, { role: profile.role, contact: true });
+}
+
+function signupLegalShouldShow() {
+  if (isRemoteMode() && dataProvider.hasLegalConsent?.()) return false;
+  return hasVisitedTrustCenter();
+}
+
+function updateSignupLegalState() {
+  const panel = document.querySelector(".signup-legal-panel");
+  if (!panel) return;
+  const shouldShow = signupLegalShouldShow();
+  panel.hidden = !shouldShow;
+  panel.setAttribute("aria-hidden", String(!shouldShow));
+  panel.classList.toggle("legal-ready", shouldShow && requiredChecksCompleted(signupLegalChecks));
+}
+
+function validateSignupLegalConsent() {
+  if (isRemoteMode() && dataProvider.hasLegalConsent?.()) return true;
+
+  if (!hasVisitedTrustCenter()) {
+    roleHelp.querySelector("strong").textContent = "Primero revisa Confianza y Legal";
+    roleHelp.querySelector("span").textContent = "Antes de aceptar condiciones, lee el Centro de Confianza. Después volverás al perfil para confirmar privacidad y términos.";
+    showView("trust");
+    return false;
+  }
+
+  updateSignupLegalState();
+  if (requiredChecksCompleted(signupLegalChecks)) return true;
+  roleHelp.querySelector("strong").textContent = "Falta aceptar privacidad y términos";
+  roleHelp.querySelector("span").textContent = "Después de revisar Confianza y Legal, acepta privacidad, términos y confirma que tu información es veraz.";
+  document.querySelector(".signup-legal-panel")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  return false;
+}
+
+function renderLegalDocument(docKey) {
+  const doc = LEGAL_DOCUMENTS[docKey];
+  if (!doc || !legalDocModal || !legalDocContent) return;
+  legalDocKicker.textContent = doc.kicker || "Confianza y Legal";
+  legalDocTitle.textContent = doc.title;
+  legalDocIntro.textContent = doc.intro || "";
+  const sections = doc.sections.map(([title, items]) => {
+    const section = createElement("section", "legal-doc-section");
+    section.append(createElement("h3", "", title));
+    const list = createElement("ul", "");
+    items.forEach((item) => list.append(createElement("li", "", item)));
+    section.append(list);
+    return section;
+  });
+  legalDocContent.replaceChildren(...sections);
+  legalDocModal.classList.remove("hidden");
+  legalDocModal.scrollTop = 0;
+  legalDocModal.querySelector(".modal-card")?.scrollTo({ top: 0, left: 0 });
+  legalDocModal.focus();
+}
+
+function closeLegalDocModal() {
+  legalDocModal?.classList.add("hidden");
+  legalDocContent?.replaceChildren();
+}
 
 function updateLegalAcceptState() {
   if (!acceptLegalTermsButton) return;
-  acceptLegalTermsButton.disabled = !Array.from(legalChecks).every((check) => check.checked);
+  acceptLegalTermsButton.disabled = !requiredChecksCompleted(legalChecks);
 }
 
 function openLegalModal() {
@@ -665,6 +887,7 @@ function updateAuthPanel(message = "") {
   const isProfileReady = hasSavedProfile();
   const connectedEmail = state.user?.email || "esta cuenta";
   document.body.classList.toggle("account-connected", isConnected);
+  updateSignupLegalState();
 
   if (signupFields) signupFields.hidden = false;
   if (authLoginFields) authLoginFields.hidden = isConnected;
@@ -705,7 +928,6 @@ function updateAuthPanel(message = "") {
   }
 
   renderProfileHome();
-  if (isConnected) maybePromptLegalConsent();
 }
 
 
@@ -777,16 +999,167 @@ function clearSignupCredentials() {
   if (signupPasswordConfirmInput) signupPasswordConfirmInput.value = "";
 }
 
-async function ensureAccountBeforeSaving() {
-  if (isRemoteMode()) return true;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+const CITY_PATTERN = /^[\p{L}][\p{L}\s'.-]{1,60}$/u;
 
-  const email = profile.email.trim();
+function cleanEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function cleanCity(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function normalizePhone(value) {
+  return String(value || "")
+    .replace(/[^+0-9]/g, "")
+    .replace(/(?!^)\+/g, "");
+}
+
+function phoneDigits(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function isValidEmail(value) {
+  return EMAIL_PATTERN.test(cleanEmail(value));
+}
+
+function isValidPhone(value) {
+  if (!value) return true;
+  const normalized = normalizePhone(value);
+  const digits = phoneDigits(normalized);
+  return /^\+?\d+$/.test(normalized) && digits.length >= 7 && digits.length <= 15;
+}
+
+function isValidBirthdate(value) {
+  if (!value) return true;
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date <= today && date.getFullYear() >= 1900;
+}
+
+function isValidCity(value) {
+  if (!value) return true;
+  return CITY_PATTERN.test(cleanCity(value));
+}
+
+function setInputError(selector, message) {
+  const input = document.querySelector(selector);
+  if (!input) return;
+  input.setCustomValidity(message || "");
+  if (message) input.reportValidity();
+}
+
+function clearInputErrors() {
+  ["#authEmailInput", "#emailInput", "#birthdateInput", "#phoneInput", "#cityInput"].forEach((selector) => setInputError(selector, ""));
+}
+
+function showProfileValidationError(title, message, selector) {
+  roleHelp.querySelector("strong").textContent = title;
+  roleHelp.querySelector("span").textContent = message;
+  setInputError(selector, message);
+  document.querySelector(selector)?.focus();
+  return false;
+}
+
+function validateProfileData({ requireEmail = false } = {}) {
+  clearInputErrors();
+  profile.email = cleanEmail(profile.email);
+  profile.phone = normalizePhone(profile.phone);
+  profile.city = cleanCity(profile.city);
+
+  const emailInput = document.querySelector("#emailInput");
+  const phoneInput = document.querySelector("#phoneInput");
+  const cityInput = document.querySelector("#cityInput");
+  if (emailInput) emailInput.value = profile.email;
+  if (phoneInput) phoneInput.value = profile.phone;
+  if (cityInput) cityInput.value = profile.city;
+
+  if ((requireEmail || profile.email) && !isValidEmail(profile.email)) {
+    return showProfileValidationError(
+      "Email no válido",
+      "Escribe un email real, por ejemplo nombre@email.com.",
+      "#emailInput"
+    );
+  }
+
+  if (!isValidBirthdate(profile.birthdate)) {
+    return showProfileValidationError(
+      "Fecha no válida",
+      "La fecha de nacimiento no puede ser futura ni anterior a 1900.",
+      "#birthdateInput"
+    );
+  }
+
+  if (!isValidPhone(profile.phone)) {
+    return showProfileValidationError(
+      "Teléfono no válido",
+      "Introduce solo números, con prefijo si quieres. Debe tener entre 7 y 15 cifras.",
+      "#phoneInput"
+    );
+  }
+
+  if (!isValidCity(profile.city)) {
+    return showProfileValidationError(
+      "Ciudad no válida",
+      "Escribe una ciudad reconocible, sin emails, números ni símbolos extraños.",
+      "#cityInput"
+    );
+  }
+
+  return true;
+}
+
+function validateAuthEmailInput(input, messageTarget = updateAuthPanel) {
+  const email = cleanEmail(input?.value || "");
+  if (input) input.value = email;
+  setInputError("#authEmailInput", "");
+  if (!isValidEmail(email)) {
+    const message = "Introduce un email válido, por ejemplo nombre@email.com.";
+    setInputError("#authEmailInput", message);
+    messageTarget(message);
+    return "";
+  }
+  return email;
+}
+
+function setBirthdateLimit() {
+  const input = document.querySelector("#birthdateInput");
+  if (input) input.max = new Date().toISOString().slice(0, 10);
+}
+
+async function ensureAccountBeforeSaving() {
+  if (isRemoteMode()) {
+    if (!validateSignupLegalConsent()) return false;
+    if (!dataProvider.hasLegalConsent?.()) {
+      await dataProvider.acceptLegalConsent?.(signupLegalPayload());
+      updateSignupLegalState();
+    }
+    return true;
+  }
+
+  if (!validateSignupLegalConsent()) return false;
+
+  const email = cleanEmail(profile.email);
   const password = signupPasswordInput?.value || "";
   const confirmation = signupPasswordConfirmInput?.value || "";
+  profile.email = email;
 
   if (!email) {
     roleHelp.querySelector("strong").textContent = "Falta el email";
     roleHelp.querySelector("span").textContent = "Introduce el email de cuenta para crear tu acceso antes de guardar el perfil.";
+    setInputError("#emailInput", "Introduce el email de cuenta para crear tu acceso.");
+    document.querySelector("#emailInput")?.focus();
+    return false;
+  }
+
+  if (!isValidEmail(email)) {
+    roleHelp.querySelector("strong").textContent = "Email no válido";
+    roleHelp.querySelector("span").textContent = "Escribe un email real, por ejemplo nombre@email.com.";
+    setInputError("#emailInput", "Escribe un email real, por ejemplo nombre@email.com.");
+    document.querySelector("#emailInput")?.focus();
     return false;
   }
 
@@ -810,6 +1183,8 @@ async function ensureAccountBeforeSaving() {
       role: profile.role,
       name: profile.name
     });
+    await dataProvider.acceptLegalConsent?.(signupLegalPayload());
+    updateSignupLegalState();
     clearSignupCredentials();
     updateAuthPanel("Cuenta creada. Guardando tu perfil en Supabase...");
     return true;
@@ -851,10 +1226,11 @@ function loadOwnRemoteProfile() {
 async function handleAuth(action) {
   if (!authEmailInput || !authPasswordInput) return;
 
-  const email = authEmailInput.value.trim();
+  const email = validateAuthEmailInput(authEmailInput);
   const password = authPasswordInput.value;
 
   if (!email || !password) {
+    if (!email) return;
     updateAuthPanel("Introduce email y contraseña para continuar.");
     return;
   }
@@ -991,6 +1367,127 @@ function resizeProfilePhoto(file) {
   });
 }
 
+function proSubscriptionFor(person = profile) {
+  return dataProvider.getProSubscription?.(person.id) || {
+    status: person.proStatus || "FREE",
+    plan: person.proPlan || "free",
+    trialEndsAt: person.proTrialEndsAt || "",
+    startedAt: person.proStartedAt || "",
+    proInterest: Boolean(person.proInterest),
+    profileScore: Number(person.profileScore) || 0,
+    profileRecommendations: Array.isArray(person.profileRecommendations) ? [...person.profileRecommendations] : []
+  };
+}
+
+function proStatusLabel(subscription = {}) {
+  const status = String(subscription.status || "FREE").toUpperCase();
+  if (status === "PRO") return "PRO activo";
+  if (status === "TRIAL") return "TRIAL";
+  if (status === "EXPIRED") return "Expirado";
+  if (status === "CANCELLED") return "Cancelado";
+  return "FREE";
+}
+
+function isProVisible(person = {}) {
+  return person.role === "professional" && ["PRO", "TRIAL"].includes(String(person.proStatus || "").toUpperCase());
+}
+
+function createProBadge(person) {
+  if (person.role !== "professional") return null;
+  const status = String(person.proStatus || "FREE").toUpperCase();
+  const verified = Boolean(person.verified);
+  if (!verified && !["PRO", "TRIAL"].includes(status)) return null;
+  const badge = createElement("span", `pro-mini-badge ${status === "TRIAL" ? "is-trial" : ""}`, verified ? "Verificado" : "FIT MATCH PRO");
+  badge.title = verified
+    ? "Profesional verificado. La verificación no depende del pago."
+    : "Fit Match PRO mejora herramientas y visibilidad moderada, no compra posiciones.";
+  return badge;
+}
+
+function profileQualityFor(person = {}) {
+  const values = [person.photo, person.bio, person.availability, person.services?.length, person.sport || person.notes, person.price];
+  return values.filter(Boolean).length;
+}
+
+function recentActivityScore(person = {}) {
+  const value = person.updatedAt || person.createdAt;
+  const time = value ? new Date(value).getTime() : 0;
+  if (!Number.isFinite(time) || !time) return 0;
+  const ageDays = Math.max(0, (Date.now() - time) / 86400000);
+  return Math.max(0, Math.round(365 - ageDays));
+}
+
+function matchTieBreakScore(person = {}) {
+  const verified = person.verified ? 1000000 : 0;
+  const quality = profileQualityFor(person) * 10000;
+  const activity = recentActivityScore(person) * 100;
+  const pro = isProVisible(person) ? 50 : 0;
+  const rating = Math.round((ratingSummaryFor(person).average || 0) * 10);
+  return verified + quality + activity + pro + rating;
+}
+
+function renderProList(container, items = []) {
+  if (!container) return;
+  container.replaceChildren();
+  items.forEach((item) => container.append(createElement("li", "", item)));
+}
+
+function koroScoreActions(profileScore = 0, profileData = profile) {
+  const actions = [];
+  if (!profileData.photo) actions.push("Añadir foto de perfil +8");
+  actions.push("Añadir vídeo de presentación +8");
+  if (!profileData.verified) actions.push("Verificar identidad profesional +5");
+  if (!profileData.availability) actions.push("Completar disponibilidad +4");
+  actions.push("Añadir certificaciones visibles +7");
+  if (!profileData.bio || profileData.bio.length < 80) actions.push("Mejorar descripción profesional +6");
+  if (!profileData.city) actions.push("Completar ciudad o zona +4");
+  return actions.slice(0, 5);
+}
+
+function renderProPanel({ matchCount = 0, activeContacts = 0 } = {}) {
+  if (!proPanel) return;
+  const visible = hasSavedProfile() && profile.role === "professional";
+  proPanel.hidden = !visible;
+  if (!visible) return;
+
+  const subscription = proSubscriptionFor(profile);
+  const status = String(subscription.status || "FREE").toUpperCase();
+  const hasInterest = Boolean(subscription.proInterest || profile.proInterest);
+  const isFullPro = status === "PRO";
+  const metrics = dataProvider.getProMetrics?.(profile) || { matches: matchCount, contacts: activeContacts, conversion: 0, profileStrength: profileCompleteness() };
+  const recommendations = dataProvider.getProRecommendations?.(profile) || [];
+  const profileScore = metrics.profileStrength || profileCompleteness();
+
+  proPanel.dataset.proStatus = isFullPro ? "pro" : "building";
+  if (proStatusBadge) proStatusBadge.textContent = isFullPro ? "PRO activo" : "En construcción";
+  if (proPanelTitle) proPanelTitle.textContent = isFullPro ? "KORO Profile Coach activo" : "Fit Match PRO está en desarrollo.";
+  if (proPanelCopy) proPanelCopy.textContent = isFullPro
+    ? "KORO analiza tu perfil, actividad y conversión para ayudarte a conseguir mejores conexiones."
+    : "Estamos preparando herramientas avanzadas para profesionales que quieran mejorar su perfil, analizar su visibilidad y conseguir mejores conexiones dentro de la plataforma.";
+  if (proProfileScore) proProfileScore.textContent = `${profileScore} / 100`;
+  if (proScoreState) proScoreState.textContent = isFullPro ? "Análisis completo activo." : "Vista previa limitada. Disponible próximamente en Fit Match PRO.";
+  renderProList(proScoreActions, koroScoreActions(profileScore, profile));
+  if (proMetricViews) proMetricViews.textContent = `${profileCompleteness()}%`;
+  if (proMetricMatches) proMetricMatches.textContent = isFullPro ? String(metrics.matches || matchCount) : "Preview";
+  if (proMetricContacts) proMetricContacts.textContent = isFullPro ? String(metrics.contacts || activeContacts) : "Preview";
+  if (proMetricConversion) proMetricConversion.textContent = isFullPro ? `${metrics.conversion || 0}%` : "Preview";
+  renderProList(proRecommendations, isFullPro ? recommendations : recommendations.slice(0, 3));
+  if (proLockMessage) proLockMessage.textContent = isFullPro
+    ? "Análisis completo disponible para tu plan PRO."
+    : "Disponible próximamente en Fit Match PRO.";
+
+  if (proInterestButton) {
+    proInterestButton.disabled = hasInterest;
+    proInterestButton.textContent = hasInterest ? "Interés registrado" : "Quiero probar Fit Match PRO";
+  }
+  if (proPaymentNote) {
+    proPaymentNote.classList.toggle("pro-payment-note-active", hasInterest);
+    proPaymentNote.textContent = hasInterest
+      ? "Te avisaremos cuando Fit Match PRO esté disponible."
+      : "Fit Match PRO todavía no cobra ni activa suscripciones. Este botón solo registra tu interés para avisarte cuando esté disponible.";
+  }
+}
+
 function renderProfileHome() {
   const isReady = hasSavedProfile();
   const state = dataProvider.getAuthState?.() || {};
@@ -999,6 +1496,7 @@ function renderProfileHome() {
   if (accountWelcomeCard) accountWelcomeCard.hidden = isReady;
   if (profileHomeCard) profileHomeCard.hidden = !isReady;
   if (accountWorkspace) accountWorkspace.hidden = !isReady;
+  if (proPanel) proPanel.hidden = !isReady || profile.role !== "professional";
   if (accountProgressCard) accountProgressCard.hidden = !isReady;
   if (accountActivityCard) accountActivityCard.hidden = !isReady;
 
@@ -1008,6 +1506,7 @@ function renderProfileHome() {
     if (accountAsideCopy) accountAsideCopy.textContent = isConnected
       ? "Tu cuenta ya está activa. Completa el perfil para desbloquear matches, contactos y recomendaciones."
       : "Inicia sesión para acceder a tus matches, contactos y perfil.";
+    renderProPanel();
     return;
   }
 
@@ -1044,7 +1543,9 @@ function renderProfileHome() {
   if (accountRoleValue) accountRoleValue.textContent = roleText;
   if (accountCityValue) accountCityValue.textContent = cityText;
   if (accountGoalValue) accountGoalValue.textContent = primaryValue;
-  if (accountStatusValue) accountStatusValue.textContent = statusText;
+  const subscription = proSubscriptionFor(profile);
+  const subscriptionLabel = profile.role === "professional" ? ` · ${proStatusLabel(subscription)}` : "";
+  if (accountStatusValue) accountStatusValue.textContent = `${statusText}${subscriptionLabel}`;
   if (accountCompletionValue) accountCompletionValue.textContent = `${completion.percent}% completo`;
   if (profileHomeMatches) profileHomeMatches.textContent = String(matchCount);
   if (profileHomeContacts) profileHomeContacts.textContent = String(activeRequests.length);
@@ -1101,6 +1602,8 @@ function renderProfileHome() {
       ? "Tienes 1 mensaje nuevo pendiente de leer."
       : `Tienes ${unreadRequests} mensajes nuevos pendientes de leer.`;
   }
+
+  renderProPanel({ matchCount, activeContacts: activeRequests.length });
 }
 
 
@@ -1134,10 +1637,10 @@ function readForm() {
   ).map((input) => input.value);
 
   profile.name = document.querySelector("#nameInput").value.trim();
-  profile.email = document.querySelector("#emailInput").value.trim();
+  profile.email = cleanEmail(document.querySelector("#emailInput").value);
   profile.birthdate = document.querySelector("#birthdateInput").value;
-  profile.phone = document.querySelector("#phoneInput").value.trim();
-  profile.city = document.querySelector("#cityInput").value.trim();
+  profile.phone = normalizePhone(document.querySelector("#phoneInput").value);
+  profile.city = cleanCity(document.querySelector("#cityInput").value);
   profile.goal = document.querySelector("#goalInput").value;
   profile.sport = document.querySelector("#sportInput").value.trim();
   profile.mode = document.querySelector("#modeInput").value;
@@ -1376,13 +1879,20 @@ function sameSport(person) {
   return ownSport === otherSport || ownSport.includes(otherSport) || otherSport.includes(ownSport);
 }
 
+function sameCity(person) {
+  const ownCity = normalizeText(profile.city);
+  const otherCity = normalizeText(person.city);
+  if (!ownCity || !otherCity || otherCity === "online") return false;
+  return ownCity === otherCity || ownCity.includes(otherCity) || otherCity.includes(ownCity);
+}
+
 function calculateScore(person) {
   let score = 10;
 
   if ((person.goals || []).includes(profile.goal)) score += 25;
   if ((person.modes || []).includes(profile.mode)) score += 20;
   if ((person.levels || []).includes(profile.level)) score += 15;
-  if (person.city && profile.city && person.city.toLowerCase() === profile.city.toLowerCase()) score += 10;
+  if (sameCity(person)) score += 10;
 
   const sharedServices = profile.services.filter((service) =>
     (person.services || []).includes(service)
@@ -1412,7 +1922,7 @@ function getMatchReasons(person) {
   const sharedServices = sharedServiceLabels(person);
 
   if ((person.goals || []).includes(profile.goal)) reasons.push("Coincide en objetivo");
-  if (person.city && profile.city && person.city.toLowerCase() === profile.city.toLowerCase()) reasons.push("Misma ciudad");
+  if (sameCity(person)) reasons.push("Disponible en tu ciudad");
   if ((person.modes || []).includes(profile.mode)) reasons.push("Modalidad compatible");
   if ((person.levels || []).includes(profile.level)) reasons.push("Nivel adecuado");
   if (sharedServices.length) reasons.push(`Servicio compartido: ${sharedServices[0]}`);
@@ -1487,7 +1997,9 @@ function sortedMatches() {
     .sort((a, b) => {
       if (sortInput.value === "price") return (a.price || 99999) - (b.price || 99999);
       if (sortInput.value === "recent") return new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt);
-      return b.score - a.score;
+      const scoreDiff = b.score - a.score;
+      if (scoreDiff !== 0) return scoreDiff;
+      return matchTieBreakScore(b) - matchTieBreakScore(a);
     });
 }
 
@@ -1504,11 +2016,11 @@ function renderMatches() {
     const targetRole = oppositeRole(profile.role);
     const targetLabel = targetRole === "professional" ? "profesionales" : "clientes";
     const accountLabel = targetRole === "professional" ? "profesional" : "cliente";
-    resultsSummary.textContent = `No hay ${targetLabel} registrados todavía.`;
+    resultsSummary.textContent = `Aún no hay ${targetLabel} disponibles.`;
     renderEmptyState(
-      `Aún no hay ${targetLabel} para comparar`,
-      `Para probar el cruce real, cierra sesión, vuelve al inicio y crea una cuenta ${accountLabel} con otro email.`,
-      null
+      `Aún no hay ${targetLabel} compatibles`,
+      `Cuando haya una cuenta ${accountLabel} activa con datos suficientes, aparecerá aquí con sus razones de afinidad.`,
+      { type: "edit-profile", label: "Revisar mi perfil" }
     );
     return;
   }
@@ -1552,6 +2064,8 @@ function renderMatches() {
       createElement("p", "", profileTitle(person))
     );
     heading.append(createRatingBadge(person));
+    const proBadge = createProBadge(person);
+    if (proBadge) heading.append(proBadge);
     top.append(avatar, heading, score);
 
     if (person.sport) meta.append(createElement("span", "pill sport-pill", person.sport));
@@ -1656,6 +2170,8 @@ async function saveCurrentProfile() {
     return false;
   }
 
+  if (!validateProfileData({ requireEmail: !isRemoteMode() })) return false;
+
   if (isRemoteMode()) {
     const registeredRoute = accountRoute();
     if (registeredRoute && registeredRoute !== profile.role) {
@@ -1749,6 +2265,99 @@ function renderProfileDetail(person) {
   profileDetail.hidden = false;
   profileDetail.replaceChildren(identity, detailStats, ratingBreakdown, services, notes);
 }
+
+function findProfileForRatings(profileId) {
+  if (!profileId) return null;
+  if (selectedMatch?.id === profileId) return selectedMatch;
+  return [
+    ...dataProvider.listProfiles("client"),
+    ...dataProvider.listProfiles("professional")
+  ].find((item) => item.id === profileId) || null;
+}
+
+function createPublicCommentsSection(person) {
+  const section = createElement("section", "ratings-comments-section");
+  const comments = publicRatingCommentsFor(person).slice(0, 4);
+  const heading = createElement("div", "ratings-comments-heading");
+  heading.append(
+    createElement("span", "micro-label", "Comentarios públicos"),
+    createElement("strong", "", comments.length ? "Lo que otras personas destacan" : "Aún sin comentarios públicos"),
+    createElement("p", "", comments.length
+      ? "Mostramos una selección breve para entender la experiencia sin convertir el perfil en una lista infinita."
+      : "Las estrellas ya pueden construir reputación. Cuando alguien deje un comentario público, aparecerá aquí de forma resumida.")
+  );
+  section.append(heading);
+
+  if (!comments.length) {
+    const empty = createElement("article", "ratings-comment-empty");
+    empty.append(
+      createElement("strong", "", "Sin comentarios visibles todavía"),
+      createElement("p", "", "Las notas privadas no se muestran. Solo aparecerán comentarios escritos expresamente para ayudar a otros usuarios.")
+    );
+    section.append(empty);
+    return section;
+  }
+
+  const list = createElement("div", "ratings-comment-list");
+  comments.forEach((rating) => {
+    const item = createElement("article", "ratings-comment-card");
+    item.append(
+      createElement("span", "rating-comment-score", `${rating.averageScore}/5`),
+      createElement("p", "", `“${rating.publicComment}”`),
+      createElement("small", "", `${roleLabel(rating.raterRole)} · ${formatDate(rating.updatedAt || rating.createdAt)}`)
+    );
+    list.append(item);
+  });
+  section.append(list);
+  return section;
+}
+
+function renderRatingsModal(person) {
+  if (!ratingsModalContent || !person) return;
+  const summary = ratingSummaryFor(person);
+  const hero = createElement("section", "ratings-modal-hero");
+  const score = createElement("div", "ratings-modal-score");
+  score.append(
+    createElement("strong", "", summary.count ? String(summary.average) : "--"),
+    createElement("span", "", summary.count ? `/5 · ${summary.count} valoración${summary.count === 1 ? "" : "es"}` : "Sin valoraciones")
+  );
+  const copy = createElement("div", "ratings-modal-copy");
+  copy.append(
+    createElement("span", "micro-label", "Experiencia de otros usuarios"),
+    createElement("strong", "", summary.count ? "Reputación basada en contactos reales" : "Reputación en construcción"),
+    createElement("p", "", "Las valoraciones ayudan a entender cómo ha sido la experiencia real de otras personas: comunicación, claridad, confianza y calidad del contacto.")
+  );
+  hero.append(score, copy);
+
+  ratingsModalContent.replaceChildren(
+    hero,
+    createRatingBreakdownSection(person, { showDetailsButton: false }),
+    createPublicCommentsSection(person)
+  );
+}
+
+function openRatingsModal(profileId, opener) {
+  const person = findProfileForRatings(profileId);
+  if (!person || !ratingsModal) return;
+  ratingsModalOpener = opener || null;
+  ratingsModalTitle.textContent = `Valoraciones de ${person.name || profileTitle(person)}`;
+  ratingsModalText.textContent = "Media general, criterios y comentarios públicos escritos para orientar nuevas decisiones.";
+  renderRatingsModal(person);
+  ratingsModal.classList.remove("hidden");
+  ratingsModal.scrollTop = 0;
+  ratingsModal.querySelector(".modal-card")?.scrollTo({ top: 0, left: 0 });
+  ratingsModal.focus();
+}
+
+function closeRatingsModal() {
+  ratingsModal?.classList.add("hidden");
+  ratingsModalContent?.replaceChildren();
+  if (ratingsModalOpener) {
+    ratingsModalOpener.focus();
+    ratingsModalOpener = null;
+  }
+}
+
 
 function openRequestModal(matchId, opener) {
   selectedMatch = activeDirectory().find((person) => person.id === matchId);
@@ -2009,17 +2618,83 @@ function ratingTargetForRequest(request, direction) {
   return direction === "incoming" ? request.sender : request.recipient;
 }
 
+function requestCanBeRated(request, direction) {
+  return direction === "incoming" || Boolean(request.readAt);
+}
+
+function ratingStateForRequest(request, direction) {
+  const target = ratingTargetForRequest(request, direction);
+  const existing = dataProvider.getRatingForRequest?.(request.id, profile.id || currentUser()?.id || "local", target.id);
+  const canRate = requestCanBeRated(request, direction);
+
+  if (existing) {
+    return {
+      className: "rating-step-done",
+      title: "Valoración enviada",
+      text: `Ya has puntuado esta conexión con ${target.name}. La media se suma a su perfil público.`
+    };
+  }
+
+  if (canRate) {
+    return {
+      className: "rating-step-active",
+      title: "Valoración disponible",
+      text: "Puedes valorar esta experiencia cuando tengas una impresión real del contacto. La nota pública se calcula por criterios."
+    };
+  }
+
+  return {
+    className: "rating-step-waiting",
+    title: "Valoración pendiente",
+    text: "La valoración se activará cuando la otra persona abra tu mensaje o el contacto avance."
+  };
+}
+
+function buildContactStagePanel(request, direction) {
+  const state = ratingStateForRequest(request, direction);
+  const panel = createElement("div", `contact-stage ${state.className}`);
+  const contactLabel = direction === "incoming" ? "Contacto recibido" : "Solicitud enviada";
+  const openLabel = request.readAt ? "Mensaje abierto" : (direction === "incoming" ? "Abrir para leer" : "Pendiente de lectura");
+
+  const steps = createElement("div", "contact-stage-steps");
+  [contactLabel, openLabel, state.title].forEach((stepText, index) => {
+    const step = createElement("span", index === 2 ? "contact-stage-step rating-stage-step" : "contact-stage-step", stepText);
+    steps.append(step);
+  });
+
+  panel.append(
+    createElement("strong", "", state.title),
+    createElement("p", "", state.text),
+    steps
+  );
+  return panel;
+}
+
+function buildRatingLockedPanel(request, direction) {
+  const target = ratingTargetForRequest(request, direction);
+  const panel = createElement("div", "rating-panel rating-panel-locked");
+  const heading = createElement("div", "rating-heading");
+  heading.append(
+    createElement("strong", "", "Todavía no toca valorar"),
+    createElement("p", "", `Primero ${target.name} debe abrir tu mensaje o responder. Así las valoraciones reflejan contactos reales, no impresiones rápidas.`)
+  );
+  panel.append(heading);
+  return panel;
+}
+
 function buildRatingPanel(request, direction) {
+  if (!requestCanBeRated(request, direction)) return buildRatingLockedPanel(request, direction);
+
   const target = ratingTargetForRequest(request, direction);
   const existing = dataProvider.getRatingForRequest?.(request.id, profile.id || currentUser()?.id || "local", target.id);
   const targetRole = target.role || oppositeRole(profile.role);
   const criteria = RATING_CRITERIA[targetRole] || RATING_CRITERIA.professional;
-  const panel = createElement("div", "rating-panel");
+  const panel = createElement("div", "rating-panel rating-panel-actionable");
   const heading = createElement("div", "rating-heading");
-  const title = createElement("strong", "", existing ? "Valoración enviada" : `Valorar ${targetRole === "professional" ? "profesional" : "cliente"}`);
+  const title = createElement("strong", "", existing ? "Tu valoración" : "Valorar experiencia");
   const copy = createElement("p", "", existing
-    ? `Tu puntuación para ${target.name}: ${existing.averageScore}/5.`
-    : "Puntúa esta conexión en cinco aspectos. El resumen se mostrará en el perfil público.");
+    ? `Tu puntuación para ${target.name}: ${existing.averageScore}/5. Puedes actualizarla si la experiencia cambia.`
+    : "Puntúa esta conexión en cinco criterios. Puedes añadir un comentario público y, si quieres, una nota privada para ti.");
   heading.append(title, copy);
   panel.append(heading);
 
@@ -2042,12 +2717,33 @@ function buildRatingPanel(request, direction) {
     panel.append(row);
   });
 
+  const publicLabel = createElement("label", "rating-textarea-field");
+  const publicComment = document.createElement("textarea");
+  publicComment.className = "rating-comment rating-public-comment";
+  publicComment.rows = 2;
+  publicComment.placeholder = "Comentario público opcional. Ej. Comunicación clara y buena primera impresión.";
+  publicComment.setAttribute("aria-label", `Comentario público sobre ${target.name}`);
+  publicComment.value = existing?.publicComment || existing?.criteria?._publicComment || "";
+  publicComment.dataset.ratingPublicComment = request.id;
+  publicLabel.append(
+    createElement("span", "", "Comentario público opcional"),
+    publicComment,
+    createElement("small", "", "Podrá aparecer en el perfil para ayudar a otras personas. No incluyas datos sensibles.")
+  );
+
+  const privateLabel = createElement("label", "rating-textarea-field rating-private-field");
   const comment = document.createElement("textarea");
-  comment.className = "rating-comment";
+  comment.className = "rating-comment rating-private-comment";
   comment.rows = 2;
-  comment.placeholder = "Comentario privado opcional para recordar esta valoración.";
+  comment.placeholder = "Nota privada opcional para recordar esta valoración.";
+  comment.setAttribute("aria-label", `Nota privada sobre ${target.name}`);
   comment.value = existing?.comment || "";
   comment.dataset.ratingComment = request.id;
+  privateLabel.append(
+    createElement("span", "", "Nota privada opcional"),
+    comment,
+    createElement("small", "", "Solo se usa como apunte interno de esta valoración.")
+  );
 
   const actions = createElement("div", "rating-actions");
   const button = createElement("button", "button secondary rating-save-button", existing ? "Actualizar valoración" : "Guardar valoración");
@@ -2056,7 +2752,7 @@ function buildRatingPanel(request, direction) {
   button.dataset.ratingDirection = direction;
   button.dataset.ratingTarget = target.id;
   actions.append(button);
-  panel.append(comment, actions);
+  panel.append(publicLabel, privateLabel, actions);
   return panel;
 }
 
@@ -2090,6 +2786,7 @@ async function saveRequestRating(requestId, direction, button) {
     return;
   }
 
+  const originalButtonText = button.textContent;
   button.disabled = true;
   button.textContent = "Guardando...";
   try {
@@ -2100,6 +2797,7 @@ async function saveRequestRating(requestId, direction, button) {
       target,
       targetRole: target.role || oppositeRole(profile.role),
       criteria,
+      publicComment: panel.querySelector("[data-rating-public-comment]")?.value.trim() || "",
       comment: panel.querySelector("[data-rating-comment]")?.value.trim() || ""
     });
     await dataProvider.refreshRemoteData?.();
@@ -2117,7 +2815,7 @@ async function saveRequestRating(requestId, direction, button) {
     panel.querySelector(".rating-heading p").textContent = error.message || "No se pudo guardar la valoración.";
   } finally {
     button.disabled = false;
-    button.textContent = "Guardar valoración";
+    button.textContent = originalButtonText;
   }
 }
 
@@ -2155,7 +2853,7 @@ function buildRequestCard(request, direction) {
 
   const body = createElement("div", "history-card-body");
   const message = createElement("p", "history-message", request.message);
-  body.append(message, buildRatingPanel(request, direction));
+  body.append(message);
 
   if (direction === "incoming") {
     body.append(
@@ -2251,6 +2949,52 @@ async function sendInboxReply(requestId, button) {
   }
 }
 
+function buildRatingCard(request, direction) {
+  const target = ratingTargetForRequest(request, direction);
+  const existing = dataProvider.getRatingForRequest?.(request.id, profile.id || currentUser()?.id || "local", target.id);
+  const card = createElement("article", `rating-contact-card ${existing ? "rating-contact-done" : requestCanBeRated(request, direction) ? "rating-contact-ready" : "rating-contact-waiting"}`);
+  const header = createElement("div", "rating-contact-header");
+  const avatar = createElement("div", "avatar message-avatar");
+  const headerText = createElement("div", "rating-contact-title");
+  const title = createElement("strong", "", target.name || "Contacto Fit Match");
+  const meta = createElement("span", "", `${direction === "incoming" ? "Recibido" : "Enviado"} · ${request.score}% de afinidad · ${formatDate(request.createdAt)}`);
+  const state = ratingStateForRequest(request, direction);
+  const badge = createElement("span", `status-badge ${existing ? "status-read" : requestCanBeRated(request, direction) ? "status-unread" : "status-waiting"}`, state.title);
+
+  setAvatarContent(avatar, target);
+  headerText.append(title, meta);
+  header.append(avatar, headerText, badge);
+  card.append(header, buildContactStagePanel(request, direction), buildRatingPanel(request, direction));
+  return card;
+}
+
+function buildRatingHistorySection(items) {
+  const section = createElement("section", "rating-lane");
+  const readyCount = items.filter(({ request, direction }) => requestCanBeRated(request, direction) && !dataProvider.getRatingForRequest?.(request.id, profile.id || currentUser()?.id || "local", ratingTargetForRequest(request, direction).id)).length;
+  const doneCount = items.filter(({ request, direction }) => dataProvider.getRatingForRequest?.(request.id, profile.id || currentUser()?.id || "local", ratingTargetForRequest(request, direction).id)).length;
+
+  if (ratingHistoryTitle) {
+    ratingHistoryTitle.textContent = readyCount
+      ? `Valoraciones · ${readyCount} pendiente${readyCount === 1 ? "" : "s"}`
+      : doneCount
+        ? `Valoraciones · ${doneCount} enviada${doneCount === 1 ? "" : "s"}`
+        : "Experiencia y reputación";
+  }
+
+  if (!items.length) {
+    const empty = createElement("article", "history-empty rating-empty");
+    empty.append(
+      createElement("strong", "", "Sin contactos para valorar todavía"),
+      createElement("p", "", "Cuando exista una solicitud o propuesta, esta zona te dirá si puedes valorar la experiencia o si todavía está pendiente.")
+    );
+    section.append(empty);
+    return section;
+  }
+
+  items.forEach(({ request, direction }) => section.append(buildRatingCard(request, direction)));
+  return section;
+}
+
 function buildRequestSection({ title, kicker, requests, emptyTitle, emptyText, direction }) {
   const section = createElement("section", `request-lane request-lane-${direction}`);
   const heading = createElement("div", "request-lane-heading");
@@ -2337,8 +3081,9 @@ function renderRequestHistory() {
   const visibleRequestIds = [...incomingRequests, ...sentRequests].map((request) => request.id);
   pruneSelectedRequests(visibleRequestIds);
   requestList.replaceChildren();
+  ratingList?.replaceChildren();
   updateRequestDeleteButton(visibleRequestIds.length);
-  historyTitle.textContent = unreadRequests ? `Entrada · ${unreadRequests} nuevo${unreadRequests === 1 ? "" : "s"}` : "Entrada y enviadas";
+  historyTitle.textContent = unreadRequests ? `Mensajes · ${unreadRequests} nuevo${unreadRequests === 1 ? "" : "s"}` : "Mensajes y solicitudes";
 
   requestList.append(
     buildRequestSection({
@@ -2356,10 +3101,18 @@ function renderRequestHistory() {
       kicker: "Salida",
       requests: sentRequests,
       emptyTitle: profile.role === "client" ? "Sin solicitudes enviadas" : "Sin propuestas enviadas",
-      emptyText: "Cuando prepares una desde Matches, quedará aquí como comprobante.",
+      emptyText: "Cuando contactes desde Matches, tu solicitud o propuesta quedará aquí para seguimiento.",
       direction: "outgoing"
     })
   );
+
+  if (ratingList) {
+    const ratingItems = [
+      ...incomingRequests.map((request) => ({ request, direction: "incoming" })),
+      ...sentRequests.map((request) => ({ request, direction: "outgoing" }))
+    ];
+    ratingList.append(buildRatingHistorySection(ratingItems));
+  }
 
   updateRequestDeleteButton(visibleRequestIds.length);
   updateProfileStatus();
@@ -2370,11 +3123,6 @@ authForm?.addEventListener("submit", (event) => {
   handleAuth("signin");
 });
 
-reviewToggle?.addEventListener("click", () => {
-  const nextMode = !document.body.classList.contains("review-mode");
-  window.localStorage.setItem(REVIEW_MODE_KEY, String(nextMode));
-  setReviewMode(nextMode);
-});
 
 async function signOutForNewAccount() {
   setAuthLoading(true);
@@ -2604,7 +3352,7 @@ clearRequestsButton.addEventListener("click", async () => {
   await deleteSelectedRequests(Array.from(selectedRequestIds));
 });
 
-requestList?.addEventListener("click", (event) => {
+function handleContactPanelClick(event) {
   const ratingStar = event.target.closest("[data-rating-star]");
   if (ratingStar) {
     event.preventDefault();
@@ -2648,7 +3396,10 @@ requestList?.addEventListener("click", (event) => {
   if (!replyButton) return;
   event.preventDefault();
   sendInboxReply(replyButton.dataset.replyRequest, replyButton);
-});
+}
+
+requestList?.addEventListener("click", handleContactPanelClick);
+ratingList?.addEventListener("click", handleContactPanelClick);
 
 requestList?.addEventListener("change", (event) => {
   const checkbox = event.target.closest("[data-select-request]");
@@ -2699,12 +3450,68 @@ matchList.addEventListener("click", (event) => {
 
 
 document.querySelector("#closeModal").addEventListener("click", closeModal);
+document.querySelector("#closeRatingsModal")?.addEventListener("click", closeRatingsModal);
 sendRequestButton.addEventListener("click", sendRequest);
+
+profileDetail?.addEventListener("click", (event) => {
+  const trigger = event.target.closest("[data-open-rating-details]");
+  if (!trigger) return;
+  event.preventDefault();
+  openRatingsModal(trigger.dataset.openRatingDetails, trigger);
+});
 
 modal.addEventListener("click", (event) => {
   if (event.target === modal) closeModal();
 });
 
+ratingsModal?.addEventListener("click", (event) => {
+  if (event.target === ratingsModal) closeRatingsModal();
+});
+
+
+proInterestButton?.addEventListener("click", async () => {
+  if (profile.role !== "professional") return;
+  proInterestButton.disabled = true;
+  proInterestButton.textContent = "Registrando interés...";
+  try {
+    const subscription = await dataProvider.registerProInterest?.(profile);
+    if (subscription) {
+      Object.assign(profile, {
+        proInterest: subscription.proInterest,
+        profileScore: subscription.profileScore,
+        profileRecommendations: subscription.profileRecommendations
+      });
+    }
+    renderProPanel();
+  } catch (error) {
+    if (proPaymentNote) proPaymentNote.textContent = error.message || "No se pudo registrar tu interés todavía.";
+  }
+});
+
+document.addEventListener("click", (event) => {
+  const docButton = event.target.closest("[data-open-legal-doc]");
+  if (!docButton) return;
+  event.preventDefault();
+  renderLegalDocument(docButton.dataset.openLegalDoc);
+});
+
+closeLegalDocModalButton?.addEventListener("click", closeLegalDocModal);
+legalDocModal?.addEventListener("click", (event) => {
+  if (event.target === legalDocModal) closeLegalDocModal();
+});
+
+requestAccountDeletionButton?.addEventListener("click", () => {
+  renderLegalDocument("rights");
+  window.setTimeout(() => {
+    if (legalDocIntro) {
+      legalDocIntro.textContent = "Puedes revisar tus derechos y solicitar cambios o eliminación de tus datos desde esta zona de confianza.";
+    }
+  }, 20);
+});
+
+signupLegalChecks.forEach((check) => {
+  check.addEventListener("change", updateSignupLegalState);
+});
 
 legalChecks.forEach((check) => {
   check.addEventListener("change", updateLegalAcceptState);
@@ -2721,6 +3528,7 @@ acceptLegalTermsButton?.addEventListener("click", async () => {
   try {
     await dataProvider.acceptLegalConsent?.(payload);
     closeLegalModal();
+    updateSignupLegalState();
   } finally {
     acceptLegalTermsButton.textContent = "Aceptar y continuar";
     updateLegalAcceptState();
@@ -2728,16 +3536,29 @@ acceptLegalTermsButton?.addEventListener("click", async () => {
 });
 
 document.addEventListener("keydown", (event) => {
+  const ratingsModalIsOpen = ratingsModal && !ratingsModal.classList.contains("hidden");
+  const legalDocModalIsOpen = legalDocModal && !legalDocModal.classList.contains("hidden");
   const legalModalIsOpen = legalModal && !legalModal.classList.contains("hidden");
-  const modalIsOpen = !modal.classList.contains("hidden") || legalModalIsOpen;
+  const baseModalIsOpen = !modal.classList.contains("hidden");
+  const modalIsOpen = ratingsModalIsOpen || legalDocModalIsOpen || legalModalIsOpen || baseModalIsOpen;
 
-  if (event.key === "Escape" && !legalModalIsOpen && !modal.classList.contains("hidden")) {
+  if (event.key === "Escape" && ratingsModalIsOpen) {
+    closeRatingsModal();
+    return;
+  }
+
+  if (event.key === "Escape" && legalDocModalIsOpen) {
+    closeLegalDocModal();
+    return;
+  }
+
+  if (event.key === "Escape" && !legalModalIsOpen && baseModalIsOpen) {
     closeModal();
   }
 
   if (event.key !== "Tab" || !modalIsOpen) return;
 
-  const activeModal = legalModalIsOpen ? legalModal : modal;
+  const activeModal = ratingsModalIsOpen ? ratingsModal : legalDocModalIsOpen ? legalDocModal : legalModalIsOpen ? legalModal : modal;
   const focusableElements = Array.from(
     activeModal.querySelectorAll('a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])')
   );
@@ -2769,9 +3590,10 @@ document.addEventListener("keydown", (event) => {
 
 async function startApp() {
   await dataProvider.init?.();
-  initReviewMode();
+  updateSignupLegalState();
   clearAuthInputs();
   window.setTimeout(clearAuthInputs, 120);
+  setBirthdateLimit();
   setFormFromProfile();
   setRoleButtonState();
   updateRoleCopy();
@@ -2785,7 +3607,6 @@ async function startApp() {
   }
 
   updateAuthPanel();
-  maybePromptLegalConsent();
   const initialView = window.location.hash || (currentUser() ? "account" : "home");
   showView(initialView, { push: false, focus: false });
 }
