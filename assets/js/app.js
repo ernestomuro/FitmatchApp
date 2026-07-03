@@ -389,6 +389,7 @@ let ratingsModalOpener = null;
 let renderTimer = null;
 let isProcessingPhoto = false;
 let selectedRequestIds = new Set();
+let openRequestIds = new Set();
 let isSavingProfile = false;
 
 const HIDDEN_MATCHES_KEY = "fit-match.hidden-matches.v1";
@@ -3022,9 +3023,6 @@ function buildRequestCard(request, direction) {
       buildReplyComposer(request),
       createElement("p", "history-note", "Puedes responder dentro de Fit Match o usar email/teléfono si están disponibles.")
     );
-    card.addEventListener("toggle", () => {
-      if (card.open) markIncomingRequestAsRead(request.id);
-    });
   } else {
     body.append(createElement(
       "p",
@@ -3042,6 +3040,15 @@ function buildRequestCard(request, direction) {
   body.append(actions);
 
   card.append(body);
+  card.open = openRequestIds.has(request.id);
+  card.addEventListener("toggle", () => {
+    if (card.open) {
+      openRequestIds.add(request.id);
+      if (direction === "incoming") markIncomingRequestAsRead(request.id);
+      return;
+    }
+    openRequestIds.delete(request.id);
+  });
   return card;
 }
 
@@ -3252,6 +3259,7 @@ function updateRequestDeleteButton(visibleCount = 0) {
 function pruneSelectedRequests(visibleIds) {
   const visibleSet = new Set(visibleIds);
   selectedRequestIds = new Set(Array.from(selectedRequestIds).filter((id) => visibleSet.has(id)));
+  openRequestIds = new Set(Array.from(openRequestIds).filter((id) => visibleSet.has(id)));
 }
 
 function requestIdsForLane(direction) {

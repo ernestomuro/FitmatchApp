@@ -7570,3 +7570,62 @@ body.role-client .button.primary:hover {
     flex-direction: column !important;
   }
 }
+
+
+/* Revisión Codex: modales y bandeja estables en móvil */
+.ratings-modal {
+  z-index: 1200 !important;
+  align-items: center !important;
+  padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom)) !important;
+}
+
+.ratings-modal .ratings-modal-card,
+.ratings-modal .modal-card {
+  position: relative !important;
+  z-index: 1201 !important;
+  max-height: min(92dvh, 920px) !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+#modal:not(.hidden) {
+  z-index: 1000 !important;
+}
+
+#modal:not(.hidden) .modal-card {
+  position: relative !important;
+  z-index: 1001 !important;
+}
+
+.history-card[open] {
+  border-color: rgba(31, 118, 95, 0.24) !important;
+  box-shadow: 0 18px 42px rgba(24, 50, 41, 0.09) !important;
+}
+
+.history-card[open] .history-summary {
+  border-bottom: 1px solid rgba(31, 118, 95, 0.10) !important;
+}
+
+@media (max-width: 720px) {
+  .ratings-modal {
+    align-items: stretch !important;
+  }
+
+  .ratings-modal .ratings-modal-card,
+  .ratings-modal .modal-card {
+    width: min(100%, 720px) !important;
+    max-height: calc(100dvh - 28px) !important;
+  }
+
+  .history-summary,
+  .rating-contact-summary {
+    align-items: start !important;
+  }
+
+  .history-summary-text strong,
+  .rating-contact-title strong,
+  .history-summary-text span,
+  .rating-contact-title span {
+    overflow-wrap: anywhere !important;
+  }
+}
