@@ -133,7 +133,7 @@ const PROFILE_FIELD_COPY = {
 };
 
 
-const RATING_CRITERIA = {
+const SERVICE_RATING_CRITERIA = {
   professional: [
     ["communication", "Comunicación"],
     ["clarity", "Claridad del plan"],
@@ -148,6 +148,43 @@ const RATING_CRITERIA = {
     ["punctuality", "Puntualidad"],
     ["respect", "Respeto"]
   ]
+};
+
+const FIRST_CONTACT_RATING_CRITERIA = {
+  professional: [
+    ["response", "Respuesta"],
+    ["clarity", "Claridad"],
+    ["respect", "Trato"],
+    ["interest", "Interés real"],
+    ["trust", "Confianza inicial"]
+  ],
+  client: [
+    ["clarity", "Claridad"],
+    ["respect", "Respeto"],
+    ["commitment", "Seriedad"],
+    ["communication", "Comunicación"],
+    ["fit", "Encaje inicial"]
+  ]
+};
+
+const RATING_CRITERIA = SERVICE_RATING_CRITERIA;
+const RATING_TYPES = {
+  first_contact: {
+    label: "Primer contacto",
+    actionLabel: "Valorar primer contacto",
+    savedLabel: "Primer contacto valorado",
+    availableLabel: "Primer contacto disponible",
+    commentPlaceholder: "Ej. Respondió con claridad y me dio buena impresión inicial.",
+    publicHint: "Ayuda a entender cómo fue el primer acercamiento, sin valorar todavía el servicio completo."
+  },
+  service: {
+    label: "Servicio real",
+    actionLabel: "Valorar servicio real",
+    savedLabel: "Servicio valorado",
+    availableLabel: "Servicio real disponible",
+    commentPlaceholder: "Ej. Buen seguimiento, planificación clara y adaptación a mi situación.",
+    publicHint: "Resume la experiencia después de trabajar juntos o realizar una sesión real."
+  }
 };
 
 function ratingSummaryFor(person) {
@@ -167,16 +204,28 @@ function createRatingBadge(person, className = "rating-badge") {
   return badge;
 }
 
-function ratingCriteriaForRole(role) {
-  return RATING_CRITERIA[role] || RATING_CRITERIA.professional;
+function normalizeRatingType(ratingType = "service") {
+  return ratingType === "first_contact" ? "first_contact" : "service";
+}
+
+function ratingConfig(ratingType = "service") {
+  return RATING_TYPES[normalizeRatingType(ratingType)] || RATING_TYPES.service;
+}
+
+function ratingCriteriaForRole(role, ratingType = "service") {
+  const criteriaByRole = normalizeRatingType(ratingType) === "first_contact" ? FIRST_CONTACT_RATING_CRITERIA : SERVICE_RATING_CRITERIA;
+  return criteriaByRole[role] || criteriaByRole.professional;
 }
 
 function roundRating(value) {
   return Math.round(Number(value || 0) * 10) / 10;
 }
 
-function ratingsForPerson(person) {
-  return (dataProvider.listRatings?.() || []).filter((rating) => rating.targetId === person?.id);
+function ratingsForPerson(person, ratingType = "") {
+  return (dataProvider.listRatings?.() || []).filter((rating) => {
+    const type = normalizeRatingType(rating.ratingType || rating.criteria?._ratingType || "service");
+    return rating.targetId === person?.id && (!ratingType || type === normalizeRatingType(ratingType));
+  });
 }
 
 function publicRatingCommentsFor(person) {
@@ -189,10 +238,12 @@ function publicRatingCommentsFor(person) {
     .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
 }
 
-function ratingBreakdownFor(person) {
-  const criteria = ratingCriteriaForRole(person?.role);
-  const ratings = ratingsForPerson(person);
-  const summary = ratingSummaryFor(person);
+function ratingBreakdownFor(person, ratingType = "service") {
+  const criteria = ratingCriteriaForRole(person?.role, ratingType);
+  const ratings = ratingsForPerson(person, ratingType);
+  const summary = ratings.length
+    ? { average: roundRating(ratings.reduce((sum, rating) => sum + Number(rating.averageScore || 0), 0) / ratings.length), count: ratings.length }
+    : { average: 0, count: 0, label: "Sin valoraciones" };
   const rows = criteria.map(([key, labelText]) => {
     const values = ratings
       .map((rating) => Number(rating.criteria?.[key]))
@@ -220,24 +271,15 @@ function createReadOnlyStars(value, labelText) {
   return stars;
 }
 
-function createRatingBreakdownSection(person, { showDetailsButton = true } = {}) {
-  const breakdown = ratingBreakdownFor(person);
-  const section = createElement("div", "profile-detail-section rating-breakdown-section");
-  const heading = createElement("div", "rating-breakdown-heading");
-  const score = createElement("div", "rating-breakdown-score");
-  const scoreValue = createElement("strong", "", breakdown.summary.count ? String(breakdown.summary.average) : "--");
-  const scoreMeta = createElement("span", "", breakdown.summary.count ? `/5 · ${breakdown.summary.count} valoración${breakdown.summary.count === 1 ? "" : "es"}` : "Sin valoraciones");
-  score.append(scoreValue, scoreMeta);
-
-  const copy = createElement("div", "rating-breakdown-copy");
-  copy.append(
-    createElement("span", "micro-label", "Valoración pública"),
-    createElement("strong", "", breakdown.summary.count ? "Media general por criterios" : "Aún sin puntuaciones públicas"),
-    createElement("p", "", breakdown.summary.count
-      ? "La nota se calcula con cinco criterios valorados después del contacto. Así puedes entender de dónde sale la media general."
-      : "Cuando esta cuenta reciba valoraciones, aquí aparecerá la media general y el detalle por criterio.")
+function createRatingRowsList(person, ratingType = "service") {
+  const breakdown = ratingBreakdownFor(person, ratingType);
+  const config = ratingConfig(ratingType);
+  const group = createElement("div", `rating-breakdown-group rating-breakdown-group-${normalizeRatingType(ratingType)}`);
+  const groupHeading = createElement("div", "rating-breakdown-group-heading");
+  groupHeading.append(
+    createElement("strong", "", config.label),
+    createElement("small", "", breakdown.summary.count ? `${breakdown.summary.average}/5 · ${breakdown.summary.count} valoración${breakdown.summary.count === 1 ? "" : "es"}` : "Sin datos todavía")
   );
-  heading.append(score, copy);
 
   const list = createElement("div", "rating-breakdown-list");
   breakdown.rows.forEach((row) => {
@@ -256,12 +298,41 @@ function createRatingBreakdownSection(person, { showDetailsButton = true } = {})
     list.append(item);
   });
 
-  section.append(heading, list);
+  group.append(groupHeading, list);
+  return group;
+}
+
+function createRatingBreakdownSection(person, { showDetailsButton = true } = {}) {
+  const summary = ratingSummaryFor(person);
+  const section = createElement("div", "profile-detail-section rating-breakdown-section");
+  const heading = createElement("div", "rating-breakdown-heading");
+  const score = createElement("div", "rating-breakdown-score");
+  const scoreValue = createElement("strong", "", summary.count ? String(summary.average) : "--");
+  const scoreMeta = createElement("span", "", summary.count ? `/5 · ${summary.count} valoración${summary.count === 1 ? "" : "es"}` : "Sin valoraciones");
+  score.append(scoreValue, scoreMeta);
+
+  const copy = createElement("div", "rating-breakdown-copy");
+  copy.append(
+    createElement("span", "micro-label", "Valoración pública"),
+    createElement("strong", "", summary.count ? "Reputación separada por momento" : "Aún sin puntuaciones públicas"),
+    createElement("p", "", summary.count
+      ? "La media general aparece resumida, pero el detalle distingue primer contacto y servicio real para que la lectura sea justa."
+      : "Cuando esta cuenta reciba valoraciones, aquí aparecerán separadas por primer contacto y servicio real.")
+  );
+  heading.append(score, copy);
+
+  const groups = createElement("div", "rating-breakdown-groups");
+  groups.append(
+    createRatingRowsList(person, "first_contact"),
+    createRatingRowsList(person, "service")
+  );
+
+  section.append(heading, groups);
 
   if (showDetailsButton) {
     const comments = publicRatingCommentsFor(person);
     const actions = createElement("div", "rating-breakdown-actions");
-    const button = createElement("button", "button secondary", comments.length ? `Ver valoraciones (${comments.length})` : "Ver valoraciones");
+    const button = createElement("button", "button primary", comments.length ? `Ver valoraciones (${comments.length})` : "Ver valoraciones");
     button.type = "button";
     button.dataset.openRatingDetails = person.id;
     button.setAttribute("aria-label", `Ver valoraciones públicas de ${person.name || profileTitle(person)}`);
@@ -487,6 +558,14 @@ const accountContextMatches = document.querySelector("#accountContextMatches");
 const accountContextContacts = document.querySelector("#accountContextContacts");
 const accountContextMessages = document.querySelector("#accountContextMessages");
 const accountContextDelta = document.querySelector("#accountContextDelta");
+const accountRatingCard = document.querySelector("#accountRatingCard");
+const accountRatingTitle = document.querySelector("#accountRatingTitle");
+const accountRatingCopy = document.querySelector("#accountRatingCopy");
+const accountRatingAverage = document.querySelector("#accountRatingAverage");
+const accountRatingCount = document.querySelector("#accountRatingCount");
+const accountRatingFirstContact = document.querySelector("#accountRatingFirstContact");
+const accountRatingService = document.querySelector("#accountRatingService");
+const accountRatingDetailsButton = document.querySelector("#accountRatingDetailsButton");
 const profileContextCard = document.querySelector("#profileContextCard");
 const profileContextScore = document.querySelector("#profileContextScore");
 const profileContextScoreLabel = document.querySelector("#profileContextScoreLabel");
@@ -1496,6 +1575,7 @@ function renderProfileHome() {
   if (accountWelcomeCard) accountWelcomeCard.hidden = isReady;
   if (profileHomeCard) profileHomeCard.hidden = !isReady;
   if (accountWorkspace) accountWorkspace.hidden = !isReady;
+  if (accountRatingCard) accountRatingCard.hidden = !isReady;
   if (proPanel) proPanel.hidden = !isReady || profile.role !== "professional";
   if (accountProgressCard) accountProgressCard.hidden = !isReady;
   if (accountActivityCard) accountActivityCard.hidden = !isReady;
@@ -1562,6 +1642,27 @@ function renderProfileHome() {
   if (accountContextContacts) accountContextContacts.textContent = String(activeRequests.length);
   if (accountContextMessages) accountContextMessages.textContent = String(allRequests.length);
   if (accountContextDelta) accountContextDelta.textContent = averageAffinity;
+
+  const firstContactRatings = ratingsForPerson(profile, "first_contact");
+  const serviceRatings = ratingsForPerson(profile, "service");
+  const firstContactAverage = firstContactRatings.length
+    ? roundRating(firstContactRatings.reduce((sum, rating) => sum + Number(rating.averageScore || 0), 0) / firstContactRatings.length)
+    : 0;
+  const serviceAverage = serviceRatings.length
+    ? roundRating(serviceRatings.reduce((sum, rating) => sum + Number(rating.averageScore || 0), 0) / serviceRatings.length)
+    : 0;
+  if (accountRatingTitle) accountRatingTitle.textContent = ownRatingSummary.count ? "Así te están valorando" : "Aún sin valoraciones";
+  if (accountRatingCopy) accountRatingCopy.textContent = ownRatingSummary.count
+    ? "Tu reputación se separa entre primer contacto y servicio real para que se entienda mejor qué experiencia has generado."
+    : "Cuando alguien valore tu primer contacto o servicio real, podrás revisar aquí tu evolución y abrir el detalle público.";
+  if (accountRatingAverage) accountRatingAverage.textContent = ownRatingSummary.count ? `${ownRatingSummary.average}/5` : "--";
+  if (accountRatingCount) accountRatingCount.textContent = ownRatingSummary.count ? `${ownRatingSummary.count} valoración${ownRatingSummary.count === 1 ? "" : "es"}` : "sin datos";
+  if (accountRatingFirstContact) accountRatingFirstContact.textContent = firstContactRatings.length ? `${firstContactAverage}/5` : "--";
+  if (accountRatingService) accountRatingService.textContent = serviceRatings.length ? `${serviceAverage}/5` : "--";
+  if (accountRatingDetailsButton) {
+    accountRatingDetailsButton.dataset.openRatingDetails = profile.id || "";
+    accountRatingDetailsButton.disabled = !profile.id;
+  }
 
   if (accountWorkspaceTitle) accountWorkspaceTitle.textContent = profile.role === "client" ? "Tu búsqueda cliente" : "Tu espacio profesional";
   if (accountWorkspaceCopy) accountWorkspaceCopy.textContent = profile.role === "client"
@@ -2304,7 +2405,7 @@ function createPublicCommentsSection(person) {
     item.append(
       createElement("span", "rating-comment-score", `${rating.averageScore}/5`),
       createElement("p", "", `“${rating.publicComment}”`),
-      createElement("small", "", `${roleLabel(rating.raterRole)} · ${formatDate(rating.updatedAt || rating.createdAt)}`)
+      createElement("small", "", `${ratingConfig(rating.ratingType || rating.criteria?._ratingType).label} · ${roleLabel(rating.raterRole)} · ${formatDate(rating.updatedAt || rating.createdAt)}`)
     );
     list.append(item);
   });
@@ -2618,83 +2719,140 @@ function ratingTargetForRequest(request, direction) {
   return direction === "incoming" ? request.sender : request.recipient;
 }
 
-function requestCanBeRated(request, direction) {
-  return direction === "incoming" || Boolean(request.readAt);
+function currentViewerId() {
+  return profile.id || currentUser()?.id || "local";
 }
 
-function ratingStateForRequest(request, direction) {
+function requestMarkerIncludes(request, key) {
+  const users = Array.isArray(request?.[key]) ? request[key] : [];
+  return users.includes(currentViewerId());
+}
+
+function requestContactStarted(request) {
+  return requestMarkerIncludes(request, "contactStartedBy");
+}
+
+function requestServiceCompleted(request) {
+  return requestMarkerIncludes(request, "serviceCompletedBy");
+}
+
+function requestRatingFor(request, direction, ratingType = "service") {
   const target = ratingTargetForRequest(request, direction);
-  const existing = dataProvider.getRatingForRequest?.(request.id, profile.id || currentUser()?.id || "local", target.id);
-  const canRate = requestCanBeRated(request, direction);
+  return dataProvider.getRatingForRequest?.(request.id, currentViewerId(), target.id, normalizeRatingType(ratingType));
+}
+
+function requestCanBeRated(request, direction, ratingType = "service") {
+  const type = normalizeRatingType(ratingType);
+  if (type === "first_contact") return requestContactStarted(request);
+  return requestServiceCompleted(request);
+}
+
+function ratingStateForRequest(request, direction, ratingType = "service") {
+  const target = ratingTargetForRequest(request, direction);
+  const type = normalizeRatingType(ratingType);
+  const config = ratingConfig(type);
+  const existing = requestRatingFor(request, direction, type);
+  const canRate = requestCanBeRated(request, direction, type);
 
   if (existing) {
     return {
       className: "rating-step-done",
-      title: "Valoración enviada",
-      text: `Ya has puntuado esta conexión con ${target.name}. La media se suma a su perfil público.`
+      title: config.savedLabel,
+      text: `Ya has puntuado ${config.label.toLowerCase()} con ${target.name}. La media se suma a su perfil público.`
     };
   }
 
   if (canRate) {
     return {
       className: "rating-step-active",
-      title: "Valoración disponible",
-      text: "Puedes valorar esta experiencia cuando tengas una impresión real del contacto. La nota pública se calcula por criterios."
+      title: config.availableLabel,
+      text: type === "first_contact"
+        ? "Valora solo la primera conversación: claridad, respeto, respuesta e impresión inicial."
+        : "Valora únicamente si ya hubo sesión, servicio o trabajo real. Así la reputación gana sentido."
     };
   }
 
   return {
     className: "rating-step-waiting",
-    title: "Valoración pendiente",
-    text: "La valoración se activará cuando la otra persona abra tu mensaje o el contacto avance."
+    title: type === "first_contact" ? "Primer contacto pendiente" : "Servicio real pendiente",
+    text: type === "first_contact"
+      ? "Confirma primero que ya hubo una conversación real fuera del simple envío de solicitud."
+      : "Esta valoración se activará cuando confirmes que ya hubo servicio real o trabajo conjunto."
   };
 }
 
 function buildContactStagePanel(request, direction) {
-  const state = ratingStateForRequest(request, direction);
-  const panel = createElement("div", `contact-stage ${state.className}`);
-  const contactLabel = direction === "incoming" ? "Contacto recibido" : "Solicitud enviada";
-  const openLabel = request.readAt ? "Mensaje abierto" : (direction === "incoming" ? "Abrir para leer" : "Pendiente de lectura");
+  const contactDone = requestContactStarted(request);
+  const serviceDone = requestServiceCompleted(request);
+  const firstState = ratingStateForRequest(request, direction, "first_contact");
+  const serviceState = ratingStateForRequest(request, direction, "service");
+  const panel = createElement("div", `contact-stage ${serviceDone ? serviceState.className : firstState.className}`);
+  const contactLabel = direction === "incoming" ? "Solicitud recibida" : "Solicitud enviada";
+  const openLabel = request.readAt ? "Mensaje leído" : (direction === "incoming" ? "Mensaje abierto" : "Pendiente de lectura");
 
   const steps = createElement("div", "contact-stage-steps");
-  [contactLabel, openLabel, state.title].forEach((stepText, index) => {
-    const step = createElement("span", index === 2 ? "contact-stage-step rating-stage-step" : "contact-stage-step", stepText);
+  [
+    { text: contactLabel, done: true },
+    { text: openLabel, done: Boolean(request.readAt) || direction === "incoming" },
+    { text: "Primer contacto", done: contactDone },
+    { text: "Servicio real", done: serviceDone }
+  ].forEach((stepInfo) => {
+    const step = createElement("span", `contact-stage-step ${stepInfo.done ? "contact-stage-step-done" : ""}`, stepInfo.text);
     steps.append(step);
   });
 
+  const actions = createElement("div", "contact-stage-actions");
+  if (!contactDone) {
+    const button = createElement("button", "button primary contact-stage-action", "Confirmar primer contacto");
+    button.type = "button";
+    button.dataset.markContactStarted = request.id;
+    actions.append(button);
+  } else if (!serviceDone) {
+    const button = createElement("button", "button primary contact-stage-action", "Confirmar servicio real");
+    button.type = "button";
+    button.dataset.markServiceCompleted = request.id;
+    actions.append(button);
+  }
+
   panel.append(
-    createElement("strong", "", state.title),
-    createElement("p", "", state.text),
+    createElement("strong", "", serviceDone ? serviceState.title : firstState.title),
+    createElement("p", "", serviceDone ? serviceState.text : firstState.text),
     steps
   );
+  if (actions.childElementCount) panel.append(actions);
   return panel;
 }
 
-function buildRatingLockedPanel(request, direction) {
+function buildRatingLockedPanel(request, direction, ratingType = "service") {
   const target = ratingTargetForRequest(request, direction);
-  const panel = createElement("div", "rating-panel rating-panel-locked");
+  const type = normalizeRatingType(ratingType);
+  const panel = createElement("div", `rating-panel rating-panel-locked rating-panel-${type}`);
   const heading = createElement("div", "rating-heading");
   heading.append(
-    createElement("strong", "", "Todavía no toca valorar"),
-    createElement("p", "", `Primero ${target.name} debe abrir tu mensaje o responder. Así las valoraciones reflejan contactos reales, no impresiones rápidas.`)
+    createElement("strong", "", type === "first_contact" ? "Primer contacto sin confirmar" : "Servicio real sin confirmar"),
+    createElement("p", "", type === "first_contact"
+      ? `Primero confirma que ya hubo una conversación real con ${target.name}. No valoramos solo por recibir o enviar un mensaje.`
+      : `Esta parte se activa cuando confirmes que ya hubo una sesión, servicio o trabajo real con ${target.name}.`)
   );
   panel.append(heading);
   return panel;
 }
 
-function buildRatingPanel(request, direction) {
-  if (!requestCanBeRated(request, direction)) return buildRatingLockedPanel(request, direction);
+function buildRatingPanel(request, direction, ratingType = "service") {
+  const type = normalizeRatingType(ratingType);
+  if (!requestCanBeRated(request, direction, type)) return buildRatingLockedPanel(request, direction, type);
 
   const target = ratingTargetForRequest(request, direction);
-  const existing = dataProvider.getRatingForRequest?.(request.id, profile.id || currentUser()?.id || "local", target.id);
+  const existing = requestRatingFor(request, direction, type);
   const targetRole = target.role || oppositeRole(profile.role);
-  const criteria = RATING_CRITERIA[targetRole] || RATING_CRITERIA.professional;
-  const panel = createElement("div", "rating-panel rating-panel-actionable");
+  const criteria = ratingCriteriaForRole(targetRole, type);
+  const config = ratingConfig(type);
+  const panel = createElement("div", `rating-panel rating-panel-actionable rating-panel-${type}`);
   const heading = createElement("div", "rating-heading");
-  const title = createElement("strong", "", existing ? "Tu valoración" : "Valorar experiencia");
+  const title = createElement("strong", "", existing ? config.savedLabel : config.actionLabel);
   const copy = createElement("p", "", existing
     ? `Tu puntuación para ${target.name}: ${existing.averageScore}/5. Puedes actualizarla si la experiencia cambia.`
-    : "Puntúa esta conexión en cinco criterios. Puedes añadir un comentario público y, si quieres, una nota privada para ti.");
+    : `${config.publicHint} Puedes añadir un comentario público y, si quieres, una nota privada para ti.`);
   heading.append(title, copy);
   panel.append(heading);
 
@@ -2721,7 +2879,7 @@ function buildRatingPanel(request, direction) {
   const publicComment = document.createElement("textarea");
   publicComment.className = "rating-comment rating-public-comment";
   publicComment.rows = 2;
-  publicComment.placeholder = "Comentario público opcional. Ej. Comunicación clara y buena primera impresión.";
+  publicComment.placeholder = `Comentario público opcional. ${config.commentPlaceholder}`;
   publicComment.setAttribute("aria-label", `Comentario público sobre ${target.name}`);
   publicComment.value = existing?.publicComment || existing?.criteria?._publicComment || "";
   publicComment.dataset.ratingPublicComment = request.id;
@@ -2746,11 +2904,12 @@ function buildRatingPanel(request, direction) {
   );
 
   const actions = createElement("div", "rating-actions");
-  const button = createElement("button", "button secondary rating-save-button", existing ? "Actualizar valoración" : "Guardar valoración");
+  const button = createElement("button", "button primary rating-save-button", existing ? "Actualizar valoración" : "Guardar valoración");
   button.type = "button";
   button.dataset.saveRating = request.id;
   button.dataset.ratingDirection = direction;
   button.dataset.ratingTarget = target.id;
+  button.dataset.ratingType = type;
   actions.append(button);
   panel.append(publicLabel, privateLabel, actions);
   return panel;
@@ -2770,6 +2929,7 @@ async function saveRequestRating(requestId, direction, button) {
   const request = requests.find((item) => item.id === requestId);
   if (!request) return;
   const target = ratingTargetForRequest(request, direction);
+  const ratingType = normalizeRatingType(button.dataset.ratingType || "service");
   const panel = button.closest(".rating-panel");
   const criteria = {};
   let completed = true;
@@ -2796,6 +2956,7 @@ async function saveRequestRating(requestId, direction, button) {
       raterRole: profile.role,
       target,
       targetRole: target.role || oppositeRole(profile.role),
+      ratingType,
       criteria,
       publicComment: panel.querySelector("[data-rating-public-comment]")?.value.trim() || "",
       comment: panel.querySelector("[data-rating-comment]")?.value.trim() || ""
@@ -2804,8 +2965,8 @@ async function saveRequestRating(requestId, direction, button) {
     requestBox.className = "request-box request-success";
     requestBox.replaceChildren(
       createElement("span", "success-kicker", "Valoración guardada"),
-      createElement("strong", "", `Has valorado a ${target.name}`),
-      createElement("p", "", "La puntuación ya se suma al perfil público de esa cuenta.")
+      createElement("strong", "", `Has valorado ${ratingConfig(ratingType).label.toLowerCase()} con ${target.name}`),
+      createElement("p", "", "La puntuación ya se suma al perfil público de esa cuenta en el apartado adecuado.")
     );
     renderRequestHistory();
     refreshMatches();
@@ -2951,27 +3112,76 @@ async function sendInboxReply(requestId, button) {
 
 function buildRatingCard(request, direction) {
   const target = ratingTargetForRequest(request, direction);
-  const existing = dataProvider.getRatingForRequest?.(request.id, profile.id || currentUser()?.id || "local", target.id);
-  const card = createElement("article", `rating-contact-card ${existing ? "rating-contact-done" : requestCanBeRated(request, direction) ? "rating-contact-ready" : "rating-contact-waiting"}`);
+  const firstExisting = requestRatingFor(request, direction, "first_contact");
+  const serviceExisting = requestRatingFor(request, direction, "service");
+  const firstReady = requestCanBeRated(request, direction, "first_contact") && !firstExisting;
+  const serviceReady = requestCanBeRated(request, direction, "service") && !serviceExisting;
+  const cardState = firstExisting && serviceExisting ? "rating-contact-done" : (firstReady || serviceReady) ? "rating-contact-ready" : "rating-contact-waiting";
+  const card = document.createElement("details");
+  card.className = `rating-contact-card rating-contact-collapsible ${cardState}`;
+
+  const summary = document.createElement("summary");
+  summary.className = "rating-contact-summary";
   const header = createElement("div", "rating-contact-header");
   const avatar = createElement("div", "avatar message-avatar");
   const headerText = createElement("div", "rating-contact-title");
   const title = createElement("strong", "", target.name || "Contacto Fit Match");
   const meta = createElement("span", "", `${direction === "incoming" ? "Recibido" : "Enviado"} · ${request.score}% de afinidad · ${formatDate(request.createdAt)}`);
-  const state = ratingStateForRequest(request, direction);
-  const badge = createElement("span", `status-badge ${existing ? "status-read" : requestCanBeRated(request, direction) ? "status-unread" : "status-waiting"}`, state.title);
+  const state = serviceExisting ? ratingStateForRequest(request, direction, "service") : ratingStateForRequest(request, direction, "first_contact");
+  const badge = createElement("span", `status-badge ${firstExisting || serviceExisting ? "status-read" : firstReady || serviceReady ? "status-unread" : "status-waiting"}`, state.title);
+  const toggle = createElement("span", "button primary rating-card-toggle", firstReady || serviceReady ? "Gestionar valoración" : firstExisting || serviceExisting ? "Ver o modificar" : "Ver estado");
 
   setAvatarContent(avatar, target);
   headerText.append(title, meta);
   header.append(avatar, headerText, badge);
-  card.append(header, buildContactStagePanel(request, direction), buildRatingPanel(request, direction));
+  summary.append(header, toggle);
+
+  const body = createElement("div", "rating-contact-body");
+  body.append(
+    buildContactStagePanel(request, direction),
+    buildRatingPanel(request, direction, "first_contact"),
+    buildRatingPanel(request, direction, "service")
+  );
+
+  card.append(summary, body);
   return card;
+}
+
+
+function ratingItemPriority(item) {
+  const { request, direction } = item;
+  return [
+    requestRatingFor(request, direction, "service") ? 80 : 0,
+    requestRatingFor(request, direction, "first_contact") ? 60 : 0,
+    requestCanBeRated(request, direction, "service") ? 30 : 0,
+    requestCanBeRated(request, direction, "first_contact") ? 20 : 0,
+    request.readAt ? 5 : 0,
+    new Date(request.updatedAt || request.createdAt || 0).getTime() / 10000000000000
+  ].reduce((sum, value) => sum + value, 0);
+}
+
+function uniqueRatingItems(items = []) {
+  const map = new Map();
+  items.forEach((item) => {
+    const target = ratingTargetForRequest(item.request, item.direction);
+    const key = target?.id || item.request.id;
+    const current = map.get(key);
+    if (!current || ratingItemPriority(item) >= ratingItemPriority(current)) {
+      map.set(key, item);
+    }
+  });
+  return Array.from(map.values()).sort((a, b) => new Date(b.request.updatedAt || b.request.createdAt || 0) - new Date(a.request.updatedAt || a.request.createdAt || 0));
 }
 
 function buildRatingHistorySection(items) {
   const section = createElement("section", "rating-lane");
-  const readyCount = items.filter(({ request, direction }) => requestCanBeRated(request, direction) && !dataProvider.getRatingForRequest?.(request.id, profile.id || currentUser()?.id || "local", ratingTargetForRequest(request, direction).id)).length;
-  const doneCount = items.filter(({ request, direction }) => dataProvider.getRatingForRequest?.(request.id, profile.id || currentUser()?.id || "local", ratingTargetForRequest(request, direction).id)).length;
+  const uniqueItems = uniqueRatingItems(items);
+  const readyCount = uniqueItems.reduce((count, { request, direction }) => {
+    return count + ["first_contact", "service"].filter((type) => requestCanBeRated(request, direction, type) && !requestRatingFor(request, direction, type)).length;
+  }, 0);
+  const doneCount = uniqueItems.reduce((count, { request, direction }) => {
+    return count + ["first_contact", "service"].filter((type) => requestRatingFor(request, direction, type)).length;
+  }, 0);
 
   if (ratingHistoryTitle) {
     ratingHistoryTitle.textContent = readyCount
@@ -2981,7 +3191,10 @@ function buildRatingHistorySection(items) {
         : "Experiencia y reputación";
   }
 
-  if (!items.length) {
+  const guidance = createElement("p", "rating-evolution-note", "Con el tiempo la relación puede cambiar; tu valoración también. Puedes volver y actualizarla cuando lo necesites.");
+  section.append(guidance);
+
+  if (!uniqueItems.length) {
     const empty = createElement("article", "history-empty rating-empty");
     empty.append(
       createElement("strong", "", "Sin contactos para valorar todavía"),
@@ -2991,7 +3204,7 @@ function buildRatingHistorySection(items) {
     return section;
   }
 
-  items.forEach(({ request, direction }) => section.append(buildRatingCard(request, direction)));
+  uniqueItems.forEach(({ request, direction }) => section.append(buildRatingCard(request, direction)));
   return section;
 }
 
@@ -3352,6 +3565,33 @@ clearRequestsButton.addEventListener("click", async () => {
   await deleteSelectedRequests(Array.from(selectedRequestIds));
 });
 
+async function markRequestContactStage(requestId, stage = "contact", button) {
+  if (!requestId) return;
+  const originalText = button?.textContent || "";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Guardando...";
+  }
+  try {
+    if (stage === "service") {
+      await dataProvider.markServiceCompleted?.(requestId);
+    } else {
+      await dataProvider.markContactStarted?.(requestId);
+    }
+    await dataProvider.refreshRemoteData?.();
+    renderRequestHistory();
+    refreshMatches();
+    updateProfileStatus();
+  } catch (error) {
+    if (button) button.textContent = "No se pudo guardar";
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
+}
+
 function handleContactPanelClick(event) {
   const ratingStar = event.target.closest("[data-rating-star]");
   if (ratingStar) {
@@ -3366,6 +3606,22 @@ function handleContactPanelClick(event) {
     event.preventDefault();
     event.stopPropagation();
     saveRequestRating(ratingButton.dataset.saveRating, ratingButton.dataset.ratingDirection, ratingButton);
+    return;
+  }
+
+  const contactStartedButton = event.target.closest("[data-mark-contact-started]");
+  if (contactStartedButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    markRequestContactStage(contactStartedButton.dataset.markContactStarted, "contact", contactStartedButton);
+    return;
+  }
+
+  const serviceCompletedButton = event.target.closest("[data-mark-service-completed]");
+  if (serviceCompletedButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    markRequestContactStage(serviceCompletedButton.dataset.markServiceCompleted, "service", serviceCompletedButton);
     return;
   }
 
@@ -3453,12 +3709,15 @@ document.querySelector("#closeModal").addEventListener("click", closeModal);
 document.querySelector("#closeRatingsModal")?.addEventListener("click", closeRatingsModal);
 sendRequestButton.addEventListener("click", sendRequest);
 
-profileDetail?.addEventListener("click", (event) => {
+function handleOpenRatingDetails(event) {
   const trigger = event.target.closest("[data-open-rating-details]");
   if (!trigger) return;
   event.preventDefault();
   openRatingsModal(trigger.dataset.openRatingDetails, trigger);
-});
+}
+
+profileDetail?.addEventListener("click", handleOpenRatingDetails);
+profileHomeCard?.addEventListener("click", handleOpenRatingDetails);
 
 modal.addEventListener("click", (event) => {
   if (event.target === modal) closeModal();

@@ -272,6 +272,24 @@
                 <span><strong id="profileHomeMessages">0</strong><small>mensajes o solicitudes</small></span>
                 <span><strong id="profileHomeAffinity">--</strong><small>afinidad media</small></span>
               </div>
+              <article id="accountRatingCard" class="account-rating-card" aria-label="Tus valoraciones en Fit Match" hidden>
+                <div class="account-rating-heading">
+                  <div>
+                    <span class="micro-label">Tu reputación en Fit Match</span>
+                    <strong id="accountRatingTitle">Aún sin valoraciones</strong>
+                    <p id="accountRatingCopy">Cuando alguien valore tu primer contacto o servicio real, aparecerá aquí.</p>
+                  </div>
+                  <div class="account-rating-score">
+                    <strong id="accountRatingAverage">--</strong>
+                    <span id="accountRatingCount">sin datos</span>
+                  </div>
+                </div>
+                <div class="account-rating-grid">
+                  <span><small>Primer contacto</small><strong id="accountRatingFirstContact">--</strong></span>
+                  <span><small>Servicio real</small><strong id="accountRatingService">--</strong></span>
+                </div>
+                <button id="accountRatingDetailsButton" class="button primary" type="button">Ver detalle de valoraciones</button>
+              </article>
               <p id="profileHomeUnreadAlert" class="profile-home-alert" hidden></p>
               <div class="profile-home-actions account-quick-actions">
                 <button class="button primary" type="button" data-view="matches">Ver matches</button>
@@ -847,7 +865,7 @@
               <div>
                 <span class="micro-label">Valoraciones</span>
                 <strong id="ratingHistoryTitle">Experiencia y reputación</strong>
-                <p>Valora contactos reales aparte de los mensajes. Tu puntuación se suma al perfil público por criterios.</p>
+                <p>Valora contactos reales aparte de los mensajes. Puedes actualizar tu valoración si la relación evoluciona.</p>
               </div>
             </div>
             <div id="ratingList" class="rating-list" aria-live="polite"></div>

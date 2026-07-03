@@ -126,7 +126,9 @@ function writeProSubscription(profileId, subscription) {
 }
 
 function normalizeRating(rating = {}) {
-  const criteria = rating.criteria && typeof rating.criteria === "object" ? rating.criteria : {};
+  const baseCriteria = rating.criteria && typeof rating.criteria === "object" ? rating.criteria : {};
+  const ratingType = rating.ratingType || rating.rating_type || baseCriteria._ratingType || "service";
+  const criteria = { ...baseCriteria, _ratingType: ratingType };
   const publicComment = rating.publicComment || rating.public_comment || criteria._publicComment || "";
   const values = Object.entries(criteria)
     .filter(([key]) => !String(key).startsWith("_"))
@@ -141,12 +143,26 @@ function normalizeRating(rating = {}) {
     raterRole: rating.raterRole || rating.rater_role || "",
     targetRole: rating.targetRole || rating.target_role || "",
     criteria,
+    ratingType,
     averageScore: Math.round(average * 10) / 10,
     publicComment,
     comment: rating.comment || "",
     createdAt: rating.createdAt || rating.created_at || new Date().toISOString(),
     updatedAt: rating.updatedAt || rating.updated_at || new Date().toISOString()
   };
+}
+
+function dedupeRatings(ratings = []) {
+  const map = new Map();
+  ratings.map(normalizeRating).forEach((rating) => {
+    if (!rating.raterId || !rating.targetId) return;
+    const key = `${rating.raterId}:${rating.targetId}:${rating.ratingType}`;
+    const current = map.get(key);
+    const currentTime = current ? new Date(current.updatedAt || current.createdAt || 0).getTime() : 0;
+    const nextTime = new Date(rating.updatedAt || rating.createdAt || 0).getTime();
+    if (!current || nextTime >= currentTime) map.set(key, rating);
+  });
+  return Array.from(map.values()).sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
 }
 
 function ratingSummariesByTarget(ratings = []) {
@@ -174,7 +190,7 @@ function applyRatingSummaries(profiles = [], ratings = []) {
 }
 
 function readRatings() {
-  return readStorage(STORAGE_KEYS.ratings, []).map(normalizeRating);
+  return dedupeRatings(readStorage(STORAGE_KEYS.ratings, []));
 }
 
 function writeRatings(ratings) {
@@ -185,9 +201,9 @@ function saveLocalRating(rating) {
   const normalized = normalizeRating(rating);
   const ratings = readRatings();
   const index = ratings.findIndex((item) =>
-    item.requestId === normalized.requestId
-    && item.raterId === normalized.raterId
+    item.raterId === normalized.raterId
     && item.targetId === normalized.targetId
+    && normalizeRating(item).ratingType === normalized.ratingType
   );
   if (index >= 0) {
     ratings[index] = { ...ratings[index], ...normalized, updatedAt: new Date().toISOString() };
@@ -324,6 +340,8 @@ const PRO_META_PREFIX = "pro_meta:";
 const READ_AT_PREFIX = "read_at:";
 const READ_BY_PREFIX = "read_by:";
 const DELETED_BY_PREFIX = "deleted_by:";
+const CONTACT_STARTED_BY_PREFIX = "contact_started_by:";
+const SERVICE_COMPLETED_BY_PREFIX = "service_completed_by:";
 
 function unpackProfileNotes(value = "") {
   const lines = String(value || "").split(/\n+/);
@@ -422,6 +440,25 @@ function extractDeletedBy(reasons = []) {
   }, []);
 }
 
+function extractMarkerUsers(reasons = [], prefix = "") {
+  return reasons.reduce((users, reason) => {
+    const value = String(reason || "");
+    if (prefix && value.startsWith(prefix)) {
+      const userId = decodeContactValue(value.slice(prefix.length));
+      if (userId && !users.includes(userId)) users.push(userId);
+    }
+    return users;
+  }, []);
+}
+
+function markReasonsWithUser(reasons = [], prefix = "", userId = "") {
+  if (!prefix || !userId) return reasons;
+  const marker = `${prefix}${encodeContactValue(userId)}`;
+  const cleanReasons = reasons.filter((reason) => String(reason || "") !== marker);
+  cleanReasons.push(marker);
+  return cleanReasons;
+}
+
 function visibleReasons(reasons = []) {
   return reasons.filter((reason) => {
     const value = String(reason || "");
@@ -429,7 +466,9 @@ function visibleReasons(reasons = []) {
       && !value.startsWith(CONTACT_PHONE_PREFIX)
       && !value.startsWith(READ_AT_PREFIX)
       && !value.startsWith(READ_BY_PREFIX)
-      && !value.startsWith(DELETED_BY_PREFIX);
+      && !value.startsWith(DELETED_BY_PREFIX)
+      && !value.startsWith(CONTACT_STARTED_BY_PREFIX)
+      && !value.startsWith(SERVICE_COMPLETED_BY_PREFIX);
   });
 }
 
@@ -449,6 +488,14 @@ function markReasonsDeleted(reasons = [], userId = "") {
   const cleanReasons = reasons.filter((reason) => String(reason || "") !== marker);
   cleanReasons.push(marker);
   return cleanReasons;
+}
+
+function markReasonsContactStarted(reasons = [], userId = "") {
+  return markReasonsWithUser(reasons, CONTACT_STARTED_BY_PREFIX, userId);
+}
+
+function markReasonsServiceCompleted(reasons = [], userId = "") {
+  return markReasonsWithUser(reasons, SERVICE_COMPLETED_BY_PREFIX, userId);
 }
 
 function requestPersonSnapshot(person, fallbackId, fallbackRole, fallbackName) {
@@ -477,6 +524,8 @@ function normalizeStoredRequest(request, options = {}) {
   const contact = extractContact(request.reasons || []);
   const readState = extractReadState(request.reasons || []);
   const deletedBy = request.deletedBy || extractDeletedBy(request.reasons || []);
+  const contactStartedBy = request.contactStartedBy || extractMarkerUsers(request.reasons || [], CONTACT_STARTED_BY_PREFIX);
+  const serviceCompletedBy = request.serviceCompletedBy || extractMarkerUsers(request.reasons || [], SERVICE_COMPLETED_BY_PREFIX);
   const sender = request.sender || request.profile || requestPersonSnapshot(null, request.senderId, senderRole, "Perfil remitente");
   const recipient = request.recipient || request.target || requestPersonSnapshot(null, request.recipientId, recipientRole, "Perfil destinatario");
   if (contact.email && !sender.contactEmail && !sender.email) sender.contactEmail = contact.email;
@@ -499,6 +548,8 @@ function normalizeStoredRequest(request, options = {}) {
     readAt: request.readAt || request.read_at || readState.readAt || "",
     readBy: request.readBy || readState.readBy || "",
     deletedBy,
+    contactStartedBy,
+    serviceCompletedBy,
     reasons: visibleReasons(request.reasons || []),
     sender: requestPersonSnapshot(sender, sender.id, senderRole, "Perfil remitente"),
     recipient: requestPersonSnapshot(recipient, recipient.id, recipientRole, "Perfil destinatario"),
@@ -992,6 +1043,43 @@ window.FitMatchDataProvider = {
     return remoteRequests.find((request) => request.id === requestId) || null;
   },
 
+  async markContactStage(requestId, stage = "contact") {
+    if (!requestId) return null;
+    const userId = currentSession?.user?.id || "local";
+    const marker = stage === "service" ? markReasonsServiceCompleted : markReasonsContactStarted;
+
+    if (!canUseRemote()) {
+      const requests = readStorage(STORAGE_KEYS.contactRequests, []);
+      let updatedRequest = null;
+      const updated = requests.map((request) => {
+        if (request.id !== requestId) return request;
+        const reasons = marker(request.reasons || [], userId);
+        updatedRequest = normalizeStoredRequest({ ...request, reasons }, { profileId: userId });
+        return { ...request, reasons };
+      });
+      writeStorage(STORAGE_KEYS.contactRequests, updated);
+      return updatedRequest;
+    }
+
+    const current = await assertNoError(
+      await supabaseClient.from("contact_requests").select("reasons").eq("id", requestId).maybeSingle()
+    );
+    const reasons = marker(current?.reasons || [], userId);
+    await assertNoError(
+      await supabaseClient.from("contact_requests").update({ reasons }).eq("id", requestId)
+    );
+    await this.refreshRemoteData();
+    return remoteRequests.find((request) => request.id === requestId) || null;
+  },
+
+  async markContactStarted(requestId) {
+    return this.markContactStage(requestId, "contact");
+  },
+
+  async markServiceCompleted(requestId) {
+    return this.markContactStage(requestId, "service");
+  },
+
   async deleteContactRequests(requestIds, options = {}) {
     const ids = Array.isArray(requestIds) ? requestIds.filter(Boolean) : [requestIds].filter(Boolean);
     if (!ids.length) return this.listContactRequests(options.role, options);
@@ -1166,7 +1254,7 @@ window.FitMatchDataProvider = {
   },
 
   listRatings() {
-    return canUseRemote() ? remoteRatings.map(normalizeRating) : readRatings();
+    return dedupeRatings(canUseRemote() ? remoteRatings : readRatings());
   },
 
   getRatingSummary(targetId) {
@@ -1176,25 +1264,30 @@ window.FitMatchDataProvider = {
     return normalizeRatingSummary({ average: total / ratings.length, count: ratings.length });
   },
 
-  getRatingForRequest(requestId, raterId, targetId) {
-    return this.listRatings().find((rating) =>
-      rating.requestId === requestId
-      && rating.raterId === raterId
-      && rating.targetId === targetId
-    ) || null;
+  getRatingForRequest(requestId, raterId, targetId, ratingType = "service") {
+    const ratings = this.listRatings().filter((rating) => {
+      const item = normalizeRating(rating);
+      return item.raterId === raterId
+        && item.targetId === targetId
+        && item.ratingType === ratingType;
+    });
+    return ratings.find((rating) => rating.requestId === requestId) || ratings[0] || null;
   },
 
   async saveRating(payload = {}) {
     const user = currentSession?.user;
     const raterId = payload.raterId || user?.id || "local";
+    const ratingType = payload.ratingType || payload.rating_type || "service";
     const normalized = normalizeRating({
       requestId: payload.requestId,
       raterId,
       raterRole: payload.raterRole,
       targetId: payload.target?.id || payload.targetId,
       targetRole: payload.target?.role || payload.targetRole,
+      ratingType,
       criteria: {
         ...(payload.criteria || {}),
+        _ratingType: ratingType,
         ...(payload.publicComment ? { _publicComment: payload.publicComment } : {})
       },
       publicComment: payload.publicComment || "",
@@ -1219,12 +1312,22 @@ window.FitMatchDataProvider = {
     };
 
     try {
-      await supabaseClient
-        .from("profile_ratings")
-        .delete()
-        .eq("request_id", row.request_id)
-        .eq("rater_id", row.rater_id)
-        .eq("target_id", row.target_id);
+      const existingRows = await assertNoError(
+        await supabaseClient
+          .from("profile_ratings")
+          .select("id, criteria")
+          .eq("rater_id", row.rater_id)
+          .eq("target_id", row.target_id)
+      );
+      const idsToReplace = (existingRows || [])
+        .filter((item) => normalizeRating({ criteria: item.criteria }).ratingType === normalized.ratingType)
+        .map((item) => item.id)
+        .filter(Boolean);
+      if (idsToReplace.length) {
+        await assertNoError(
+          await supabaseClient.from("profile_ratings").delete().in("id", idsToReplace)
+        );
+      }
       const data = await assertNoError(
         await supabaseClient.from("profile_ratings").insert(row).select("*").single()
       );

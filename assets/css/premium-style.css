@@ -7220,3 +7220,353 @@ body.role-client .button.primary:hover {
     animation: none !important;
   }
 }
+
+
+/* Revisión Codex: valoración en dos momentos y acciones verdes claras */
+.contact-stage-steps {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+.contact-stage-actions {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+  margin-top: 2px !important;
+}
+
+.contact-stage-action,
+.rating-save-button,
+.button[data-save-rating],
+.button[data-mark-contact-started],
+.button[data-mark-service-completed],
+.button[data-reply-request],
+.button[data-request],
+.contact-button:not(.contact-button-phone) {
+  border-color: rgba(24, 117, 82, 0.32) !important;
+  background: linear-gradient(145deg, #238c68, #14674f) !important;
+  color: #fffdf5 !important;
+  box-shadow: 0 16px 32px rgba(24, 117, 82, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+}
+
+.contact-stage-action:hover,
+.rating-save-button:hover,
+.button[data-save-rating]:hover,
+.button[data-mark-contact-started]:hover,
+.button[data-mark-service-completed]:hover,
+.button[data-reply-request]:hover,
+.button[data-request]:hover,
+.contact-button:not(.contact-button-phone):hover {
+  background: linear-gradient(145deg, #2d9a76, #176d55) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 20px 42px rgba(24, 117, 82, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+}
+
+.button.secondary,
+.button.quiet,
+.button[data-hide-match],
+.button[data-delete-request],
+.contact-button-phone {
+  background: rgba(255, 253, 247, 0.88) !important;
+  color: #153b32 !important;
+  border-color: rgba(28, 90, 70, 0.16) !important;
+  box-shadow: 0 10px 24px rgba(24, 50, 41, 0.06) !important;
+}
+
+.button[data-delete-request] {
+  color: #7b2f2a !important;
+  border-color: rgba(235, 125, 92, 0.28) !important;
+}
+
+.contact-stage-step-done {
+  background: linear-gradient(145deg, rgba(237, 252, 245, 0.96), rgba(255, 253, 247, 0.84)) !important;
+  border-color: rgba(31, 118, 95, 0.28) !important;
+  color: #103c32 !important;
+}
+
+.contact-stage-step-done::before {
+  background: #238c68 !important;
+  box-shadow: 0 0 0 4px rgba(35, 140, 104, 0.14) !important;
+}
+
+.rating-panel-first_contact {
+  background:
+    radial-gradient(circle at 95% 0%, rgba(235, 125, 92, 0.09), transparent 32%),
+    linear-gradient(145deg, rgba(255, 252, 244, 0.96), rgba(249, 246, 237, 0.84)) !important;
+}
+
+.rating-panel-service {
+  background:
+    radial-gradient(circle at 95% 0%, rgba(31, 118, 95, 0.10), transparent 32%),
+    linear-gradient(145deg, rgba(255, 253, 247, 0.96), rgba(241, 249, 238, 0.86)) !important;
+}
+
+.rating-breakdown-groups {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 14px !important;
+}
+
+.rating-breakdown-group {
+  display: grid !important;
+  gap: 12px !important;
+  min-width: 0 !important;
+  padding: 14px !important;
+  border: 1px solid rgba(31, 118, 95, 0.12) !important;
+  border-radius: 22px !important;
+  background: rgba(255, 253, 247, 0.72) !important;
+  box-shadow: 0 12px 30px rgba(24, 50, 41, 0.045) !important;
+}
+
+.rating-breakdown-group-heading {
+  display: flex !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  align-items: flex-start !important;
+}
+
+.rating-breakdown-group-heading strong {
+  color: #0f2e2b !important;
+  font-size: 1rem !important;
+}
+
+.rating-breakdown-group-heading small {
+  color: #567066 !important;
+  font-weight: 800 !important;
+  text-align: right !important;
+}
+
+@media (max-width: 860px) {
+  .rating-breakdown-groups,
+  .contact-stage-steps {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+
+/* Revisión Codex: UX de valoraciones cerradas y reputación propia */
+.account-rating-card[hidden] {
+  display: none !important;
+}
+
+.rating-contact-collapsible {
+  overflow: clip !important;
+}
+
+.rating-contact-summary {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 14px !important;
+  align-items: center !important;
+  cursor: pointer !important;
+  list-style: none !important;
+}
+
+.rating-contact-summary::-webkit-details-marker {
+  display: none !important;
+}
+
+.rating-contact-summary::marker {
+  content: "" !important;
+}
+
+.rating-contact-summary .rating-contact-header {
+  min-width: 0 !important;
+}
+
+.rating-card-toggle {
+  min-width: 160px !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+  pointer-events: none !important;
+}
+
+.rating-contact-collapsible[open] .rating-card-toggle::after {
+  content: " · abierto" !important;
+  font-weight: 800 !important;
+  opacity: 0.72 !important;
+}
+
+.rating-contact-body {
+  display: grid !important;
+  gap: 14px !important;
+  margin-top: 16px !important;
+  padding-top: 16px !important;
+  border-top: 1px solid rgba(31, 118, 95, 0.12) !important;
+}
+
+.rating-contact-collapsible:not([open]) {
+  padding-bottom: 18px !important;
+}
+
+.account-rating-card {
+  display: grid !important;
+  gap: 16px !important;
+  margin-top: 18px !important;
+  padding: clamp(18px, 2.4vw, 24px) !important;
+  border: 1px solid rgba(31, 118, 95, 0.16) !important;
+  border-radius: 28px !important;
+  background:
+    radial-gradient(circle at 96% 8%, rgba(235, 125, 92, 0.08), transparent 28%),
+    linear-gradient(145deg, rgba(255, 253, 247, 0.92), rgba(242, 250, 238, 0.82)) !important;
+  box-shadow: 0 18px 42px rgba(24, 50, 41, 0.075) !important;
+}
+
+.account-rating-heading {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 18px !important;
+  align-items: start !important;
+}
+
+.account-rating-heading strong,
+.account-rating-title {
+  color: #102f29 !important;
+}
+
+.account-rating-heading p {
+  margin: 8px 0 0 !important;
+  color: #4b6259 !important;
+  line-height: 1.5 !important;
+}
+
+.account-rating-score {
+  min-width: 116px !important;
+  padding: 14px 16px !important;
+  border-radius: 24px !important;
+  border: 1px solid rgba(31, 118, 95, 0.14) !important;
+  background: rgba(255, 255, 255, 0.72) !important;
+  text-align: center !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 12px 26px rgba(24, 50, 41, 0.055) !important;
+}
+
+.account-rating-score strong {
+  display: block !important;
+  font-size: clamp(1.8rem, 4vw, 2.6rem) !important;
+  line-height: 1 !important;
+  color: #0f4f3c !important;
+}
+
+.account-rating-score span {
+  display: block !important;
+  margin-top: 6px !important;
+  color: #5c7068 !important;
+  font-size: 0.78rem !important;
+  font-weight: 850 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+}
+
+.account-rating-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+
+.account-rating-grid span {
+  display: grid !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+  padding: 14px !important;
+  border-radius: 20px !important;
+  border: 1px solid rgba(31, 118, 95, 0.12) !important;
+  background: rgba(255, 255, 255, 0.64) !important;
+}
+
+.account-rating-grid small {
+  color: #64786f !important;
+  font-weight: 850 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.07em !important;
+  font-size: 0.72rem !important;
+}
+
+.account-rating-grid strong {
+  color: #102f29 !important;
+  font-size: 1.1rem !important;
+}
+
+#accountRatingDetailsButton {
+  justify-self: start !important;
+}
+
+@media (max-width: 720px) {
+  .rating-contact-summary,
+  .account-rating-heading,
+  .account-rating-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .rating-card-toggle,
+  #accountRatingDetailsButton {
+    width: 100% !important;
+  }
+
+  .account-rating-score {
+    width: 100% !important;
+    text-align: left !important;
+  }
+}
+
+
+/* Revisión Codex: evitar solapes en valoración pública */
+.rating-breakdown-group-heading {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 4px !important;
+}
+
+.rating-breakdown-group-heading small {
+  text-align: left !important;
+  line-height: 1.35 !important;
+}
+
+.rating-breakdown-row {
+  grid-template-columns: 1fr !important;
+  gap: 9px !important;
+  align-items: start !important;
+}
+
+.rating-breakdown-label {
+  gap: 4px !important;
+}
+
+.rating-breakdown-label strong {
+  overflow-wrap: anywhere !important;
+}
+
+.rating-breakdown-value {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  width: 100% !important;
+  gap: 12px !important;
+  white-space: normal !important;
+}
+
+.rating-read-stars {
+  flex: 0 0 auto !important;
+  min-width: max-content !important;
+}
+
+.rating-read-star {
+  font-size: clamp(0.92rem, 2.5vw, 1.05rem) !important;
+}
+
+.rating-evolution-note {
+  margin: 0 0 14px !important;
+  padding: 14px 16px !important;
+  border-radius: 20px !important;
+  border: 1px solid rgba(31, 118, 95, 0.14) !important;
+  background: rgba(255, 253, 247, 0.74) !important;
+  color: #425e54 !important;
+  font-weight: 780 !important;
+  line-height: 1.48 !important;
+  box-shadow: 0 10px 28px rgba(24, 50, 41, 0.045) !important;
+}
+
+@media (max-width: 520px) {
+  .rating-breakdown-value {
+    align-items: flex-start !important;
+    flex-direction: column !important;
+  }
+}
