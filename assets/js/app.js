@@ -3,16 +3,16 @@ const labels = dataProvider.getLabels();
 
 const ROLE_COPY = {
   client: {
-    onboardingTitle: "Ruta cliente",
+    onboardingTitle: "Así te verán como cliente",
     onboardingCopy:
-      "Esta pantalla es solo para clientes: define qué necesitas, tu contexto y el tipo de profesional que tendría sentido para ti.",
+      "Define qué necesitas, tu contexto y el tipo de profesional que tendría sentido para ti.",
     roleHelpTitle: "Perfil cliente",
     roleHelp:
-      "Completa qué necesitas. Después Fit Match cruzará tu búsqueda con profesionales compatibles.",
+      "Completa lo que otros necesitan saber para entender tu búsqueda y ofrecerte una ayuda adecuada.",
     submit: "Guardar perfil cliente y ver profesionales",
-    matchesTitle: "Profesionales compatibles",
+    matchesTitle: "Profesionales que encajan contigo",
     matchesCopy:
-      "Revisa primero los profesionales con mayor compatibilidad y abre cada perfil antes de contactar.",
+      "Revisa primero las coincidencias con más afinidad y abre cada perfil antes de contactar.",
     requestTitle: "Solicitudes preparadas",
     requestCopy:
       "Elige un profesional compatible y prepara una solicitud con contexto real.",
@@ -26,16 +26,16 @@ const ROLE_COPY = {
       "Con cuentas reales, el profesional recibirá el perfil y podrá responder o proponer una primera llamada."
   },
   professional: {
-    onboardingTitle: "Ruta profesional",
+    onboardingTitle: "Así te verán como profesional",
     onboardingCopy:
-      "Esta pantalla es solo para profesionales: define qué ofreces, tu método y el tipo de cliente con el que puedes trabajar bien.",
+      "Define qué ofreces, tu método y el tipo de cliente con el que puedes trabajar bien.",
     roleHelpTitle: "Perfil profesional",
     roleHelp:
-      "Completa tu especialidad, servicios, disponibilidad y criterio. Después Fit Match te mostrará clientes compatibles.",
+      "Completa lo que otros necesitan saber para entender tu método y decidir si encajas con su búsqueda.",
     submit: "Guardar perfil profesional y ver clientes",
-    matchesTitle: "Clientes compatibles",
+    matchesTitle: "Clientes que encajan contigo",
     matchesCopy:
-      "Revisa primero los clientes con mayor compatibilidad y abre cada perfil antes de proponer contacto.",
+      "Revisa primero las coincidencias con más afinidad y abre cada perfil antes de proponer contacto.",
     requestTitle: "Propuestas preparadas",
     requestCopy:
       "Elige un cliente compatible y prepara una propuesta clara y contextual.",
@@ -1037,11 +1037,11 @@ function updateProfileContextCard() {
   profileContextCard.classList.toggle("professional-context", !isClient);
   if (profileContextScore) profileContextScore.textContent = `${percent}%`;
   if (profileContextScoreLabel) profileContextScoreLabel.textContent = percent >= 80 ? "perfil fuerte" : "perfil en progreso";
-  if (profileContextKicker) profileContextKicker.textContent = isClient ? "Tu perfil y tus matches" : "Tu visibilidad en Fit Match";
-  if (profileContextTitle) profileContextTitle.textContent = isClient ? "Vas por buen camino." : "Tu perfil conecta con intención.";
+  if (profileContextKicker) profileContextKicker.textContent = isClient ? "Así te verán" : "Así te encontrarán";
+  if (profileContextTitle) profileContextTitle.textContent = isClient ? "Tu identidad empieza aquí." : "Tu método debe entenderse rápido.";
   if (profileContextCopy) profileContextCopy.textContent = isClient
-    ? "Completa tu perfil para recibir profesionales más precisos y conversaciones con más contexto."
-    : "Cuanto más clara sea tu metodología, mejor aparecerás ante clientes que buscan lo que ofreces.";
+    ? "Nombre, foto, ciudad, objetivo y notas ayudan a que el profesional entienda tu contexto."
+    : "Especialidad, método, disponibilidad y notas ayudan a que el cliente entienda si encajas.";
   renderContextSignals(profileContextSignals, isClient
     ? ["Objetivos definidos", "Preferencias claras", "Disponibilidad importante", "Nivel adecuado"]
     : ["Especialidades claras", "Metodología destacada", "Disponibilidad actualizada", "Reseñas futuras"]);
@@ -1540,10 +1540,10 @@ function renderProPanel({ matchCount = 0, activeContacts = 0 } = {}) {
 
   proPanel.dataset.proStatus = isFullPro ? "pro" : "building";
   if (proStatusBadge) proStatusBadge.textContent = isFullPro ? "PRO activo" : "En construcción";
-  if (proPanelTitle) proPanelTitle.textContent = isFullPro ? "KORO Profile Coach activo" : "Fit Match PRO está en desarrollo.";
+  if (proPanelTitle) proPanelTitle.textContent = isFullPro ? "KORO Profile Coach activo" : "Herramientas para crecer con criterio.";
   if (proPanelCopy) proPanelCopy.textContent = isFullPro
     ? "KORO analiza tu perfil, actividad y conversión para ayudarte a conseguir mejores conexiones."
-    : "Estamos preparando herramientas avanzadas para profesionales que quieran mejorar su perfil, analizar su visibilidad y conseguir mejores conexiones dentro de la plataforma.";
+    : "PRO prepara visibilidad, análisis y recomendaciones sin comprar posiciones en el algoritmo.";
   if (proProfileScore) proProfileScore.textContent = `${profileScore} / 100`;
   if (proScoreState) proScoreState.textContent = isFullPro ? "Análisis completo activo." : "Vista previa limitada. Disponible próximamente en Fit Match PRO.";
   renderProList(proScoreActions, koroScoreActions(profileScore, profile));
@@ -1572,16 +1572,51 @@ function renderProfileHome() {
   const isReady = hasSavedProfile();
   const state = dataProvider.getAuthState?.() || {};
   const isConnected = Boolean(state.isRemote);
+  const showAccountIdentity = isReady || isConnected;
 
-  if (accountWelcomeCard) accountWelcomeCard.hidden = isReady;
-  if (profileHomeCard) profileHomeCard.hidden = !isReady;
+  if (accountWelcomeCard) accountWelcomeCard.hidden = showAccountIdentity;
+  if (profileHomeCard) profileHomeCard.hidden = !showAccountIdentity;
   if (accountWorkspace) accountWorkspace.hidden = !isReady;
   if (accountRatingCard) accountRatingCard.hidden = !isReady;
   if (proPanel) proPanel.hidden = !isReady || profile.role !== "professional";
   if (accountProgressCard) accountProgressCard.hidden = !isReady;
   if (accountActivityCard) accountActivityCard.hidden = !isReady;
 
+  const accountActions = profileHomeCard?.querySelectorAll(".account-quick-actions .button") || [];
+  const [matchesAction, contactsAction, editAction, signOutAction] = accountActions;
+
   if (!isReady) {
+    const connectedEmail = state.user?.email || currentUser()?.email || profile.email || "Cuenta conectada";
+    const roleText = roleLabel(profile.role);
+    setAvatarContent(profileHomePhoto, { name: connectedEmail, photo: profile.photo, color: profile.color });
+    if (profileHomeName) profileHomeName.textContent = isConnected ? "Cuenta conectada" : "Bienvenido a Fit Match";
+    if (profileHomeSummary) profileHomeSummary.textContent = isConnected
+      ? `${roleText} · Perfil pendiente. Completa tus datos para activar matches y contactos.`
+      : "Inicia sesión para acceder a tu espacio personal.";
+    if (accountEmailValue) accountEmailValue.textContent = isConnected ? connectedEmail : "Sin email";
+    if (accountRoleValue) accountRoleValue.textContent = roleText;
+    if (accountCityValue) accountCityValue.textContent = "Pendiente";
+    if (accountGoalValue) accountGoalValue.textContent = "Pendiente";
+    if (accountStatusValue) accountStatusValue.textContent = isConnected ? "Perfil pendiente" : "Sin sesión";
+    if (accountCompletionValue) accountCompletionValue.textContent = "0% completo";
+    if (accountContextScore) accountContextScore.textContent = "0%";
+    if (accountContextTitle) accountContextTitle.textContent = isConnected ? "Completa tu perfil" : "Inicia sesión";
+    if (accountContextCopy) accountContextCopy.textContent = isConnected
+      ? "Tu cuenta ya está activa. Añade nombre, ciudad, objetivo y preferencias para calcular matches reales."
+      : "Entra o crea una cuenta para guardar tu perfil y ver tu actividad.";
+    if (accountContextMatches) accountContextMatches.textContent = "0";
+    if (accountContextContacts) accountContextContacts.textContent = "0";
+    if (accountContextMessages) accountContextMessages.textContent = "0";
+    if (accountContextDelta) accountContextDelta.textContent = "--";
+    if (profileHomeUnreadAlert) profileHomeUnreadAlert.hidden = true;
+    if (matchesAction) {
+      matchesAction.textContent = isConnected ? "Completar perfil" : "Iniciar sesión";
+      matchesAction.dataset.view = isConnected ? "register" : "account";
+      matchesAction.hidden = false;
+    }
+    if (contactsAction) contactsAction.hidden = true;
+    if (editAction) editAction.hidden = true;
+    if (signOutAction) signOutAction.hidden = !isConnected;
     if (accountAsideLabel) accountAsideLabel.textContent = isConnected ? "Perfil pendiente" : "Cuenta Fit Match";
     if (accountAsideTitle) accountAsideTitle.textContent = isConnected ? "Completa tu perfil" : "Bienvenido a Fit Match";
     if (accountAsideCopy) accountAsideCopy.textContent = isConnected
@@ -1590,6 +1625,15 @@ function renderProfileHome() {
     renderProPanel();
     return;
   }
+
+  if (matchesAction) {
+    matchesAction.textContent = "Ver matches";
+    matchesAction.dataset.view = "matches";
+    matchesAction.hidden = false;
+  }
+  if (contactsAction) contactsAction.hidden = false;
+  if (editAction) editAction.hidden = false;
+  if (signOutAction) signOutAction.hidden = false;
 
   const matchScores = accountMatchScores();
   const matchCount = matchScores.length;
@@ -1618,7 +1662,7 @@ function renderProfileHome() {
   setAvatarContent(profileHomePhoto, profile);
   if (profileHomeName) profileHomeName.textContent = profile.name || `Perfil ${roleText.toLowerCase()}`;
   if (profileHomeSummary) {
-    profileHomeSummary.textContent = `${roleText} · ${cityText} · ${primaryValue}. Tu punto de entrada para avanzar con menos ruido.`;
+    profileHomeSummary.textContent = `${roleText} · ${cityText} · ${primaryValue}. Tu identidad y actividad reunidas en un solo lugar.`;
   }
   if (accountEmailValue) accountEmailValue.textContent = emailText;
   if (accountRoleValue) accountRoleValue.textContent = roleText;
@@ -1633,7 +1677,7 @@ function renderProfileHome() {
   if (profileHomeMessages) profileHomeMessages.textContent = String(allRequests.length);
   if (profileHomeAffinity) profileHomeAffinity.textContent = averageAffinity;
   if (accountContextScore) accountContextScore.textContent = `${completion.percent}%`;
-  if (accountContextTitle) accountContextTitle.textContent = completion.percent >= 85 ? "Rendimiento excelente" : "Rendimiento en construcción";
+  if (accountContextTitle) accountContextTitle.textContent = completion.percent >= 85 ? "Perfil muy completo" : "Perfil en construcción";
   if (accountContextCopy) accountContextCopy.textContent = ownRatingSummary.count
     ? `Tu perfil público ya muestra ${ratingText(ownRatingSummary)}. Las valoraciones refuerzan la confianza antes del contacto.`
     : (matchCount
@@ -1912,11 +1956,11 @@ function updateRoleCopy() {
     : "Crear cuenta y buscar matches";
   matchesTitle.textContent = copy.matchesTitle;
   matchesCopy.textContent = copy.matchesCopy;
-  requestsTitle.textContent = "Entrada de solicitudes";
-  requestsCopy.textContent = "Aquí se guardan las solicitudes y propuestas que envías o recibes dentro de Fit Match.";
+  requestsTitle.textContent = "Conversaciones y próximos pasos";
+  requestsCopy.textContent = "Aquí puedes leer mensajes, responder, avanzar al contacto y valorar experiencias reales.";
   modalTitle.textContent = copy.modalTitle;
   sendRequestButton.textContent = copy.sendAction;
-  historyTitle.textContent = profile.role === "client" ? "Solicitudes enviadas" : "Propuestas enviadas";
+  historyTitle.textContent = "Bandeja de contactos";
 
   if (activeRoleButton) {
     matchesPanel.setAttribute("aria-labelledby", activeRoleButton.id);
@@ -2217,8 +2261,8 @@ function resetRequestBox() {
       ? "Elige un profesional compatible y pulsa “Solicitar servicio” para preparar el contacto."
       : "Elige un cliente compatible y pulsa “Proponer plan” para preparar el contacto.")
   );
-  requestsTitle.textContent = "Entrada de solicitudes";
-  requestsCopy.textContent = "Aquí se guardan las solicitudes y propuestas que envías o recibes dentro de Fit Match.";
+  requestsTitle.textContent = "Conversaciones y próximos pasos";
+  requestsCopy.textContent = "Aquí puedes leer mensajes, responder, avanzar al contacto y valorar experiencias reales.";
 }
 
 function updateRole(role, { persistCurrent = true, simulateLoading = true } = {}) {
@@ -3304,12 +3348,12 @@ function renderRequestHistory() {
   requestList.replaceChildren();
   ratingList?.replaceChildren();
   updateRequestDeleteButton(visibleRequestIds.length);
-  historyTitle.textContent = unreadRequests ? `Mensajes · ${unreadRequests} nuevo${unreadRequests === 1 ? "" : "s"}` : "Mensajes y solicitudes";
+  historyTitle.textContent = unreadRequests ? `Bandeja · ${unreadRequests} nuevo${unreadRequests === 1 ? "" : "s"}` : "Bandeja de contactos";
 
   requestList.append(
     buildRequestSection({
-      title: incomingRequests.length ? `${incomingRequests.length} recibida${incomingRequests.length === 1 ? "" : "s"}` : "Bandeja de entrada",
-      kicker: unreadRequests ? `${unreadRequests} nuevo${unreadRequests === 1 ? "" : "s"}` : "Entrada",
+      title: incomingRequests.length ? `${incomingRequests.length} contacto${incomingRequests.length === 1 ? "" : "s"} recibido${incomingRequests.length === 1 ? "" : "s"}` : "Recibidos",
+      kicker: unreadRequests ? `${unreadRequests} nuevo${unreadRequests === 1 ? "" : "s"}` : "Recibidos",
       requests: incomingRequests,
       emptyTitle: "Sin solicitudes recibidas todavía",
       emptyText: profile.role === "client"
@@ -3318,8 +3362,8 @@ function renderRequestHistory() {
       direction: "incoming"
     }),
     buildRequestSection({
-      title: sentRequests.length ? `${sentRequests.length} enviada${sentRequests.length === 1 ? "" : "s"}` : "Enviadas",
-      kicker: "Salida",
+      title: sentRequests.length ? `${sentRequests.length} contacto${sentRequests.length === 1 ? "" : "s"} enviado${sentRequests.length === 1 ? "" : "s"}` : "Enviados",
+      kicker: "Enviados",
       requests: sentRequests,
       emptyTitle: profile.role === "client" ? "Sin solicitudes enviadas" : "Sin propuestas enviadas",
       emptyText: "Cuando contactes desde Matches, tu solicitud o propuesta quedará aquí para seguimiento.",
