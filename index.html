@@ -34,7 +34,7 @@
         <button class="nav-link" type="button" data-view="register">Perfil</button>
         <button class="nav-link" type="button" data-view="matches">Matches</button>
         <button class="nav-link" type="button" data-view="contacts">Contactos</button>
-        <button class="nav-link" type="button" data-view="trust">Confianza</button>
+        <button class="nav-link" type="button" data-view="ratings">Valoraciones</button>
       </nav>
     </header>
 
@@ -47,9 +47,15 @@
             <p>
               Encuentra profesionales que encajan con tu objetivo, tu contexto y tu forma de avanzar. Menos búsqueda sin criterio. Más conexiones con sentido.
             </p>
-            <div class="hero-actions" aria-label="Empezar en Fit Match">
-              <button class="button primary" type="button" data-start-role="client">Encontrar profesional</button>
-              <button class="button secondary" type="button" data-start-role="professional">Crear perfil profesional</button>
+            <div class="hero-actions hero-role-actions" aria-label="Empezar en Fit Match">
+              <div class="hero-role-action">
+                <span>Soy cliente</span>
+                <button class="button primary" type="button" data-start-role="client">Encontrar profesional</button>
+              </div>
+              <div class="hero-role-action">
+                <span>Soy profesional</span>
+                <button class="button secondary" type="button" data-start-role="professional">Unirme a Fit Match</button>
+              </div>
             </div>
             <div class="route-pills" aria-label="Tres ideas principales de Fit Match">
               <span>Compatibilidad real</span>
@@ -376,11 +382,110 @@
               <p id="proPaymentNote" class="pro-payment-note">Fit Match PRO todavía no cobra ni activa suscripciones. Este botón solo registra tu interés para avisarte cuando esté disponible.</p>
             </section>
 
-            <aside class="account-trust-shortcut account-trust-footer" aria-label="Confianza y privacidad">
+
+            <section id="accountLegalCenter" class="account-legal-center account-workspace-card" aria-label="Privacidad, seguridad y legal">
+              <div class="account-section-title">
+                <span class="micro-label">Privacidad y legal</span>
+                <strong>Privacidad, seguridad y conducta en un solo lugar.</strong>
+                <p>Consulta privacidad, términos, conducta y derechos desde tu espacio personal, sin interrumpir el recorrido principal.</p>
+              </div>
+              <section class="trust-hero-card" aria-label="Resumen de privacidad Fit Match">
+                <div>
+                  <span class="micro-label">Protección de tus datos</span>
+                  <strong>Tu privacidad es una prioridad.</strong>
+                  <p>
+                    Usamos tus datos para crear tu perfil, calcular afinidades, mostrar matches y facilitar contactos profesionales.
+                    No vendemos datos personales ni los cedemos con fines comerciales.
+                  </p>
+                </div>
+                <div class="trust-shield" aria-hidden="true">
+                  <span>✓</span>
+                </div>
+              </section>
+
+              <div class="trust-message-grid" aria-label="Mensajes de confianza">
+                <article><strong>Nunca vendemos tus datos personales.</strong><p>Fit Match no comparte tu información con fines comerciales.</p></article>
+                <article><strong>Solo tú decides con quién contactar.</strong><p>El contacto directo aparece dentro de solicitudes donde participas.</p></article>
+                <article><strong>Tu perfil es editable.</strong><p>Puedes revisar y actualizar tu información en cualquier momento.</p></article>
+                <article><strong>Control para profesionales.</strong><p>Cada profesional mantiene el control sobre la información que muestra.</p></article>
+              </div>
+
+              <div class="legal-document-grid" aria-label="Documentos legales Fit Match">
+                <article class="legal-document-card">
+                  <span class="micro-label">RGPD + LOPDGDD</span>
+                  <h3>Política de Privacidad</h3>
+                  <p>Qué datos recopilamos, para qué los utilizamos, qué no hacemos y cómo puedes ejercer tus derechos.</p>
+                  <button class="button secondary" type="button" data-open-legal-doc="privacy">Leer política</button>
+                </article>
+                <article class="legal-document-card">
+                  <span class="micro-label">Uso responsable</span>
+                  <h3>Términos y Condiciones</h3>
+                  <p>Fit Match es una plataforma tecnológica: no presta directamente servicios deportivos ni garantiza resultados.</p>
+                  <button class="button secondary" type="button" data-open-legal-doc="terms">Leer términos</button>
+                </article>
+                <article class="legal-document-card">
+                  <span class="micro-label">Estructura legal</span>
+                  <h3>Aviso Legal</h3>
+                  <p>Base preparada para completar titular, NIF, dirección, email y dominio cuando se constituya la empresa.</p>
+                  <button class="button secondary" type="button" data-open-legal-doc="legalNotice">Ver aviso</button>
+                </article>
+                <article class="legal-document-card">
+                  <span class="micro-label">Cookies técnicas</span>
+                  <h3>Política de Cookies</h3>
+                  <p>Actualmente solo se contemplan cookies o almacenamiento técnico para que la app funcione correctamente.</p>
+                  <button class="button secondary" type="button" data-open-legal-doc="cookies">Ver cookies</button>
+                </article>
+                <article class="legal-document-card">
+                  <span class="micro-label">Comunidad</span>
+                  <h3>Código de Conducta</h3>
+                  <p>Normas de respeto, veracidad, privacidad y uso profesional dentro de Fit Match.</p>
+                  <button class="button secondary" type="button" data-open-legal-doc="conduct">Leer código</button>
+                </article>
+                <article class="legal-document-card">
+                  <span class="micro-label">Seguridad</span>
+                  <h3>Protección de tus datos</h3>
+                  <p>Datos cifrados, información controlada por cada usuario e infraestructura segura para la beta.</p>
+                  <button class="button secondary" type="button" data-open-legal-doc="security">Ver protección</button>
+                </article>
+                <article class="legal-document-card">
+                  <span class="micro-label">Tus derechos</span>
+                  <h3>Derechos del Usuario</h3>
+                  <p>Acceder, modificar, descargar, eliminar o solicitar la cancelación de tu cuenta.</p>
+                  <button class="button secondary" type="button" data-open-legal-doc="rights">Ver derechos</button>
+                </article>
+                <article class="legal-document-card">
+                  <span class="micro-label">RGPD</span>
+                  <h3>Contacto RGPD</h3>
+                  <p>Canal preparado para solicitudes de privacidad, eliminación de datos y consultas de protección.</p>
+                  <button class="button secondary" type="button" data-open-legal-doc="rgpdContact">Ver contacto</button>
+                </article>
+              </div>
+
+              <section class="mission-card" aria-labelledby="missionTitle">
+                <span class="micro-label">Nuestra misión</span>
+                <h3 id="missionTitle">Elegir un profesional no debería depender del azar.</h3>
+                <p>
+                  Creemos que cada persona merece encontrar al profesional adecuado para su situación concreta.
+                  Y que cada profesional merece ser descubierto por las personas para las que realmente puede aportar valor.
+                </p>
+                <p>Fit Match existe para reducir el ruido. Para aportar contexto. Y para que las conexiones comiencen con criterio.</p>
+              </section>
+
+              <section class="user-rights-card" aria-label="Derechos del usuario">
+                <div>
+                  <span class="micro-label">Derechos del Usuario</span>
+                  <strong>Accede, modifica o elimina tu información.</strong>
+                  <p>Puedes actualizar tu perfil desde la app. La solicitud de eliminación completa quedará disponible como flujo guiado en la siguiente fase.</p>
+                </div>
+                <button id="requestAccountDeletion" class="button primary" type="button">Solicitar eliminación de cuenta</button>
+              </section>
+            </section>
+
+            <aside class="account-trust-shortcut account-trust-footer" aria-label="Privacidad y legal">
               <span class="micro-label">Datos bajo control</span>
               <strong>Nunca vendemos tus datos personales.</strong>
               <p>Solo tú decides con quién contactar. Tu perfil es editable y puedes solicitar la eliminación de tu información cuando quieras.</p>
-              <button class="button quiet" type="button" data-view="trust">Confianza y Legal</button>
+              <button class="button quiet" type="button" data-view="account" data-scroll-target="#accountLegalCenter">Privacidad y Legal</button>
             </aside>
           </section>
 
@@ -446,19 +551,6 @@
         </div>
 
         <div class="register-layout">
-          <div class="role-hemispheres" aria-label="Ruta activa de Fit Match">
-            <div class="hemisphere-card client-hemisphere">
-              <span>Ruta cliente</span>
-              <strong>Necesidad, objetivo y contexto personal</strong>
-              <small>Registra lo que buscas, tu deporte, tus límites y cómo quieres avanzar.</small>
-            </div>
-            <div class="hemisphere-card professional-hemisphere">
-              <span>Ruta profesional</span>
-              <strong>Servicio, método y criterio de trabajo</strong>
-              <small>Registra lo que ofreces, a quién ayudas y qué tipo de cliente encaja contigo.</small>
-            </div>
-          </div>
-
           <figure class="profile-network-strip" aria-hidden="true">
             <img src="./assets/brand/fit-match-logo-soft.png" alt="" />
           </figure>
@@ -564,7 +656,7 @@
                       <span>Deseo recibir novedades y mejoras de Fit Match. <small>Opcional</small></span>
                     </label>
                   </div>
-                  <button class="button quiet compact-trust-link" type="button" data-view="trust">Ver Centro de Confianza</button>
+                  <button class="button quiet compact-trust-link" type="button" data-view="account" data-scroll-target="#accountLegalCenter">Ver privacidad y legal</button>
                 </section>
               </section>
 
@@ -812,9 +904,9 @@
         <div class="screen-header">
           <div>
             <p class="eyebrow">Contactos</p>
-            <h2 id="requestsTitle">Conversaciones y próximos pasos</h2>
+            <h2 id="requestsTitle">Tus contactos activos</h2>
             <p id="requestsCopy">
-              Lee mensajes, responde y decide si avanzar al contacto o valorar una experiencia real.
+              Aquí aparecen las solicitudes enviadas o recibidas desde tus Matches. Lee, responde y decide el siguiente paso.
             </p>
           </div>
           <div class="screen-actions">
@@ -830,25 +922,26 @@
             </div>
             <div class="fit-context-body">
               <span class="micro-label">Relación activa</span>
-              <strong>Cada conversación necesita un siguiente paso.</strong>
-              <p>Lee, responde, contacta directamente o valora solo cuando exista experiencia real.</p>
+              <strong>Cada contacto necesita seguimiento.</strong>
+              <p>Lee mensajes, responde y usa el contacto directo cuando los datos estén disponibles.</p>
             </div>
             <div class="fit-context-route" aria-hidden="true">
               <span></span><span></span><span></span><span></span>
             </div>
             <div class="fit-context-signals" aria-hidden="true">
-              <span>Objetivos claros</span>
-              <span>Comunicación fluida</span>
-              <span>Expectativas alineadas</span>
+              <span>Solicitud recibida</span>
+              <span>Mensaje leído</span>
               <span>Respuesta pendiente</span>
+              <span>Contacto directo</span>
             </div>
           </article>
           <figure class="panel-network-banner contact-network-banner" aria-hidden="true">
             <img src="./assets/brand/fit-match-logo-soft.png" alt="" />
           </figure>
           <div id="requestBox" class="request-box">
-            <strong>Aún no hay contacto preparado</strong>
-            <p>Elige un perfil compatible y pulsa “Solicitar servicio” para preparar el contacto.</p>
+            <strong>Aún no tienes contactos.</strong>
+            <p>Cuando envíes una solicitud desde un Match, aparecerá aquí.</p>
+            <button class="button secondary" type="button" data-view="matches">Ver Matches</button>
           </div>
           <div class="request-history">
             <div class="history-heading">
@@ -860,123 +953,36 @@
             </div>
             <div id="requestList" class="request-list" aria-live="polite"></div>
           </div>
-          <div class="rating-history" aria-label="Valoraciones de contactos">
+
+        </div>
+      </section>
+
+      <section id="ratings" class="requests app-requests ratings-view app-view" data-view-name="ratings" hidden>
+        <div class="screen-header ratings-header">
+          <div>
+            <p class="eyebrow">Valoraciones</p>
+            <h2>Valora experiencias reales.</h2>
+            <p>
+              Las valoraciones no nacen de un simple match. Sirven para reflejar primer contacto, servicio real y confianza construida con el tiempo.
+            </p>
+          </div>
+          <div class="screen-actions">
+            <button class="button quiet" type="button" data-view="contacts">Ver contactos</button>
+            <button class="button secondary" type="button" data-view="matches">Ver matches</button>
+          </div>
+        </div>
+        <div class="requests-column ratings-column">
+          <div class="rating-history" aria-label="Valoraciones de experiencias reales">
             <div class="history-heading rating-history-heading">
               <div>
                 <span class="micro-label">Valoraciones</span>
-                <strong id="ratingHistoryTitle">Valora cuando haya experiencia real</strong>
-                <p>Primer contacto y servicio real se valoran aparte. Puedes actualizar tu valoración si la relación evoluciona.</p>
+                <strong id="ratingHistoryTitle">Experiencias para valorar</strong>
+                <p>Con el tiempo la relación puede cambiar; tu valoración también. Puedes volver y actualizarla cuando lo necesites.</p>
               </div>
             </div>
             <div id="ratingList" class="rating-list" aria-live="polite"></div>
           </div>
         </div>
-      </section>
-      <section id="trust" class="workspace trust-center app-view" data-view-name="trust" hidden>
-        <div class="screen-header trust-header">
-          <div>
-            <p class="eyebrow">Confianza</p>
-            <h2>Tu información, tus decisiones.</h2>
-            <p>
-              Fit Match está diseñado para crear conexiones profesionales con criterio, transparencia y respeto por los datos personales.
-            </p>
-          </div>
-          <div class="screen-actions">
-            <button class="button quiet" type="button" data-view="home">Volver al inicio</button>
-            <button class="button secondary" type="button" data-view="register">Crear cuenta</button>
-          </div>
-        </div>
-
-        <section class="trust-hero-card" aria-label="Resumen de privacidad Fit Match">
-          <div>
-            <span class="micro-label">Protección de tus datos</span>
-            <strong>Tu privacidad es una prioridad.</strong>
-            <p>
-              Usamos tus datos para crear tu perfil, calcular afinidades, mostrar matches y facilitar contactos profesionales.
-              No vendemos datos personales ni los cedemos con fines comerciales.
-            </p>
-          </div>
-          <div class="trust-shield" aria-hidden="true">
-            <span>✓</span>
-          </div>
-        </section>
-
-        <div class="trust-message-grid" aria-label="Mensajes de confianza">
-          <article><strong>Nunca vendemos tus datos personales.</strong><p>Fit Match no comparte tu información con fines comerciales.</p></article>
-          <article><strong>Solo tú decides con quién contactar.</strong><p>El contacto directo aparece dentro de solicitudes donde participas.</p></article>
-          <article><strong>Tu perfil es editable.</strong><p>Puedes revisar y actualizar tu información en cualquier momento.</p></article>
-          <article><strong>Control para profesionales.</strong><p>Cada profesional mantiene el control sobre la información que muestra.</p></article>
-        </div>
-
-        <div class="legal-document-grid" aria-label="Documentos legales Fit Match">
-          <article class="legal-document-card">
-            <span class="micro-label">RGPD + LOPDGDD</span>
-            <h3>Política de Privacidad</h3>
-            <p>Qué datos recopilamos, para qué los utilizamos, qué no hacemos y cómo puedes ejercer tus derechos.</p>
-            <button class="button secondary" type="button" data-open-legal-doc="privacy">Leer política</button>
-          </article>
-          <article class="legal-document-card">
-            <span class="micro-label">Uso responsable</span>
-            <h3>Términos y Condiciones</h3>
-            <p>Fit Match es una plataforma tecnológica: no presta directamente servicios deportivos ni garantiza resultados.</p>
-            <button class="button secondary" type="button" data-open-legal-doc="terms">Leer términos</button>
-          </article>
-          <article class="legal-document-card">
-            <span class="micro-label">Estructura legal</span>
-            <h3>Aviso Legal</h3>
-            <p>Base preparada para completar titular, NIF, dirección, email y dominio cuando se constituya la empresa.</p>
-            <button class="button secondary" type="button" data-open-legal-doc="legalNotice">Ver aviso</button>
-          </article>
-          <article class="legal-document-card">
-            <span class="micro-label">Cookies técnicas</span>
-            <h3>Política de Cookies</h3>
-            <p>Actualmente solo se contemplan cookies o almacenamiento técnico para que la app funcione correctamente.</p>
-            <button class="button secondary" type="button" data-open-legal-doc="cookies">Ver cookies</button>
-          </article>
-          <article class="legal-document-card">
-            <span class="micro-label">Comunidad</span>
-            <h3>Código de Conducta</h3>
-            <p>Normas de respeto, veracidad, privacidad y uso profesional dentro de Fit Match.</p>
-            <button class="button secondary" type="button" data-open-legal-doc="conduct">Leer código</button>
-          </article>
-          <article class="legal-document-card">
-            <span class="micro-label">Seguridad</span>
-            <h3>Protección de tus datos</h3>
-            <p>Datos cifrados, información controlada por cada usuario e infraestructura segura para la beta.</p>
-            <button class="button secondary" type="button" data-open-legal-doc="security">Ver protección</button>
-          </article>
-          <article class="legal-document-card">
-            <span class="micro-label">Tus derechos</span>
-            <h3>Derechos del Usuario</h3>
-            <p>Acceder, modificar, descargar, eliminar o solicitar la cancelación de tu cuenta.</p>
-            <button class="button secondary" type="button" data-open-legal-doc="rights">Ver derechos</button>
-          </article>
-          <article class="legal-document-card">
-            <span class="micro-label">RGPD</span>
-            <h3>Contacto RGPD</h3>
-            <p>Canal preparado para solicitudes de privacidad, eliminación de datos y consultas de protección.</p>
-            <button class="button secondary" type="button" data-open-legal-doc="rgpdContact">Ver contacto</button>
-          </article>
-        </div>
-
-        <section class="mission-card" aria-labelledby="missionTitle">
-          <span class="micro-label">Nuestra misión</span>
-          <h3 id="missionTitle">Elegir un profesional no debería depender del azar.</h3>
-          <p>
-            Creemos que cada persona merece encontrar al profesional adecuado para su situación concreta.
-            Y que cada profesional merece ser descubierto por las personas para las que realmente puede aportar valor.
-          </p>
-          <p>Fit Match existe para reducir el ruido. Para aportar contexto. Y para que las conexiones comiencen con criterio.</p>
-        </section>
-
-        <section class="user-rights-card" aria-label="Derechos del usuario">
-          <div>
-            <span class="micro-label">Derechos del Usuario</span>
-            <strong>Accede, modifica o elimina tu información.</strong>
-            <p>Puedes actualizar tu perfil desde la app. La solicitud de eliminación completa quedará disponible como flujo guiado en la siguiente fase.</p>
-          </div>
-          <button id="requestAccountDeletion" class="button primary" type="button">Solicitar eliminación de cuenta</button>
-        </section>
       </section>
     </main>
 
@@ -994,7 +1000,7 @@
         <button type="button" data-open-legal-doc="cookies">Cookies</button>
         <button type="button" data-open-legal-doc="conduct">Código de Conducta</button>
         <button type="button" data-open-legal-doc="security">Seguridad</button>
-        <button type="button" data-view="trust">Contacto</button>
+        <button type="button" data-open-legal-doc="rgpdContact">Contacto</button>
       </nav>
       <span>Tu información te pertenece. Fit Match no vende datos personales ni comparte información con fines comerciales.</span>
     </footer>

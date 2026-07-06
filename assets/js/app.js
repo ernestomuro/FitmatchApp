@@ -714,10 +714,15 @@ const viewAliases = {
   contacto: "contacts",
   contactos: "contacts",
   solicitudes: "contacts",
-  trust: "trust",
-  confianza: "trust",
-  legal: "trust",
-  privacidad: "trust"
+  ratings: "ratings",
+  rating: "ratings",
+  valoraciones: "ratings",
+  valoracion: "ratings",
+  valoración: "ratings",
+  trust: "account",
+  confianza: "account",
+  legal: "account",
+  privacidad: "account"
 };
 let activeView = "home";
 
@@ -769,11 +774,6 @@ function showView(viewName, { push = true, focus = true } = {}) {
 
   updateNavigationState(nextView);
 
-  if (nextView === "trust") {
-    markTrustCenterVisited();
-    updateSignupLegalState();
-  }
-
   if (nextView === "account") {
     updateAuthPanel();
   }
@@ -782,7 +782,7 @@ function showView(viewName, { push = true, focus = true } = {}) {
     refreshMatches();
   }
 
-  if (nextView === "contacts") {
+  if (["contacts", "ratings"].includes(nextView)) {
     renderRequestHistory();
   }
 
@@ -791,12 +791,6 @@ function showView(viewName, { push = true, focus = true } = {}) {
   }
 
   window.scrollTo({ top: 0, behavior: "auto" });
-  if (nextView === "trust") {
-    window.requestAnimationFrame(() => {
-      document.querySelector('#trust')?.scrollIntoView({ block: "start", behavior: "auto" });
-    });
-  }
-
   if (focus) {
     const activeScreen = document.querySelector(`.app-view[data-view-name="${nextView}"]`);
     const heading = activeScreen?.querySelector("h1, h2");
@@ -876,20 +870,29 @@ function updateSignupLegalState() {
   panel.classList.toggle("legal-ready", shouldShow && requiredChecksCompleted(signupLegalChecks));
 }
 
+function showAccountLegalCenter() {
+  showView("account");
+  window.requestAnimationFrame(() => {
+    markTrustCenterVisited();
+    updateSignupLegalState();
+    document.querySelector("#accountLegalCenter")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
 function validateSignupLegalConsent() {
   if (isRemoteMode() && dataProvider.hasLegalConsent?.()) return true;
 
   if (!hasVisitedTrustCenter()) {
-    roleHelp.querySelector("strong").textContent = "Primero revisa Confianza y Legal";
-    roleHelp.querySelector("span").textContent = "Antes de aceptar condiciones, lee el Centro de Confianza. Después volverás al perfil para confirmar privacidad y términos.";
-    showView("trust");
+    roleHelp.querySelector("strong").textContent = "Primero revisa Privacidad y Legal";
+    roleHelp.querySelector("span").textContent = "Antes de aceptar condiciones, revisa Privacidad y Legal dentro de Cuenta. Después volverás al perfil para confirmar privacidad y términos.";
+    showAccountLegalCenter();
     return false;
   }
 
   updateSignupLegalState();
   if (requiredChecksCompleted(signupLegalChecks)) return true;
   roleHelp.querySelector("strong").textContent = "Falta aceptar privacidad y términos";
-  roleHelp.querySelector("span").textContent = "Después de revisar Confianza y Legal, acepta privacidad, términos y confirma que tu información es veraz.";
+  roleHelp.querySelector("span").textContent = "Después de revisar Privacidad y Legal, acepta privacidad, términos y confirma que tu información es veraz.";
   document.querySelector(".signup-legal-panel")?.scrollIntoView({ behavior: "smooth", block: "center" });
   return false;
 }
@@ -897,7 +900,7 @@ function validateSignupLegalConsent() {
 function renderLegalDocument(docKey) {
   const doc = LEGAL_DOCUMENTS[docKey];
   if (!doc || !legalDocModal || !legalDocContent) return;
-  legalDocKicker.textContent = doc.kicker || "Confianza y Legal";
+  legalDocKicker.textContent = doc.kicker || "Privacidad y Legal";
   legalDocTitle.textContent = doc.title;
   legalDocIntro.textContent = doc.intro || "";
   const sections = doc.sections.map(([title, items]) => {
@@ -1902,7 +1905,7 @@ function hasSavedProfile() {
 
 function routeForProtectedView(viewName) {
   const requestedView = normalizeView(viewName);
-  if (!["register", "matches", "contacts"].includes(requestedView)) return requestedView;
+  if (!["register", "matches", "contacts", "ratings"].includes(requestedView)) return requestedView;
 
   if (requestedView === "register") {
     return currentUser() || hasSavedProfile() ? "register" : "account";
@@ -3180,7 +3183,7 @@ function buildRatingCard(request, direction) {
   const meta = createElement("span", "", `${direction === "incoming" ? "Recibido" : "Enviado"} · ${request.score}% de afinidad · ${formatDate(request.createdAt)}`);
   const state = serviceExisting ? ratingStateForRequest(request, direction, "service") : ratingStateForRequest(request, direction, "first_contact");
   const badge = createElement("span", `status-badge ${firstExisting || serviceExisting ? "status-read" : firstReady || serviceReady ? "status-unread" : "status-waiting"}`, state.title);
-  const toggle = createElement("span", "button primary rating-card-toggle", firstReady || serviceReady ? "Gestionar valoración" : firstExisting || serviceExisting ? "Ver o modificar" : "Ver estado");
+  const toggle = createElement("span", "button primary rating-card-toggle", "Gestionar valoración");
 
   setAvatarContent(avatar, target);
   headerText.append(title, meta);
@@ -3242,14 +3245,12 @@ function buildRatingHistorySection(items) {
         : "Experiencia y reputación";
   }
 
-  const guidance = createElement("p", "rating-evolution-note", "Con el tiempo la relación puede cambiar; tu valoración también. Puedes volver y actualizarla cuando lo necesites.");
-  section.append(guidance);
 
   if (!uniqueItems.length) {
     const empty = createElement("article", "history-empty rating-empty");
     empty.append(
-      createElement("strong", "", "Sin contactos para valorar todavía"),
-      createElement("p", "", "Cuando exista una solicitud o propuesta, esta zona te dirá si puedes valorar la experiencia o si todavía está pendiente.")
+      createElement("strong", "", "Aún no hay experiencias que valorar."),
+      createElement("p", "", "Cuando hayas hablado o trabajado con alguien, podrás dejar una valoración útil.")
     );
     section.append(empty);
     return section;
@@ -3510,6 +3511,17 @@ document.addEventListener("click", (event) => {
   }
 
   showView(nextView);
+
+  const scrollTarget = viewButton.dataset.scrollTarget;
+  if (scrollTarget) {
+    window.requestAnimationFrame(() => {
+      if (scrollTarget === "#accountLegalCenter") {
+        markTrustCenterVisited();
+        updateSignupLegalState();
+      }
+      document.querySelector(scrollTarget)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
 });
 
 window.addEventListener("popstate", (event) => {

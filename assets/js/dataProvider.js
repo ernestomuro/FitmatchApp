@@ -765,14 +765,15 @@ window.FitMatchDataProvider = {
             .select("*")
             .order("created_at", { ascending: false })
         );
-        remoteRatings = (ratingRows || []).map(normalizeRating);
+        const syncedRatings = (ratingRows || []).map(normalizeRating);
+        remoteRatings = dedupeRatings([...syncedRatings, ...readRatings()]);
         ratingsRemoteAvailable = true;
       } catch (error) {
         ratingsRemoteAvailable = false;
         remoteRatings = readRatings();
       }
 
-      remoteProfiles = applyRatingSummaries(remoteProfiles, remoteRatings);
+      remoteProfiles = applyRatingSummaries(remoteProfiles, this.listRatings());
       const profilesById = new Map(remoteProfiles.map((profile) => [profile.id, profile]));
       const requests = await assertNoError(
         await supabaseClient
@@ -1254,7 +1255,7 @@ window.FitMatchDataProvider = {
   },
 
   listRatings() {
-    return dedupeRatings(canUseRemote() ? remoteRatings : readRatings());
+    return dedupeRatings([...(canUseRemote() ? remoteRatings : []), ...readRatings()]);
   },
 
   getRatingSummary(targetId) {
@@ -1294,14 +1295,16 @@ window.FitMatchDataProvider = {
       comment: payload.comment || ""
     });
 
+    const localSaved = saveLocalRating(normalized);
+    remoteRatings = dedupeRatings([localSaved, ...remoteRatings]);
+    remoteProfiles = applyRatingSummaries(remoteProfiles, this.listRatings());
+
     if (!canUseRemote() || !ratingsRemoteAvailable) {
-      const saved = saveLocalRating(normalized);
-      remoteProfiles = applyRatingSummaries(remoteProfiles, readRatings());
-      return saved;
+      return localSaved;
     }
 
     const row = {
-      request_id: normalized.requestId || null,
+      request_id: null,
       rater_id: currentSession.user.id,
       target_id: normalized.targetId,
       rater_role: normalized.raterRole,
@@ -1331,11 +1334,16 @@ window.FitMatchDataProvider = {
       const data = await assertNoError(
         await supabaseClient.from("profile_ratings").insert(row).select("*").single()
       );
+      const remoteSaved = normalizeRating(data);
+      saveLocalRating(remoteSaved);
+      remoteRatings = dedupeRatings([remoteSaved, ...remoteRatings, ...readRatings()]);
       await this.refreshRemoteData();
-      return normalizeRating(data);
+      return remoteSaved;
     } catch (error) {
       ratingsRemoteAvailable = false;
-      return saveLocalRating(normalized);
+      remoteRatings = dedupeRatings([localSaved, ...remoteRatings]);
+      remoteProfiles = applyRatingSummaries(remoteProfiles, this.listRatings());
+      return localSaved;
     }
   }
 
