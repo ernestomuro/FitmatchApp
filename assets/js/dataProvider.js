@@ -242,6 +242,91 @@ function normalizeRole(role) {
   return role === "client" || role === "professional" ? role : "";
 }
 
+function normalizeProfileKeyPart(value = "") {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9ñ\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function profileIdentityKey(profile = {}) {
+  const role = normalizeRole(profile.role) || profile.role || "profile";
+  const email = normalizeProfileKeyPart(profile.email || profile.contactEmail || profile.contact_email);
+  if (email) return `${role}:email:${email}`;
+
+  const id = normalizeProfileKeyPart(profile.id || profile.user_id || profile.userId);
+  if (id) return `${role}:id:${id}`;
+
+  return [
+    role,
+    "profile",
+    normalizeProfileKeyPart(profile.name || profile.display_name),
+    normalizeProfileKeyPart(profile.city),
+    normalizeProfileKeyPart(profile.goal),
+    normalizeProfileKeyPart(profile.sport)
+  ].join(":");
+}
+
+function profileFreshness(profile = {}) {
+  return new Date(profile.updatedAt || profile.updated_at || profile.createdAt || profile.created_at || 0).getTime() || 0;
+}
+
+function profileCompleteness(profile = {}) {
+  const fields = [
+    profile.name,
+    profile.email,
+    profile.city,
+    profile.goal,
+    profile.mode,
+    profile.level,
+    profile.sport,
+    profile.availability,
+    profile.bio,
+    profile.notes,
+    profile.photo,
+    profile.phone
+  ];
+  const servicesCount = Array.isArray(profile.services) ? profile.services.length : 0;
+  return fields.filter(Boolean).length + servicesCount;
+}
+
+function shouldPreferProfile(candidate, current) {
+  const freshnessDiff = profileFreshness(candidate) - profileFreshness(current);
+  if (freshnessDiff !== 0) return freshnessDiff > 0;
+  return profileCompleteness(candidate) >= profileCompleteness(current);
+}
+
+function dedupeProfiles(profiles = []) {
+  const uniqueProfiles = new Map();
+
+  profiles.map(normalizeProfile).forEach((profile) => {
+    const key = profileIdentityKey(profile);
+    const current = uniqueProfiles.get(key);
+
+    if (!current) {
+      uniqueProfiles.set(key, profile);
+      return;
+    }
+
+    const preferred = shouldPreferProfile(profile, current) ? profile : current;
+    const fallback = preferred === profile ? current : profile;
+    uniqueProfiles.set(key, {
+      ...fallback,
+      ...preferred,
+      services: preferred.services?.length ? preferred.services : fallback.services || [],
+      ratingSummary: normalizeRatingSummary(
+        preferred.ratingSummary?.count ? preferred.ratingSummary : fallback.ratingSummary
+      )
+    });
+  });
+
+  return Array.from(uniqueProfiles.values())
+    .sort((a, b) => profileFreshness(b) - profileFreshness(a));
+}
+
 function getUserAccountRole(user = currentSession?.user) {
   return normalizeRole(user?.user_metadata?.role || user?.raw_user_meta_data?.role || user?.app_metadata?.role);
 }
@@ -272,7 +357,8 @@ function normalizeProfile(profile) {
   const level = profile.level || "principiante";
   const sport = (profile.sport || "").trim();
   const notes = (profile.notes || "").trim();
-  const accountKey = `${profile.role || "profile"}:${(profile.email || profile.id || createId("local")).toLowerCase()}`;
+  const accountSeed = profile.email || profile.contactEmail || profile.id || profile.name || "local";
+  const accountKey = `${profile.role || "profile"}:${String(accountSeed).trim().toLowerCase() || "local"}`;
 
   return {
     id: profile.id || createId("profile"),
@@ -309,16 +395,16 @@ function normalizeProfile(profile) {
     profileRecommendations: Array.isArray(profile.profileRecommendations) ? [...profile.profileRecommendations] : [],
     verified: Boolean(profile.verified),
     createdAt: profile.createdAt || now,
-    updatedAt: now
+    updatedAt: profile.updatedAt || profile.updated_at || now
   };
 }
 
 function readProfiles() {
-  return readStorage(STORAGE_KEYS.registeredProfiles, []);
+  return dedupeProfiles(readStorage(STORAGE_KEYS.registeredProfiles, []));
 }
 
 function writeProfiles(profiles) {
-  writeStorage(STORAGE_KEYS.registeredProfiles, profiles);
+  writeStorage(STORAGE_KEYS.registeredProfiles, dedupeProfiles(profiles));
 }
 
 function readDrafts() {
@@ -602,7 +688,7 @@ function mapRemoteProfiles(profileRows, clientRows, professionalRows) {
     .map((item) => profileMap.has(item.user_id) ? appProfileFromRemote(profileMap.get(item.user_id), item, "professional") : null)
     .filter(Boolean);
 
-  return [...clients, ...professionals];
+  return dedupeProfiles([...clients, ...professionals]);
 }
 
 function mapRemoteRequest(row, profilesById) {
@@ -773,7 +859,7 @@ window.FitMatchDataProvider = {
         remoteRatings = readRatings();
       }
 
-      remoteProfiles = applyRatingSummaries(remoteProfiles, this.listRatings());
+      remoteProfiles = applyRatingSummaries(dedupeProfiles(remoteProfiles), this.listRatings());
       const profilesById = new Map(remoteProfiles.map((profile) => [profile.id, profile]));
       const requests = await assertNoError(
         await supabaseClient
@@ -844,7 +930,9 @@ window.FitMatchDataProvider = {
   },
 
   listProfiles(role) {
-    const profiles = canUseRemote() ? remoteProfiles : applyRatingSummaries(readProfiles(), readRatings());
+    const profiles = canUseRemote()
+      ? applyRatingSummaries(dedupeProfiles(remoteProfiles), this.listRatings())
+      : applyRatingSummaries(readProfiles(), readRatings());
     return role ? profiles.filter((profile) => profile.role === role) : profiles;
   },
 
@@ -852,17 +940,27 @@ window.FitMatchDataProvider = {
     if (!canUseRemote()) {
       const normalized = normalizeProfile(profile);
       const profiles = readProfiles();
-      const index = profiles.findIndex((item) => item.id === normalized.id);
+      const identityKey = profileIdentityKey(normalized);
+      const index = profiles.findIndex((item) => item.id === normalized.id || profileIdentityKey(item) === identityKey);
+      const savedProfile = index >= 0
+        ? {
+            ...profiles[index],
+            ...normalized,
+            id: profiles[index].id || normalized.id,
+            createdAt: profiles[index].createdAt || normalized.createdAt,
+            updatedAt: new Date().toISOString()
+          }
+        : normalized;
 
       if (index >= 0) {
-        profiles[index] = normalized;
+        profiles[index] = savedProfile;
       } else {
-        profiles.unshift(normalized);
+        profiles.unshift(savedProfile);
       }
 
       writeProfiles(profiles);
-      this.saveProfileDraft(normalized);
-      return normalized;
+      this.saveProfileDraft(savedProfile);
+      return savedProfile;
     }
 
     const user = currentSession.user;
@@ -1297,7 +1395,7 @@ window.FitMatchDataProvider = {
 
     const localSaved = saveLocalRating(normalized);
     remoteRatings = dedupeRatings([localSaved, ...remoteRatings]);
-    remoteProfiles = applyRatingSummaries(remoteProfiles, this.listRatings());
+    remoteProfiles = applyRatingSummaries(dedupeProfiles(remoteProfiles), this.listRatings());
 
     if (!canUseRemote() || !ratingsRemoteAvailable) {
       return localSaved;
@@ -1342,7 +1440,7 @@ window.FitMatchDataProvider = {
     } catch (error) {
       ratingsRemoteAvailable = false;
       remoteRatings = dedupeRatings([localSaved, ...remoteRatings]);
-      remoteProfiles = applyRatingSummaries(remoteProfiles, this.listRatings());
+      remoteProfiles = applyRatingSummaries(dedupeProfiles(remoteProfiles), this.listRatings());
       return localSaved;
     }
   }

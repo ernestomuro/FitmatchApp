@@ -3,12 +3,12 @@ const labels = dataProvider.getLabels();
 
 const ROLE_COPY = {
   client: {
-    onboardingTitle: "Así te verán como cliente",
+    onboardingTitle: "Así te encontrarán tus futuros clientes.",
     onboardingCopy:
-      "Define qué necesitas, tu contexto y el tipo de profesional que tendría sentido para ti.",
-    roleHelpTitle: "Perfil cliente",
+      "Completa tu perfil para aparecer en mejores coincidencias.",
+    roleHelpTitle: "Construye tu perfil",
     roleHelp:
-      "Completa lo que otros necesitan saber para entender tu búsqueda y ofrecerte una ayuda adecuada.",
+      "Completa los datos clave para aparecer en mejores coincidencias.",
     submit: "Guardar perfil cliente y ver profesionales",
     matchesTitle: "Profesionales que encajan contigo",
     matchesCopy:
@@ -26,12 +26,12 @@ const ROLE_COPY = {
       "Con cuentas reales, el profesional recibirá el perfil y podrá responder o proponer una primera llamada."
   },
   professional: {
-    onboardingTitle: "Así te verán como profesional",
+    onboardingTitle: "Así te encontrarán tus futuros clientes.",
     onboardingCopy:
-      "Define qué ofreces, tu método y el tipo de cliente con el que puedes trabajar bien.",
-    roleHelpTitle: "Perfil profesional",
+      "Completa tu perfil para aparecer en mejores coincidencias.",
+    roleHelpTitle: "Construye tu perfil",
     roleHelp:
-      "Completa lo que otros necesitan saber para entender tu método y decidir si encajas con su búsqueda.",
+      "Completa los datos clave para aparecer en mejores coincidencias.",
     submit: "Guardar perfil profesional y ver clientes",
     matchesTitle: "Clientes que encajan contigo",
     matchesCopy:
@@ -88,45 +88,45 @@ const GOAL_OPTION_COPY = {
 const PROFILE_FIELD_COPY = {
   client: {
     goalLabel: "Qué quieres conseguir",
-    goalHint: "Elige el objetivo principal que quieres trabajar.",
+    goalHint: "Ayuda a encontrarte.",
     sportLabel: "Deporte o disciplina que practicas",
-    sportHint: "Si buscas algo concreto, escríbelo aquí para afinar el match.",
+    sportHint: "Ayuda a afinar coincidencias.",
     modeLabel: "Cómo quieres trabajar",
-    modeHint: "Online, presencial o híbrido según tu disponibilidad real.",
+    modeHint: "Visible en tu perfil.",
     levelLabel: "Tu nivel actual",
-    levelHint: "Ayuda a encontrar profesionales que sepan acompañar tu punto de partida.",
+    levelHint: "Ayuda a ajustar el match.",
     servicesLegend: "Qué tipo de ayuda necesitas",
-    servicesHint: "Marca los servicios que te gustaría recibir.",
+    servicesHint: "Selecciona lo que quieres ofrecer o encontrar.",
     priceLabel: "Presupuesto por sesión",
-    priceHint: "Indica cuánto puedes invertir aproximadamente por sesión.",
+    priceHint: "Puedes modificarlo cuando quieras.",
     availabilityLabel: "Cuándo puedes entrenar o reunirte",
-    availabilityHint: "Ej. tardes, mañanas, fines de semana, online entre semana.",
-    bioLabel: "Cuéntanos qué buscas",
-    bioHint: "Se mostrará en la tarjeta de match sin enseñar tu email.",
-    notesLabel: "Detalles importantes para afinar el match",
-    notesHint: "Lesiones, objetivos concretos, deporte, horarios o preferencias.",
+    availabilityHint: "Ayuda a saber cuándo puedes trabajar.",
+    bioLabel: "¿Qué necesitas contar?",
+    bioHint: "Describe en pocas líneas qué buscas.",
+    notesLabel: "¿Qué debería saber el profesional?",
+    notesHint: "Añade detalles que ayuden a mejorar el match.",
     bioPlaceholder: "Qué quieres conseguir, qué has probado antes o qué tipo de acompañamiento buscas.",
     notesPlaceholder: "Ej. lesión de rodilla, media maratón, perder grasa, pádel competitivo, disponibilidad mañanas."
   },
   professional: {
     goalLabel: "Tu especialidad principal",
-    goalHint: "Elige el área donde puedes ayudar mejor.",
+    goalHint: "Ayuda a encontrarte.",
     sportLabel: "Deportes o disciplinas que trabajas",
-    sportHint: "Escribe disciplinas concretas para cruzarlas con búsquedas de clientes.",
+    sportHint: "Ayuda a afinar coincidencias.",
     modeLabel: "Cómo ofreces tus servicios",
-    modeHint: "Online, presencial o híbrido según tu forma real de trabajo.",
+    modeHint: "Visible en tu perfil.",
     levelLabel: "Nivel de cliente que atiendes mejor",
-    levelHint: "Ayuda a evitar propuestas poco ajustadas.",
+    levelHint: "Ayuda a ajustar el match.",
     servicesLegend: "Servicios que ofreces",
-    servicesHint: "Marca los servicios que puedes prestar.",
+    servicesHint: "Selecciona lo que quieres ofrecer o encontrar.",
     priceLabel: "Precio por sesión",
-    priceHint: "Indica tu precio orientativo por sesión.",
+    priceHint: "Puedes modificarlo cuando quieras.",
     availabilityLabel: "Disponibilidad profesional",
-    availabilityHint: "Ej. mañanas, tardes, online, fines de semana, plazas limitadas.",
-    bioLabel: "Presentación profesional",
-    bioHint: "Se mostrará en tu tarjeta para clientes compatibles.",
-    notesLabel: "Criterio de trabajo y casos ideales",
-    notesHint: "Describe lesiones, objetivos, deportes o perfiles de cliente con los que trabajas bien.",
+    availabilityHint: "Ayuda a saber cuándo puedes trabajar.",
+    bioLabel: "¿Cómo quieres que te recuerden?",
+    bioHint: "Describe en pocas líneas cómo ayudas a tus clientes.",
+    notesLabel: "¿Con qué personas trabajas mejor?",
+    notesHint: "Describe el tipo de cliente con el que consigues mejores resultados.",
     bioPlaceholder: "Tu enfoque, experiencia, especialidades y tipo de acompañamiento que ofreces.",
     notesPlaceholder: "Ej. pérdida de grasa, fuerza, running, readaptación, clientes principiantes, seguimiento online."
   }
@@ -302,9 +302,11 @@ function createRatingRowsList(person, ratingType = "service") {
   return group;
 }
 
-function createRatingBreakdownSection(person, { showDetailsButton = true } = {}) {
+function createRatingBreakdownSection(person, { showDetailsButton = true, collapsed = false } = {}) {
   const summary = ratingSummaryFor(person);
-  const section = createElement("div", "profile-detail-section rating-breakdown-section");
+  const section = createElement(collapsed ? "details" : "div", `profile-detail-section rating-breakdown-section${collapsed ? " rating-breakdown-collapsible" : ""}`);
+  if (collapsed) section.open = false;
+
   const heading = createElement("div", "rating-breakdown-heading");
   const score = createElement("div", "rating-breakdown-score");
   const scoreValue = createElement("strong", "", summary.count ? String(summary.average) : "--");
@@ -327,7 +329,8 @@ function createRatingBreakdownSection(person, { showDetailsButton = true } = {})
     createRatingRowsList(person, "service")
   );
 
-  section.append(heading, groups);
+  const body = createElement("div", collapsed ? "rating-breakdown-collapsible-content" : "rating-breakdown-body");
+  body.append(heading, groups);
 
   if (showDetailsButton) {
     const comments = publicRatingCommentsFor(person);
@@ -342,12 +345,28 @@ function createRatingBreakdownSection(person, { showDetailsButton = true } = {})
         ? "Incluye comentarios públicos destacados y el detalle por criterio."
         : "Aún no hay comentarios públicos, pero puedes ver cómo se calcula la reputación.")
     );
-    section.append(actions);
+    body.append(actions);
   }
 
+  if (collapsed) {
+    const summaryElement = createElement("summary", "rating-breakdown-summary");
+    const summaryCopy = createElement("div", "rating-breakdown-summary-copy");
+    summaryCopy.append(
+      createElement("span", "micro-label", "Valoraciones"),
+      createElement("strong", "", summary.count ? `${summary.average}/5 · ${summary.count} valoración${summary.count === 1 ? "" : "es"}` : "Valoraciones recogidas"),
+      createElement("small", "", "Abre para ver primer contacto, servicio real y comentarios públicos.")
+    );
+    summaryElement.append(
+      summaryCopy,
+      createElement("span", "rating-breakdown-summary-action", "Ver detalle")
+    );
+    section.append(summaryElement, body);
+    return section;
+  }
+
+  section.append(body);
   return section;
 }
-
 
 function createBlankProfile(role) {
   return {
@@ -471,6 +490,9 @@ const clearProfilesButton = document.querySelector("#clearProfiles");
 const profileStatusTitle = document.querySelector("#profileStatusTitle");
 const profileStatusCopy = document.querySelector("#profileStatusCopy");
 const profileStatusBar = document.querySelector("#profileStatusBar");
+const profileBuilderProgressValue = document.querySelector("#profileBuilderProgressValue");
+const profileBuilderProgressBar = document.querySelector("#profileBuilderProgressBar");
+const profileBuilderProgressCopy = document.querySelector("#profileBuilderProgressCopy");
 const savedRoleLabel = document.querySelector("#savedRoleLabel");
 const savedRequestsCount = document.querySelector("#savedRequestsCount");
 const requestList = document.querySelector("#requestList");
@@ -489,6 +511,12 @@ const levelLabel = document.querySelector("#levelLabel");
 const levelHint = document.querySelector("#levelHint");
 const servicesLegend = document.querySelector("#servicesLegend");
 const servicesHint = document.querySelector("fieldset .field-hint");
+const profileWorkKicker = document.querySelector("#profileWorkKicker");
+const profileWorkTitle = document.querySelector("#profileWorkTitle");
+const profileWorkCopy = document.querySelector("#profileWorkCopy");
+const profileOfferKicker = document.querySelector("#profileOfferKicker");
+const profileOfferTitle = document.querySelector("#profileOfferTitle");
+const profileOfferCopy = document.querySelector("#profileOfferCopy");
 const priceHint = document.querySelector("#priceHint");
 const availabilityLabel = document.querySelector("#availabilityLabel");
 const availabilityHint = document.querySelector("#availabilityHint");
@@ -506,6 +534,7 @@ const authEmailInput = document.querySelector("#authEmailInput");
 const authPasswordInput = document.querySelector("#authPasswordInput");
 const accountRoleTitle = document.querySelector("#accountRoleTitle");
 const accountRoleCopy = document.querySelector("#accountRoleCopy");
+const accountHeaderActionButton = document.querySelector("#accountHeaderActionButton");
 const createAccountRouteButton = document.querySelector("#createAccountRouteButton");
 const signInButton = document.querySelector("#signInButton");
 const connectedAccountEmail = document.querySelector("#connectedAccountEmail");
@@ -870,12 +899,18 @@ function updateSignupLegalState() {
   panel.classList.toggle("legal-ready", shouldShow && requiredChecksCompleted(signupLegalChecks));
 }
 
+function openAccountLegalCenter() {
+  const legalCenter = document.querySelector("#accountLegalCenter");
+  if (legalCenter && "open" in legalCenter) legalCenter.open = true;
+  return legalCenter;
+}
+
 function showAccountLegalCenter() {
   showView("account");
   window.requestAnimationFrame(() => {
     markTrustCenterVisited();
     updateSignupLegalState();
-    document.querySelector("#accountLegalCenter")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    openAccountLegalCenter()?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
 
@@ -1001,13 +1036,13 @@ function updateAuthPanel(message = "") {
   }
 
   if (isConnected) {
-    if (authTitle) authTitle.textContent = isProfileReady ? "Tu espacio Fit Match" : "Cuenta conectada";
+    if (authTitle) authTitle.textContent = isProfileReady ? "Todo bajo control." : "Cuenta conectada";
     if (authStatus) authStatus.textContent = message || (isProfileReady
-      ? "Este es tu punto de entrada personal. Revisa matches, contactos o edita tu perfil."
+      ? "Tu identidad, tu actividad y tus oportunidades reunidas en un solo lugar."
       : "Ya estás dentro. Completa tu perfil para activar tus matches.");
   } else {
-    if (authTitle) authTitle.textContent = "Bienvenido a Fit Match";
-    if (authStatus) authStatus.textContent = message || "Inicia sesión para acceder a tus matches, contactos y perfil.";
+    if (authTitle) authTitle.textContent = "Bienvenido de nuevo.";
+    if (authStatus) authStatus.textContent = message || "Entra y continúa tu recorrido en Fit Match.";
   }
 
   renderProfileHome();
@@ -1040,11 +1075,9 @@ function updateProfileContextCard() {
   profileContextCard.classList.toggle("professional-context", !isClient);
   if (profileContextScore) profileContextScore.textContent = `${percent}%`;
   if (profileContextScoreLabel) profileContextScoreLabel.textContent = percent >= 80 ? "perfil fuerte" : "perfil en progreso";
-  if (profileContextKicker) profileContextKicker.textContent = isClient ? "Así te verán" : "Así te encontrarán";
-  if (profileContextTitle) profileContextTitle.textContent = isClient ? "Tu identidad empieza aquí." : "Tu método debe entenderse rápido.";
-  if (profileContextCopy) profileContextCopy.textContent = isClient
-    ? "Nombre, foto, ciudad, objetivo y notas ayudan a que el profesional entienda tu contexto."
-    : "Especialidad, método, disponibilidad y notas ayudan a que el cliente entienda si encajas.";
+  if (profileContextKicker) profileContextKicker.textContent = "Constructor de perfil";
+  if (profileContextTitle) profileContextTitle.textContent = isClient ? "Tu perfil cuenta tu punto de partida." : "Tu perfil presenta tu forma de trabajar.";
+  if (profileContextCopy) profileContextCopy.textContent = "Solo te faltan unos pasos para mejorar tu visibilidad.";
   renderContextSignals(profileContextSignals, isClient
     ? ["Objetivos definidos", "Preferencias claras", "Disponibilidad importante", "Nivel adecuado"]
     : ["Especialidades claras", "Metodología destacada", "Disponibilidad actualizada", "Reseñas futuras"]);
@@ -1074,6 +1107,13 @@ function updateProfileFieldCopy() {
   notesLabel.textContent = fieldCopy.notesLabel;
   notesHint.textContent = fieldCopy.notesHint;
   notesInput.placeholder = fieldCopy.notesPlaceholder;
+  const isClient = profile.role === "client";
+  if (profileWorkKicker) profileWorkKicker.textContent = isClient ? "CÓMO QUIERES AVANZAR" : "CÓMO TRABAJAS";
+  if (profileWorkTitle) profileWorkTitle.textContent = isClient ? "Objetivo, disciplina y modalidad" : "Especialidad, disciplina y modalidad";
+  if (profileWorkCopy) profileWorkCopy.textContent = isClient ? "Define el contexto que necesitas." : "Define cómo encajas con la otra parte.";
+  if (profileOfferKicker) profileOfferKicker.textContent = isClient ? "QUÉ NECESITAS" : "QUÉ OFRECES";
+  if (profileOfferTitle) profileOfferTitle.textContent = isClient ? "Servicios, presupuesto y disponibilidad" : "Servicios, precio y disponibilidad";
+  if (profileOfferCopy) profileOfferCopy.textContent = isClient ? "Ayuda a encontrar profesionales compatibles." : "Ayuda a entender si el contacto tiene sentido.";
   updateGoalOptions();
 }
 
@@ -1543,10 +1583,8 @@ function renderProPanel({ matchCount = 0, activeContacts = 0 } = {}) {
 
   proPanel.dataset.proStatus = isFullPro ? "pro" : "building";
   if (proStatusBadge) proStatusBadge.textContent = isFullPro ? "PRO activo" : "En construcción";
-  if (proPanelTitle) proPanelTitle.textContent = isFullPro ? "KORO Profile Coach activo" : "Herramientas para crecer con criterio.";
-  if (proPanelCopy) proPanelCopy.textContent = isFullPro
-    ? "KORO analiza tu perfil, actividad y conversión para ayudarte a conseguir mejores conexiones."
-    : "PRO prepara visibilidad, análisis y recomendaciones sin comprar posiciones en el algoritmo.";
+  if (proPanelTitle) proPanelTitle.textContent = "Próximamente · Fit Match PRO";
+  if (proPanelCopy) proPanelCopy.textContent = "Más visibilidad. Más confianza. Más oportunidades.";
   if (proProfileScore) proProfileScore.textContent = `${profileScore} / 100`;
   if (proScoreState) proScoreState.textContent = isFullPro ? "Análisis completo activo." : "Vista previa limitada. Disponible próximamente en Fit Match PRO.";
   renderProList(proScoreActions, koroScoreActions(profileScore, profile));
@@ -1577,6 +1615,11 @@ function renderProfileHome() {
   const isConnected = Boolean(state.isRemote);
   const showAccountIdentity = isReady || isConnected;
 
+  if (accountHeaderActionButton) {
+    accountHeaderActionButton.textContent = showAccountIdentity ? "Ir a perfil" : "Volver al inicio";
+    accountHeaderActionButton.dataset.view = showAccountIdentity ? "register" : "home";
+  }
+
   if (accountWelcomeCard) accountWelcomeCard.hidden = showAccountIdentity;
   if (profileHomeCard) profileHomeCard.hidden = !showAccountIdentity;
   if (accountWorkspace) accountWorkspace.hidden = !isReady;
@@ -1592,10 +1635,10 @@ function renderProfileHome() {
     const connectedEmail = state.user?.email || currentUser()?.email || profile.email || "Cuenta conectada";
     const roleText = roleLabel(profile.role);
     setAvatarContent(profileHomePhoto, { name: connectedEmail, photo: profile.photo, color: profile.color });
-    if (profileHomeName) profileHomeName.textContent = isConnected ? "Cuenta conectada" : "Bienvenido a Fit Match";
+    if (profileHomeName) profileHomeName.textContent = isConnected ? "Cuenta conectada" : "Bienvenido de nuevo.";
     if (profileHomeSummary) profileHomeSummary.textContent = isConnected
       ? `${roleText} · Perfil pendiente. Completa tus datos para activar matches y contactos.`
-      : "Inicia sesión para acceder a tu espacio personal.";
+      : "Entra y continúa tu recorrido en Fit Match.";
     if (accountEmailValue) accountEmailValue.textContent = isConnected ? connectedEmail : "Sin email";
     if (accountRoleValue) accountRoleValue.textContent = roleText;
     if (accountCityValue) accountCityValue.textContent = "Pendiente";
@@ -1603,10 +1646,10 @@ function renderProfileHome() {
     if (accountStatusValue) accountStatusValue.textContent = isConnected ? "Perfil pendiente" : "Sin sesión";
     if (accountCompletionValue) accountCompletionValue.textContent = "0% completo";
     if (accountContextScore) accountContextScore.textContent = "0%";
-    if (accountContextTitle) accountContextTitle.textContent = isConnected ? "Completa tu perfil" : "Inicia sesión";
+    if (accountContextTitle) accountContextTitle.textContent = isConnected ? "Tu perfil genera confianza." : "Bienvenido de nuevo.";
     if (accountContextCopy) accountContextCopy.textContent = isConnected
-      ? "Tu cuenta ya está activa. Añade nombre, ciudad, objetivo y preferencias para calcular matches reales."
-      : "Entra o crea una cuenta para guardar tu perfil y ver tu actividad.";
+      ? "Ya pueden conocerte antes del primer contacto."
+      : "Entra y continúa tu recorrido en Fit Match.";
     if (accountContextMatches) accountContextMatches.textContent = "0";
     if (accountContextContacts) accountContextContacts.textContent = "0";
     if (accountContextMessages) accountContextMessages.textContent = "0";
@@ -1621,10 +1664,10 @@ function renderProfileHome() {
     if (editAction) editAction.hidden = true;
     if (signOutAction) signOutAction.hidden = !isConnected;
     if (accountAsideLabel) accountAsideLabel.textContent = isConnected ? "Perfil pendiente" : "Cuenta Fit Match";
-    if (accountAsideTitle) accountAsideTitle.textContent = isConnected ? "Completa tu perfil" : "Bienvenido a Fit Match";
+    if (accountAsideTitle) accountAsideTitle.textContent = isConnected ? "Completa tu perfil" : "Bienvenido de nuevo.";
     if (accountAsideCopy) accountAsideCopy.textContent = isConnected
       ? "Tu cuenta ya está activa. Completa el perfil para desbloquear matches, contactos y recomendaciones."
-      : "Inicia sesión para acceder a tus matches, contactos y perfil.";
+      : "Entra y continúa tu recorrido en Fit Match.";
     renderProPanel();
     return;
   }
@@ -1665,7 +1708,7 @@ function renderProfileHome() {
   setAvatarContent(profileHomePhoto, profile);
   if (profileHomeName) profileHomeName.textContent = profile.name || `Perfil ${roleText.toLowerCase()}`;
   if (profileHomeSummary) {
-    profileHomeSummary.textContent = `${roleText} · ${cityText} · ${primaryValue}. Tu identidad y actividad reunidas en un solo lugar.`;
+    profileHomeSummary.textContent = `${roleText} · ${cityText} · ${primaryValue}.`;
   }
   if (accountEmailValue) accountEmailValue.textContent = emailText;
   if (accountRoleValue) accountRoleValue.textContent = roleText;
@@ -1680,12 +1723,8 @@ function renderProfileHome() {
   if (profileHomeMessages) profileHomeMessages.textContent = String(allRequests.length);
   if (profileHomeAffinity) profileHomeAffinity.textContent = averageAffinity;
   if (accountContextScore) accountContextScore.textContent = `${completion.percent}%`;
-  if (accountContextTitle) accountContextTitle.textContent = completion.percent >= 85 ? "Perfil muy completo" : "Perfil en construcción";
-  if (accountContextCopy) accountContextCopy.textContent = ownRatingSummary.count
-    ? `Tu perfil público ya muestra ${ratingText(ownRatingSummary)}. Las valoraciones refuerzan la confianza antes del contacto.`
-    : (matchCount
-      ? "Tus coincidencias ya tienen señales útiles. Sigue afinando el perfil para mejorar la calidad del contacto."
-      : "Completa más señales para activar recomendaciones con mejor encaje.");
+  if (accountContextTitle) accountContextTitle.textContent = "Tu perfil genera confianza.";
+  if (accountContextCopy) accountContextCopy.textContent = "Ya pueden conocerte antes del primer contacto.";
   if (accountContextMatches) accountContextMatches.textContent = String(matchCount);
   if (accountContextContacts) accountContextContacts.textContent = String(activeRequests.length);
   if (accountContextMessages) accountContextMessages.textContent = String(allRequests.length);
@@ -1699,10 +1738,8 @@ function renderProfileHome() {
   const serviceAverage = serviceRatings.length
     ? roundRating(serviceRatings.reduce((sum, rating) => sum + Number(rating.averageScore || 0), 0) / serviceRatings.length)
     : 0;
-  if (accountRatingTitle) accountRatingTitle.textContent = ownRatingSummary.count ? "Así te están valorando" : "Aún sin valoraciones";
-  if (accountRatingCopy) accountRatingCopy.textContent = ownRatingSummary.count
-    ? "Tu reputación se separa entre primer contacto y servicio real para que se entienda mejor qué experiencia has generado."
-    : "Cuando alguien valore tu primer contacto o servicio real, podrás revisar aquí tu evolución y abrir el detalle público.";
+  if (accountRatingTitle) accountRatingTitle.textContent = "Tu reputación";
+  if (accountRatingCopy) accountRatingCopy.textContent = "La confianza también se construye.";
   if (accountRatingAverage) accountRatingAverage.textContent = ownRatingSummary.count ? `${ownRatingSummary.average}/5` : "--";
   if (accountRatingCount) accountRatingCount.textContent = ownRatingSummary.count ? `${ownRatingSummary.count} valoración${ownRatingSummary.count === 1 ? "" : "es"}` : "sin datos";
   if (accountRatingFirstContact) accountRatingFirstContact.textContent = firstContactRatings.length ? `${firstContactAverage}/5` : "--";
@@ -1715,7 +1752,7 @@ function renderProfileHome() {
   if (accountWorkspaceTitle) accountWorkspaceTitle.textContent = profile.role === "client" ? "Tu búsqueda cliente" : "Tu espacio profesional";
   if (accountWorkspaceCopy) accountWorkspaceCopy.textContent = profile.role === "client"
     ? "Tus preferencias, necesidades y señales principales para encontrar profesionales compatibles."
-    : "Tu propuesta, especialidades y señales principales para aparecer ante clientes adecuados.";
+    : "Haz crecer tu negocio conectando con clientes compatibles.";
   if (accountDetailPrimaryLabel) accountDetailPrimaryLabel.textContent = primaryLabel;
   if (accountDetailPrimary) accountDetailPrimary.textContent = primaryValue;
   if (accountDetailSecondaryLabel) accountDetailSecondaryLabel.textContent = profile.role === "client" ? "Modalidad preferida" : "Modalidad ofrecida";
@@ -1932,6 +1969,13 @@ function updateProfileStatus() {
   profileStatusTitle.textContent = `${savedText} · ${percent}% completo`;
   profileStatusCopy.textContent = `${targetText} · ${serviceText}. Cuantos más campos completes, mejor será el match. ${storageText}.`;
   profileStatusBar.style.width = `${percent}%`;
+  if (profileBuilderProgressValue) profileBuilderProgressValue.textContent = `${percent}%`;
+  if (profileBuilderProgressBar) profileBuilderProgressBar.style.width = `${percent}%`;
+  if (profileBuilderProgressCopy) {
+    profileBuilderProgressCopy.textContent = percent >= 90
+      ? "Tu perfil ya transmite mucha confianza."
+      : "Solo te faltan unos pasos para mejorar tu visibilidad.";
+  }
   savedRoleLabel.textContent = roleLabel(profile.role);
   savedRequestsCount.textContent = String(requestCount);
   updateProfileContextCard();
@@ -1948,7 +1992,7 @@ function updateRoleCopy() {
   if (accountRoleTitle) accountRoleTitle.textContent = profile.role === "client" ? "Cliente: quiero encontrar profesional" : "Profesional: quiero aparecer en Fit Match";
   if (accountRoleCopy) accountRoleCopy.textContent = profile.role === "client"
     ? "Si ya tienes cuenta, entra para ver profesionales compatibles. Si no, crea tu cuenta cliente."
-    : "Si ya tienes cuenta, entra para ver clientes compatibles. Si no, crea tu cuenta profesional.";
+    : "Haz crecer tu negocio conectando con clientes compatibles.";
   if (createAccountRouteButton) createAccountRouteButton.textContent = profile.role === "client" ? "Crear cuenta cliente" : "Crear cuenta profesional";
   roleHelp.querySelector("strong").textContent = copy.roleHelpTitle;
   roleHelp.querySelector("span").textContent = copy.roleHelp;
@@ -2137,12 +2181,62 @@ function renderEmptyState(message, detail, action) {
   matchList.replaceChildren(empty);
 }
 
+function matchIdentityKey(person = {}) {
+  const role = person.role || "profile";
+  const email = normalizeText(person.email || person.contactEmail || "");
+  if (email) return `${role}:email:${email}`;
+
+  const id = String(person.id || "").trim().toLowerCase();
+  if (id) return `${role}:id:${id}`;
+
+  return [
+    role,
+    "profile",
+    normalizeText(person.name),
+    normalizeText(person.city),
+    normalizeText(person.goal),
+    normalizeText(person.sport)
+  ].join(":");
+}
+
+function matchFreshness(person = {}) {
+  return new Date(person.updatedAt || person.createdAt || 0).getTime() || 0;
+}
+
+function shouldReplaceMatch(current, candidate) {
+  if ((candidate.score || 0) !== (current.score || 0)) return (candidate.score || 0) > (current.score || 0);
+
+  const candidateQuality = profileQualityFor(candidate);
+  const currentQuality = profileQualityFor(current);
+  if (candidateQuality !== currentQuality) return candidateQuality > currentQuality;
+
+  const candidateRating = ratingSummaryFor(candidate);
+  const currentRating = ratingSummaryFor(current);
+  if ((candidateRating.average || 0) !== (currentRating.average || 0)) return (candidateRating.average || 0) > (currentRating.average || 0);
+  if ((candidateRating.count || 0) !== (currentRating.count || 0)) return (candidateRating.count || 0) > (currentRating.count || 0);
+
+  return matchFreshness(candidate) >= matchFreshness(current);
+}
+
+function uniqueMatchProfiles(matches = []) {
+  const uniqueMatches = new Map();
+
+  matches.forEach((person) => {
+    const key = matchIdentityKey(person);
+    const current = uniqueMatches.get(key);
+    if (!current || shouldReplaceMatch(current, person)) uniqueMatches.set(key, person);
+  });
+
+  return Array.from(uniqueMatches.values());
+}
+
 function sortedMatches() {
-  return activeDirectory()
-    .map((person) => ({
+  return uniqueMatchProfiles(
+    activeDirectory().map((person) => ({
       ...person,
       score: calculateScore(person)
     }))
+  )
     .sort((a, b) => {
       if (sortInput.value === "price") return (a.price || 99999) - (b.price || 99999);
       if (sortInput.value === "recent") return new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt);
@@ -2372,47 +2466,61 @@ function getFocusableModalElements() {
 
 function renderProfileDetail(person) {
   if (!profileDetail) return;
-  const reasons = createElement("ul", "match-reasons");
+  const matchScore = calculateScore(person);
+  const reasons = createElement("ul", "match-reasons profile-detail-reasons");
   renderReasons(reasons, getMatchReasons(person));
 
-  const identity = createElement("div", "profile-detail-section");
+  const identity = createElement("div", "profile-detail-section profile-detail-identity");
   const detailHero = createElement("div", "profile-detail-hero");
   const detailAvatar = createElement("div", "avatar profile-detail-avatar");
   const detailCopy = createElement("div");
   setAvatarContent(detailAvatar, person);
   detailCopy.append(
-    createElement("span", "micro-label", "Perfil completo"),
+    createElement("span", "micro-label", person.role === "client" ? "Perfil cliente" : "Perfil profesional"),
     createElement("strong", "", profileTitle(person)),
     createElement("p", "", person.bio || "Este perfil aún no tiene una descripción amplia.")
   );
   detailHero.append(detailAvatar, detailCopy);
-  identity.append(detailHero);
+
+  const tags = createElement("div", "meta profile-detail-tags");
+  const tagTexts = [
+    roleLabel(person.role),
+    label("goals", person.goal),
+    person.sport,
+    label("modes", person.mode),
+    label("levels", person.level),
+    ...(person.services || []).map((service) => label("services", service))
+  ].filter(Boolean);
+  [...new Set(tagTexts)].forEach((tagText) => tags.append(createElement("span", "pill", tagText)));
+  identity.append(detailHero, tags);
 
   const detailStats = createElement("div", "stats profile-detail-stats");
   detailStats.append(
     buildStat("Valoración", ratingText(ratingSummaryFor(person))),
     buildStat(person.role === "client" ? "Presupuesto" : "Precio", priceText(person)),
     buildStat("Ciudad", person.city || "Online"),
-    buildStat("Modalidad", label("modes", person.mode)),
-    buildStat("Nivel", label("levels", person.level)),
-    buildStat("Deporte", person.sport || "Por definir"),
     buildStat("Disponibilidad", person.availability || "Por definir")
   );
 
-  const services = createElement("div", "meta");
-  renderPills(services, person.services || [], "services");
-
-  const notes = createElement("div", "profile-detail-section muted-section");
-  notes.append(
-    createElement("span", "micro-label", "Notas de afinidad"),
+  const affinity = createElement("div", "profile-detail-section profile-detail-affinity");
+  const affinityScore = createElement("div", "profile-detail-affinity-score");
+  const level = scoreLevel(matchScore);
+  affinityScore.append(
+    createElement("strong", "", `${matchScore}%`),
+    createElement("span", "", level.label)
+  );
+  const affinityCopy = createElement("div", "profile-detail-affinity-copy");
+  affinityCopy.append(
+    createElement("span", "micro-label", "Por qué encaja"),
     createElement("p", "", person.notes || "Sin observaciones adicionales."),
     reasons
   );
+  affinity.append(affinityScore, affinityCopy);
 
-  const ratingBreakdown = createRatingBreakdownSection(person);
+  const ratingBreakdown = createRatingBreakdownSection(person, { collapsed: true });
 
   profileDetail.hidden = false;
-  profileDetail.replaceChildren(identity, detailStats, ratingBreakdown, services, notes);
+  profileDetail.replaceChildren(identity, detailStats, affinity, ratingBreakdown);
 }
 
 function findProfileForRatings(profileId) {
@@ -3518,6 +3626,8 @@ document.addEventListener("click", (event) => {
       if (scrollTarget === "#accountLegalCenter") {
         markTrustCenterVisited();
         updateSignupLegalState();
+        openAccountLegalCenter()?.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
       }
       document.querySelector(scrollTarget)?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
