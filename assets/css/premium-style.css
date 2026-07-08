@@ -9987,3 +9987,51 @@ body.role-professional .button.quiet:hover {
     grid-template-columns: 1fr !important;
   }
 }
+
+
+/* Ajuste Codex: Matches sin panel explicativo pesado */
+#matches .match-signal-row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+  align-items: center !important;
+  margin: clamp(12px, 2vw, 22px) 0 clamp(18px, 3vw, 30px) !important;
+}
+
+#matches .match-signal-row span {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: fit-content !important;
+  max-width: 100% !important;
+  padding: 10px 16px !important;
+  border: 1px solid rgba(31, 118, 95, 0.2) !important;
+  border-radius: 999px !important;
+  background: linear-gradient(145deg, rgba(255, 252, 244, 0.96), rgba(239, 248, 234, 0.9)) !important;
+  color: #17473d !important;
+  font-weight: 850 !important;
+  line-height: 1.15 !important;
+  box-shadow: 0 10px 22px rgba(31, 118, 95, 0.06) !important;
+}
+
+#matches .match-signal-row span::before {
+  content: "" !important;
+  flex: 0 0 auto !important;
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 999px !important;
+  background: #1f765f !important;
+  box-shadow: 0 0 0 5px rgba(31, 118, 95, 0.1) !important;
+}
+
+@media (max-width: 720px) {
+  #matches .match-signal-row {
+    gap: 8px !important;
+    margin-top: 10px !important;
+  }
+
+  #matches .match-signal-row span {
+    padding: 9px 13px !important;
+    font-size: 0.95rem !important;
+  }
+}
