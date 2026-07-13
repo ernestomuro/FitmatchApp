@@ -35,6 +35,7 @@
         <button class="nav-link" type="button" data-view="matches">Matches</button>
         <button class="nav-link" type="button" data-view="contacts">Contactos</button>
         <button class="nav-link" type="button" data-view="ratings">Valoraciones</button>
+        <button id="adminNavButton" class="nav-link admin-nav-link" type="button" data-view="admin" hidden>Admin</button>
       </nav>
     </header>
 
@@ -923,6 +924,90 @@
             </div>
             <div id="ratingList" class="rating-list" aria-live="polite"></div>
           </div>
+        </div>
+      </section>
+
+      <section id="admin" class="workspace admin-view app-view" data-view-name="admin" hidden>
+        <div class="screen-header admin-header">
+          <div>
+            <p class="eyebrow">Admin Beta</p>
+            <h2>Panel de control Fit Match</h2>
+            <p>Una vista privada para seguir registros, actividad, contactos y señales de uso durante la beta.</p>
+          </div>
+          <div class="screen-actions">
+            <span id="adminModeBadge" class="admin-mode-badge">Solo admin</span>
+            <button id="adminRefreshButton" class="button quiet" type="button">Actualizar datos</button>
+          </div>
+        </div>
+
+        <section id="adminDeniedCard" class="admin-card admin-denied-card" hidden>
+          <span class="micro-label">Acceso privado</span>
+          <h3>Esta zona es solo para administración.</h3>
+          <p>Entra con la cuenta autorizada para revisar el estado de la beta de Fit Match.</p>
+          <button class="button primary" type="button" data-view="account">Ir a Cuenta</button>
+        </section>
+
+        <div id="adminDashboard" class="admin-dashboard" hidden>
+          <section class="admin-kpi-grid" aria-label="Métricas principales">
+            <article class="admin-kpi-card">
+              <span>Registros</span>
+              <strong id="adminMetricProfiles">0</strong>
+              <small id="adminMetricRoleSplit">0 clientes · 0 profesionales</small>
+            </article>
+            <article class="admin-kpi-card">
+              <span>Matches posibles</span>
+              <strong id="adminMetricMatches">0</strong>
+              <small>cruces estimados por compatibilidad</small>
+            </article>
+            <article class="admin-kpi-card">
+              <span>Contactos</span>
+              <strong id="adminMetricContacts">0</strong>
+              <small><span id="adminMetricPending">0</span> pendientes</small>
+            </article>
+            <article class="admin-kpi-card">
+              <span>Valoraciones</span>
+              <strong id="adminMetricRatings">0</strong>
+              <small>media <span id="adminMetricAverage">--</span></small>
+            </article>
+          </section>
+
+          <section class="admin-grid-two">
+            <article class="admin-card">
+              <div class="admin-card-heading">
+                <span class="micro-label">Embudo beta</span>
+                <h3>De registro a contacto</h3>
+              </div>
+              <div id="adminFunnelList" class="admin-metric-list"></div>
+            </article>
+
+            <article class="admin-card">
+              <div class="admin-card-heading">
+                <span class="micro-label">Salud del producto</span>
+                <h3>Señales rápidas</h3>
+              </div>
+              <div id="adminHealthList" class="admin-metric-list"></div>
+            </article>
+          </section>
+
+          <section class="admin-grid-two">
+            <article class="admin-card">
+              <div class="admin-card-heading">
+                <span class="micro-label">Actividad reciente</span>
+                <h3>Últimos movimientos</h3>
+              </div>
+              <div id="adminRecentActivity" class="admin-activity-list"></div>
+            </article>
+
+            <article class="admin-card">
+              <div class="admin-card-heading">
+                <span class="micro-label">Siguiente revisión</span>
+                <h3>Dónde mirar primero</h3>
+              </div>
+              <div id="adminFocusList" class="admin-metric-list"></div>
+            </article>
+          </section>
+
+          <p id="adminLastSync" class="admin-sync-note">Última actualización: ahora</p>
         </div>
       </section>
     </main>

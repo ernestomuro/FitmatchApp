@@ -1,5 +1,6 @@
 const dataProvider = window.FitMatchDataProvider;
 const labels = dataProvider.getLabels();
+const ADMIN_EMAIL = "ernestomuro1980@gmail.com";
 
 const ROLE_COPY = {
   client: {
@@ -646,6 +647,23 @@ const authActionButtons = document.querySelectorAll("[data-auth-action]");
 const appViews = document.querySelectorAll(".app-view");
 const viewButtons = document.querySelectorAll("[data-view]");
 const roleStartButtons = document.querySelectorAll("[data-start-role]");
+const adminNavButton = document.querySelector("#adminNavButton");
+const adminRefreshButton = document.querySelector("#adminRefreshButton");
+const adminModeBadge = document.querySelector("#adminModeBadge");
+const adminDeniedCard = document.querySelector("#adminDeniedCard");
+const adminDashboard = document.querySelector("#adminDashboard");
+const adminMetricProfiles = document.querySelector("#adminMetricProfiles");
+const adminMetricRoleSplit = document.querySelector("#adminMetricRoleSplit");
+const adminMetricMatches = document.querySelector("#adminMetricMatches");
+const adminMetricContacts = document.querySelector("#adminMetricContacts");
+const adminMetricPending = document.querySelector("#adminMetricPending");
+const adminMetricRatings = document.querySelector("#adminMetricRatings");
+const adminMetricAverage = document.querySelector("#adminMetricAverage");
+const adminFunnelList = document.querySelector("#adminFunnelList");
+const adminHealthList = document.querySelector("#adminHealthList");
+const adminRecentActivity = document.querySelector("#adminRecentActivity");
+const adminFocusList = document.querySelector("#adminFocusList");
+const adminLastSync = document.querySelector("#adminLastSync");
 
 const LEGAL_DOCUMENTS = {
   privacy: {
@@ -751,13 +769,28 @@ const viewAliases = {
   trust: "account",
   confianza: "account",
   legal: "account",
-  privacidad: "account"
+  privacidad: "account",
+  admin: "admin",
+  administracion: "admin",
+  administración: "admin",
+  panel: "admin"
 };
 let activeView = "home";
 
 function normalizeView(viewName) {
   const cleanName = String(viewName || "home").replace("#", "").trim();
   return viewAliases[cleanName] || "home";
+}
+
+function isAdminSession() {
+  return cleanEmail(currentUser()?.email || "") === ADMIN_EMAIL;
+}
+
+function updateAdminNavigation() {
+  if (!adminNavButton) return;
+  const enabled = isAdminSession();
+  adminNavButton.hidden = !enabled;
+  adminNavButton.setAttribute("aria-hidden", String(!enabled));
 }
 
 function updateNavigationState(viewName) {
@@ -802,6 +835,8 @@ function showView(viewName, { push = true, focus = true } = {}) {
   });
 
   updateNavigationState(nextView);
+  updateAdminNavigation();
+  dataProvider.trackEvent?.("view_opened", { view: nextView, role: profile.role });
 
   if (nextView === "account") {
     updateAuthPanel();
@@ -813,6 +848,10 @@ function showView(viewName, { push = true, focus = true } = {}) {
 
   if (["contacts", "ratings"].includes(nextView)) {
     renderRequestHistory();
+  }
+
+  if (nextView === "admin") {
+    renderAdminDashboard();
   }
 
   if (push) {
@@ -1942,6 +1981,7 @@ function hasSavedProfile() {
 
 function routeForProtectedView(viewName) {
   const requestedView = normalizeView(viewName);
+  if (requestedView === "admin") return currentUser() && isAdminSession() ? "admin" : "account";
   if (!["register", "matches", "contacts", "ratings"].includes(requestedView)) return requestedView;
 
   if (requestedView === "register") {
@@ -1950,6 +1990,194 @@ function routeForProtectedView(viewName) {
 
   if (hasSavedProfile()) return requestedView;
   return currentUser() ? "register" : "account";
+}
+
+function adminSetText(element, value) {
+  if (element) element.textContent = value;
+}
+
+function adminAllContactRequests() {
+  const allRequests = dataProvider.listAllContactRequests?.()
+    || [
+      ...dataProvider.listContactRequests("client", { direction: "all", profileId: "" }),
+      ...dataProvider.listContactRequests("professional", { direction: "all", profileId: "" })
+    ];
+  const unique = new Map();
+  allRequests.forEach((request) => {
+    if (request?.id && !unique.has(request.id)) unique.set(request.id, request);
+  });
+  return Array.from(unique.values());
+}
+
+function adminProfileCompletionFor(person = {}) {
+  const fields = [
+    person.name,
+    person.email,
+    person.city,
+    person.goal,
+    person.sport,
+    person.mode,
+    person.level,
+    (person.services || []).length,
+    person.availability,
+    person.bio,
+    person.notes || person.matchNotes,
+    person.photo
+  ];
+  const completed = fields.filter((value) => Array.isArray(value) ? value.length : Boolean(value)).length;
+  return Math.round((completed / fields.length) * 100);
+}
+
+function adminTokenize(value = "") {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length > 3);
+}
+
+function adminCompatibilityScore(client = {}, professional = {}) {
+  let score = 10;
+  const clientServices = client.services || [];
+  const professionalServices = professional.services || [];
+  const sharedServices = clientServices.filter((service) => professionalServices.includes(service));
+  const clientCity = normalizeText(client.city);
+  const professionalCity = normalizeText(professional.city);
+  const clientSport = normalizeText(client.sport);
+  const professionalSport = normalizeText(professional.sport);
+  const notesA = adminTokenize([client.notes, client.matchNotes, client.bio, client.sport].join(" "));
+  const notesB = new Set(adminTokenize([professional.notes, professional.matchNotes, professional.bio, professional.sport].join(" ")));
+  const sharedNotes = notesA.filter((word) => notesB.has(word));
+
+  if (client.goal && client.goal === professional.goal) score += 25;
+  if (client.mode && client.mode === professional.mode) score += 20;
+  if (client.level && client.level === professional.level) score += 15;
+  if (clientCity && professionalCity && professionalCity !== "online" && (clientCity === professionalCity || clientCity.includes(professionalCity) || professionalCity.includes(clientCity))) score += 10;
+  score += Math.min(sharedServices.length * 12, 24);
+  if (clientSport && professionalSport && (clientSport === professionalSport || clientSport.includes(professionalSport) || professionalSport.includes(clientSport))) score += 12;
+  score += Math.min(sharedNotes.length * 4, 16);
+
+  return Math.min(score, 99);
+}
+
+function adminPotentialMatches(clients = [], professionals = []) {
+  const pairs = [];
+  clients.forEach((client) => {
+    professionals.forEach((professional) => {
+      const score = adminCompatibilityScore(client, professional);
+      if (score >= 45) pairs.push({ client, professional, score });
+    });
+  });
+  pairs.sort((a, b) => b.score - a.score);
+  return pairs;
+}
+
+function adminDateLabel(value) {
+  if (!value) return "sin fecha";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "sin fecha";
+  return date.toLocaleString("es-ES", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+function adminRenderMetricRow(container, labelText, value, note = "") {
+  if (!container) return;
+  const row = createElement("div", "admin-metric-row");
+  const labelNode = createElement("span", "", labelText);
+  const valueNode = createElement("strong", "", value);
+  row.append(labelNode, valueNode);
+  if (note) row.append(createElement("small", "", note));
+  container.append(row);
+}
+
+function adminRenderActivity(container, items = []) {
+  if (!container) return;
+  container.innerHTML = "";
+  if (!items.length) {
+    container.append(createElement("p", "empty-copy", "Todavía no hay actividad suficiente para mostrar."));
+    return;
+  }
+
+  items.slice(0, 8).forEach((item) => {
+    const row = createElement("article", "admin-activity-item");
+    const title = createElement("strong", "", item.title);
+    const meta = createElement("span", "", item.meta);
+    row.append(title, meta);
+    container.append(row);
+  });
+}
+
+function renderAdminDashboard() {
+  updateAdminNavigation();
+  const isAllowed = isAdminSession();
+  if (adminDeniedCard) adminDeniedCard.hidden = isAllowed;
+  if (adminDashboard) adminDashboard.hidden = !isAllowed;
+  if (adminModeBadge) adminModeBadge.textContent = isAllowed ? "Admin activo" : "Solo admin";
+  if (!isAllowed) return;
+
+  const profiles = dataProvider.listProfiles();
+  const clients = profiles.filter((item) => item.role === "client");
+  const professionals = profiles.filter((item) => item.role === "professional");
+  const requests = adminAllContactRequests();
+  const ratings = dataProvider.listRatings?.() || [];
+  const events = dataProvider.listAppEvents?.() || [];
+  const possibleMatches = adminPotentialMatches(clients, professionals);
+  const pendingRequests = requests.filter((request) => request.status === "pending").length;
+  const acceptedRequests = requests.filter((request) => request.status === "accepted").length;
+  const averageRating = ratings.length
+    ? (ratings.reduce((sum, rating) => sum + (Number(rating.averageScore) || 0), 0) / ratings.length).toFixed(1)
+    : "--";
+  const highMatches = possibleMatches.filter((match) => match.score >= 70).length;
+  const completedProfiles = profiles.filter((item) => adminProfileCompletionFor(item) >= 80).length;
+  const profileSavedEvents = events.filter((event) => event.eventType === "profile_saved").length;
+  const contactEvents = events.filter((event) => event.eventType === "contact_request_created").length;
+  const ratingEvents = events.filter((event) => event.eventType === "rating_saved").length;
+
+  adminSetText(adminMetricProfiles, String(profiles.length));
+  adminSetText(adminMetricRoleSplit, clients.length + " clientes · " + professionals.length + " profesionales");
+  adminSetText(adminMetricMatches, String(possibleMatches.length));
+  adminSetText(adminMetricContacts, String(requests.length));
+  adminSetText(adminMetricPending, String(pendingRequests));
+  adminSetText(adminMetricRatings, String(ratings.length));
+  adminSetText(adminMetricAverage, averageRating === "--" ? "--" : averageRating + "/5");
+
+  if (adminFunnelList) {
+    adminFunnelList.innerHTML = "";
+    adminRenderMetricRow(adminFunnelList, "Registros totales", String(profiles.length), "usuarios con perfil guardado");
+    adminRenderMetricRow(adminFunnelList, "Matches estimados", String(possibleMatches.length), highMatches + " de afinidad alta");
+    adminRenderMetricRow(adminFunnelList, "Solicitudes enviadas", String(requests.length), pendingRequests + " pendientes");
+    adminRenderMetricRow(adminFunnelList, "Contactos aceptados", String(acceptedRequests), "primeras conversaciones abiertas");
+  }
+
+  if (adminHealthList) {
+    adminHealthList.innerHTML = "";
+    adminRenderMetricRow(adminHealthList, "Perfiles completos", completedProfiles + "/" + profiles.length, "80% o más");
+    adminRenderMetricRow(adminHealthList, "Actividad registrada", String(events.length), "eventos beta capturados");
+    adminRenderMetricRow(adminHealthList, "Perfiles guardados", String(profileSavedEvents), "actualizaciones de perfil");
+    adminRenderMetricRow(adminHealthList, "Valoraciones", String(ratingEvents || ratings.length), "señales de reputación");
+  }
+
+  const requestActivity = requests.map((request) => ({
+    title: (request.sender?.name || "Usuario") + " → " + (request.recipient?.name || "Perfil"),
+    meta: "Contacto · " + adminDateLabel(request.createdAt)
+  }));
+  const eventActivity = events.map((event) => ({
+    title: event.eventType === "view_opened" ? "Vista abierta: " + (event.metadata?.view || "app") : event.eventType.replaceAll("_", " "),
+    meta: (event.email || "usuario") + " · " + adminDateLabel(event.createdAt)
+  }));
+  adminRenderActivity(adminRecentActivity, [...requestActivity, ...eventActivity]
+    .sort((a, b) => String(b.meta).localeCompare(String(a.meta))));
+
+  if (adminFocusList) {
+    adminFocusList.innerHTML = "";
+    const lowProfileCount = profiles.filter((item) => adminProfileCompletionFor(item) < 60).length;
+    adminRenderMetricRow(adminFocusList, "Perfiles a revisar", String(lowProfileCount), "pueden bloquear buenos matches");
+    adminRenderMetricRow(adminFocusList, "Contactos sin cerrar", String(pendingRequests), "seguimiento beta");
+    adminRenderMetricRow(adminFocusList, "Clientes por profesional", professionals.length ? (clients.length / professionals.length).toFixed(1) : "--", "equilibrio de mercado");
+    adminRenderMetricRow(adminFocusList, "Conversión contacto/match", possibleMatches.length ? Math.round((requests.length / possibleMatches.length) * 100) + "%" : "--", "primer indicador de tracción");
+  }
+
+  if (adminLastSync) adminLastSync.textContent = "Última actualización: " + adminDateLabel(new Date().toISOString());
 }
 
 function updateProfileStatus() {
@@ -3634,6 +3862,19 @@ document.addEventListener("click", (event) => {
   }
 });
 
+adminRefreshButton?.addEventListener("click", async () => {
+  const previousText = adminRefreshButton.textContent;
+  adminRefreshButton.disabled = true;
+  adminRefreshButton.textContent = "Actualizando...";
+  try {
+    await dataProvider.refreshRemoteData?.();
+    renderAdminDashboard();
+  } finally {
+    adminRefreshButton.disabled = false;
+    adminRefreshButton.textContent = previousText;
+  }
+});
+
 window.addEventListener("popstate", (event) => {
   showView(event.state?.view || window.location.hash, { push: false });
 });
@@ -4039,6 +4280,7 @@ async function startApp() {
     loadOwnRemoteProfile();
   }
 
+  updateAdminNavigation();
   updateAuthPanel();
   const initialView = window.location.hash || (currentUser() ? "account" : "home");
   showView(initialView, { push: false, focus: false });

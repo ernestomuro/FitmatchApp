@@ -4,7 +4,8 @@ const STORAGE_KEYS = {
   contactRequests: "fit-match.contact-requests.v2",
   ratings: "fit-match.profile-ratings.v1",
   legalConsents: "fit-match.legal-consents.v1",
-  proSubscriptions: "fit-match.pro-subscriptions.v1"
+  proSubscriptions: "fit-match.pro-subscriptions.v1",
+  appEvents: "fit-match.app-events.v1"
 };
 
 const LEGAL_CONSENT_VERSION = "fit-match-beta-legal-v2";
@@ -20,6 +21,7 @@ let remoteRequests = [];
 let remoteRatings = [];
 let remotePrivateNotes = {};
 let remoteProSubscription = null;
+let remoteAppEvents = [];
 let ratingsRemoteAvailable = true;
 let remoteError = "";
 
@@ -48,6 +50,35 @@ function removeStorage(key) {
   }
 }
 
+
+function normalizeAppEvent(event = {}) {
+  const metadata = parseJsonObject(event.metadata, {});
+  return {
+    id: event.id || createId("event"),
+    userId: event.userId || event.user_id || currentSession?.user?.id || "local",
+    email: event.email || currentSession?.user?.email || "",
+    eventType: event.eventType || event.event_type || "event",
+    metadata,
+    createdAt: event.createdAt || event.created_at || new Date().toISOString()
+  };
+}
+
+function readAppEvents() {
+  return readStorage(STORAGE_KEYS.appEvents, []).map(normalizeAppEvent);
+}
+
+function writeAppEvents(events = []) {
+  writeStorage(STORAGE_KEYS.appEvents, events.map(normalizeAppEvent).slice(0, 200));
+}
+
+function dedupeAppEvents(events = []) {
+  const uniqueEvents = new Map();
+  events.map(normalizeAppEvent).forEach((event) => {
+    const key = event.id || [event.eventType, event.userId, event.createdAt].join("-");
+    if (!uniqueEvents.has(key)) uniqueEvents.set(key, event);
+  });
+  return Array.from(uniqueEvents.values()).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+}
 
 function parseJsonObject(value, fallback = {}) {
   if (!value) return { ...fallback };
@@ -736,6 +767,7 @@ window.FitMatchDataProvider = {
         remoteRatings = [];
         remotePrivateNotes = {};
         remoteProSubscription = null;
+        remoteAppEvents = [];
       }
     });
 
@@ -798,7 +830,10 @@ window.FitMatchDataProvider = {
     currentSession = null;
     remoteProfiles = [];
     remoteRequests = [];
+    remoteRatings = [];
+    remotePrivateNotes = {};
     remoteProSubscription = null;
+    remoteAppEvents = [];
   },
 
   async refreshRemoteData() {
@@ -868,6 +903,20 @@ window.FitMatchDataProvider = {
           .order("created_at", { ascending: false })
       );
       remoteRequests = (requests || []).map((request) => mapRemoteRequest(request, profilesById));
+
+      try {
+        const eventRows = await assertNoError(
+          await supabaseClient
+            .from("app_events")
+            .select("*")
+            .order("created_at", { ascending: false })
+            .limit(200)
+        );
+        remoteAppEvents = dedupeAppEvents([...(eventRows || []).map(normalizeAppEvent), ...readAppEvents()]);
+      } catch (error) {
+        remoteAppEvents = readAppEvents();
+      }
+
       remoteError = "";
     } catch (error) {
       remoteError = error.message || "No se pudo sincronizar Supabase.";
@@ -960,6 +1009,7 @@ window.FitMatchDataProvider = {
 
       writeProfiles(profiles);
       this.saveProfileDraft(savedProfile);
+      this.trackEvent("profile_saved", { role: savedProfile.role, profileId: savedProfile.id, source: "local" });
       return savedProfile;
     }
 
@@ -1019,6 +1069,7 @@ window.FitMatchDataProvider = {
     }));
 
     this.saveProfileDraft(normalized);
+    await this.trackEvent("profile_saved", { role: normalized.role, profileId: normalized.id, source: "remote" });
     await this.refreshRemoteData();
     const savedRemoteProfile = remoteProfiles.find((item) => item.id === user.id);
     return savedRemoteProfile
@@ -1093,6 +1144,7 @@ window.FitMatchDataProvider = {
         reasons: contactReasons(payload.reasons || [], payload.profile)
       }, { role: payload.role, profileId: payload.profile?.id });
       writeStorage(STORAGE_KEYS.contactRequests, [request, ...requests].slice(0, 24));
+      this.trackEvent("contact_request_created", { role: payload.role, score: payload.score, targetId: payload.target?.id, source: "local" });
       return request;
     }
 
@@ -1109,6 +1161,7 @@ window.FitMatchDataProvider = {
     const data = await assertNoError(
       await supabaseClient.from("contact_requests").insert(row).select("*").single()
     );
+    await this.trackEvent("contact_request_created", { role: payload.role, score: payload.score, targetId: payload.target?.id, source: "remote" });
     await this.refreshRemoteData();
     const profilesById = new Map(remoteProfiles.map((profile) => [profile.id, profile]));
     return mapRemoteRequest(data, profilesById);
@@ -1213,8 +1266,46 @@ window.FitMatchDataProvider = {
     const profileId = options.profileId || currentSession?.user?.id || "";
     const sentRequests = this.listContactRequests(role, { ...options, profileId, direction: "outgoing" });
     return this.deleteContactRequests(sentRequests.map((request) => request.id), { ...options, role, profileId });
-  }
-,
+  },
+
+  listAllContactRequests() {
+    const requestOptions = { role: "", profileId: "" };
+    const requests = (canUseRemote() ? remoteRequests : readStorage(STORAGE_KEYS.contactRequests, []))
+      .map((request) => normalizeStoredRequest(request, requestOptions));
+    return requests.filter((request, index, items) => items.findIndex((item) => item.id === request.id) === index);
+  },
+
+  async trackEvent(eventType, metadata = {}) {
+    const event = normalizeAppEvent({
+      eventType,
+      metadata,
+      userId: currentSession?.user?.id || "local",
+      email: currentSession?.user?.email || "",
+      createdAt: new Date().toISOString()
+    });
+    const localEvents = dedupeAppEvents([event, ...readAppEvents()]).slice(0, 200);
+    writeAppEvents(localEvents);
+    remoteAppEvents = dedupeAppEvents([event, ...remoteAppEvents]).slice(0, 200);
+
+    if (canUseRemote()) {
+      try {
+        await assertNoError(await supabaseClient.from("app_events").insert({
+          user_id: currentSession.user.id,
+          email: currentSession.user.email || null,
+          event_type: event.eventType,
+          metadata: event.metadata
+        }));
+      } catch (error) {
+        // app_events es opcional durante beta; la app no debe romper si falta la tabla.
+      }
+    }
+
+    return event;
+  },
+
+  listAppEvents() {
+    return dedupeAppEvents([...remoteAppEvents, ...readAppEvents()]).slice(0, 200);
+  },
 
   getLegalConsentVersion() {
     return LEGAL_CONSENT_VERSION;
@@ -1398,6 +1489,7 @@ window.FitMatchDataProvider = {
     remoteProfiles = applyRatingSummaries(dedupeProfiles(remoteProfiles), this.listRatings());
 
     if (!canUseRemote() || !ratingsRemoteAvailable) {
+      this.trackEvent("rating_saved", { ratingType: normalized.ratingType, targetId: normalized.targetId, averageScore: normalized.averageScore, source: "local" });
       return localSaved;
     }
 
@@ -1435,12 +1527,14 @@ window.FitMatchDataProvider = {
       const remoteSaved = normalizeRating(data);
       saveLocalRating(remoteSaved);
       remoteRatings = dedupeRatings([remoteSaved, ...remoteRatings, ...readRatings()]);
+      await this.trackEvent("rating_saved", { ratingType: remoteSaved.ratingType, targetId: remoteSaved.targetId, averageScore: remoteSaved.averageScore, source: "remote" });
       await this.refreshRemoteData();
       return remoteSaved;
     } catch (error) {
       ratingsRemoteAvailable = false;
       remoteRatings = dedupeRatings([localSaved, ...remoteRatings]);
       remoteProfiles = applyRatingSummaries(dedupeProfiles(remoteProfiles), this.listRatings());
+      this.trackEvent("rating_saved", { ratingType: localSaved.ratingType, targetId: localSaved.targetId, averageScore: localSaved.averageScore, source: "fallback" });
       return localSaved;
     }
   }
