@@ -410,6 +410,7 @@ let renderTimer = null;
 let isProcessingPhoto = false;
 let selectedRequestIds = new Set();
 let openRequestIds = new Set();
+let openConversationIds = new Set();
 let isSavingProfile = false;
 
 const HIDDEN_MATCHES_KEY = "fit-match.hidden-matches.v1";
@@ -2730,20 +2731,14 @@ function renderProfileDetail(person) {
     buildStat("Disponibilidad", person.availability || "Por definir")
   );
 
-  const affinity = createElement("div", "profile-detail-section profile-detail-affinity");
-  const affinityScore = createElement("div", "profile-detail-affinity-score");
   const level = scoreLevel(matchScore);
-  affinityScore.append(
-    createElement("strong", "", `${matchScore}%`),
-    createElement("span", "", level.label)
-  );
-  const affinityCopy = createElement("div", "profile-detail-affinity-copy");
-  affinityCopy.append(
+  const affinity = createElement("div", "profile-detail-section profile-detail-affinity profile-detail-affinity-compact");
+  const affinityHeader = createElement("div", "profile-affinity-header");
+  affinityHeader.append(
     createElement("span", "micro-label", "Por qué encaja"),
-    createElement("p", "", person.notes || "Sin observaciones adicionales."),
-    reasons
+    createElement("strong", "profile-affinity-score", `${matchScore}% · ${level.label}`)
   );
-  affinity.append(affinityScore, affinityCopy);
+  affinity.append(affinityHeader, reasons);
 
   const ratingBreakdown = createRatingBreakdownSection(person, { collapsed: true });
 
@@ -3596,13 +3591,88 @@ function buildRatingHistorySection(items) {
   return section;
 }
 
+function requestCounterpart(request, direction) {
+  return direction === "incoming" ? request.sender : request.recipient;
+}
+
+function conversationKeyForRequest(request, direction) {
+  const person = requestCounterpart(request, direction) || {};
+  const identity = normalizeText(person.id || person.email || person.contactEmail || person.name || request.id);
+  return `${direction}:${person.role || "profile"}:${identity || request.id}`;
+}
+
+function groupRequestsByConversation(requests = [], direction) {
+  const groups = new Map();
+  requests.forEach((request) => {
+    const key = conversationKeyForRequest(request, direction);
+    if (!groups.has(key)) {
+      groups.set(key, { key, direction, person: requestCounterpart(request, direction), requests: [] });
+    }
+    groups.get(key).requests.push(request);
+  });
+
+  return Array.from(groups.values()).map((group) => {
+    group.requests.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    group.latest = group.requests[0];
+    group.unreadCount = direction === "incoming" ? group.requests.filter((request) => !request.readAt).length : 0;
+    return group;
+  }).sort((a, b) => new Date(b.latest?.createdAt || 0) - new Date(a.latest?.createdAt || 0));
+}
+
+function buildConversationCard(group) {
+  const card = document.createElement("details");
+  card.className = `conversation-card conversation-card-${group.direction}`;
+  card.dataset.conversationId = group.key;
+
+  const summary = document.createElement("summary");
+  summary.className = "conversation-summary";
+  const person = group.person || {};
+  const avatar = createElement("div", "avatar message-avatar conversation-avatar");
+  const identity = createElement("div", "conversation-identity");
+  const copy = createElement("div", "conversation-copy");
+  const title = createElement("strong", "", person.name || "Contacto Fit Match");
+  const latest = group.latest || {};
+  const messageCount = group.requests.length;
+  const countText = `${messageCount} mensaje${messageCount === 1 ? "" : "s"}`;
+  const meta = createElement("span", "", `${countText} · ${latest.score || 0}% · ${label("goals", person.goal)} · ${formatDate(latest.createdAt)}`);
+  const statusText = group.unreadCount
+    ? `${group.unreadCount} nuevo${group.unreadCount === 1 ? "" : "s"}`
+    : group.direction === "incoming" ? "Leído" : "Enviado";
+  const badge = createElement("span", `status-badge ${group.unreadCount ? "status-unread" : "status-read"}`, statusText);
+  const action = createElement("span", "conversation-open-label", "Abrir conversación");
+
+  setAvatarContent(avatar, person);
+  copy.append(title, meta);
+  identity.append(avatar, copy);
+  summary.append(identity, badge, action);
+  card.append(summary);
+
+  const thread = createElement("div", "conversation-thread-list");
+  group.requests.forEach((request) => thread.append(buildRequestCard(request, group.direction)));
+  card.append(thread);
+
+  card.open = openConversationIds.has(group.key);
+  card.addEventListener("toggle", () => {
+    if (card.open) {
+      openConversationIds.add(group.key);
+      return;
+    }
+    openConversationIds.delete(group.key);
+  });
+  return card;
+}
+
 function buildRequestSection({ title, kicker, requests, emptyTitle, emptyText, direction }) {
   const section = createElement("section", `request-lane request-lane-${direction}`);
+  const groups = groupRequestsByConversation(requests, direction);
   const heading = createElement("div", "request-lane-heading");
   const headingText = createElement("div");
+  const groupedTitle = groups.length
+    ? `${groups.length} conversación${groups.length === 1 ? "" : "es"} ${direction === "incoming" ? "recibida" : "enviada"}${groups.length === 1 ? "" : "s"}`
+    : title;
   headingText.append(
     createElement("span", "micro-label", kicker),
-    createElement("strong", "", title)
+    createElement("strong", "", groupedTitle)
   );
   heading.append(headingText);
   if (requests.length) {
@@ -3623,7 +3693,7 @@ function buildRequestSection({ title, kicker, requests, emptyTitle, emptyText, d
     return section;
   }
 
-  requests.forEach((request) => section.append(buildRequestCard(request, direction)));
+  groups.forEach((group) => section.append(buildConversationCard(group)));
   return section;
 }
 
@@ -3641,6 +3711,17 @@ function pruneSelectedRequests(visibleIds) {
   const visibleSet = new Set(visibleIds);
   selectedRequestIds = new Set(Array.from(selectedRequestIds).filter((id) => visibleSet.has(id)));
   openRequestIds = new Set(Array.from(openRequestIds).filter((id) => visibleSet.has(id)));
+  const visibleConversations = new Set([
+    ...groupRequestsByConversation(
+      dataProvider.listContactRequests(profile.role, { profileId: profile.id, direction: "incoming" }),
+      "incoming"
+    ).map((group) => group.key),
+    ...groupRequestsByConversation(
+      dataProvider.listContactRequests(profile.role, { profileId: profile.id, direction: "outgoing" }),
+      "outgoing"
+    ).map((group) => group.key)
+  ]);
+  openConversationIds = new Set(Array.from(openConversationIds).filter((id) => visibleConversations.has(id)));
 }
 
 function requestIdsForLane(direction) {
