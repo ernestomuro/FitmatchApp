@@ -5,7 +5,9 @@ const STORAGE_KEYS = {
   ratings: "fit-match.profile-ratings.v1",
   legalConsents: "fit-match.legal-consents.v1",
   proSubscriptions: "fit-match.pro-subscriptions.v1",
-  appEvents: "fit-match.app-events.v1"
+  appEvents: "fit-match.app-events.v1",
+  reports: "fit-match.profile-reports.v1",
+  moderationActions: "fit-match.moderation-actions.v1"
 };
 
 const LEGAL_CONSENT_VERSION = "fit-match-beta-legal-v2";
@@ -22,7 +24,10 @@ let remoteRatings = [];
 let remotePrivateNotes = {};
 let remoteProSubscription = null;
 let remoteAppEvents = [];
+let remoteReports = [];
+let remoteModerationActions = [];
 let ratingsRemoteAvailable = true;
+let reportsRemoteAvailable = true;
 let remoteError = "";
 
 function readStorage(key, fallback) {
@@ -78,6 +83,72 @@ function dedupeAppEvents(events = []) {
     if (!uniqueEvents.has(key)) uniqueEvents.set(key, event);
   });
   return Array.from(uniqueEvents.values()).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+}
+
+
+function normalizeReport(report = {}) {
+  const metadata = parseJsonObject(report.metadata, {});
+  return {
+    id: report.id || createId("report"),
+    reporterId: report.reporterId || report.reporter_id || metadata.reporterId || currentSession?.user?.id || "local",
+    reporterEmail: report.reporterEmail || report.reporter_email || metadata.reporterEmail || currentSession?.user?.email || "",
+    reporterName: report.reporterName || report.reporter_name || metadata.reporterName || "",
+    targetId: report.targetId || report.target_id || report.profile_id || metadata.targetId || "",
+    targetRole: report.targetRole || report.target_role || metadata.targetRole || "",
+    targetName: report.targetName || report.target_name || metadata.targetName || "Perfil Fit Match",
+    targetEmail: report.targetEmail || report.target_email || metadata.targetEmail || "",
+    reason: report.reason || "otro",
+    description: report.description || report.details || "",
+    status: report.status || "pendiente",
+    priority: report.priority || "media",
+    moderatorId: report.moderatorId || report.moderator_id || "",
+    resolution: report.resolution || "",
+    internalNotes: report.internalNotes || report.internal_notes || "",
+    resolvedAt: report.resolvedAt || report.resolved_at || "",
+    createdAt: report.createdAt || report.created_at || new Date().toISOString(),
+    updatedAt: report.updatedAt || report.updated_at || report.createdAt || report.created_at || new Date().toISOString()
+  };
+}
+
+function readReports() {
+  return dedupeReports(readStorage(STORAGE_KEYS.reports, []));
+}
+
+function writeReports(reports = []) {
+  writeStorage(STORAGE_KEYS.reports, dedupeReports(reports));
+}
+
+function dedupeReports(reports = []) {
+  const map = new Map();
+  reports.map(normalizeReport).forEach((report) => {
+    if (!report.id) return;
+    const current = map.get(report.id);
+    const currentTime = current ? new Date(current.updatedAt || current.createdAt || 0).getTime() : 0;
+    const nextTime = new Date(report.updatedAt || report.createdAt || 0).getTime();
+    if (!current || nextTime >= currentTime) map.set(report.id, report);
+  });
+  return Array.from(map.values()).sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
+}
+
+function normalizeModerationAction(action = {}) {
+  return {
+    id: action.id || createId("moderation"),
+    reportId: action.reportId || action.report_id || "",
+    targetId: action.targetId || action.target_id || "",
+    moderatorId: action.moderatorId || action.moderator_id || currentSession?.user?.id || "local",
+    actionType: action.actionType || action.action_type || "admin_update",
+    notes: action.notes || "",
+    metadata: parseJsonObject(action.metadata, {}),
+    createdAt: action.createdAt || action.created_at || new Date().toISOString()
+  };
+}
+
+function readModerationActions() {
+  return readStorage(STORAGE_KEYS.moderationActions, []).map(normalizeModerationAction);
+}
+
+function writeModerationActions(actions = []) {
+  writeStorage(STORAGE_KEYS.moderationActions, actions.map(normalizeModerationAction).slice(0, 200));
 }
 
 function parseJsonObject(value, fallback = {}) {
@@ -834,6 +905,8 @@ window.FitMatchDataProvider = {
     remotePrivateNotes = {};
     remoteProSubscription = null;
     remoteAppEvents = [];
+    remoteReports = [];
+    remoteModerationActions = [];
   },
 
   async refreshRemoteData() {
@@ -915,6 +988,35 @@ window.FitMatchDataProvider = {
         remoteAppEvents = dedupeAppEvents([...(eventRows || []).map(normalizeAppEvent), ...readAppEvents()]);
       } catch (error) {
         remoteAppEvents = readAppEvents();
+      }
+
+
+      try {
+        const reportRows = await assertNoError(
+          await supabaseClient
+            .from("profile_reports")
+            .select("*")
+            .order("created_at", { ascending: false })
+            .limit(200)
+        );
+        remoteReports = dedupeReports([...(reportRows || []).map(normalizeReport), ...readReports()]);
+        reportsRemoteAvailable = true;
+      } catch (error) {
+        reportsRemoteAvailable = false;
+        remoteReports = readReports();
+      }
+
+      try {
+        const actionRows = await assertNoError(
+          await supabaseClient
+            .from("moderation_actions")
+            .select("*")
+            .order("created_at", { ascending: false })
+            .limit(200)
+        );
+        remoteModerationActions = [...(actionRows || []).map(normalizeModerationAction), ...readModerationActions()].slice(0, 200);
+      } catch (error) {
+        remoteModerationActions = readModerationActions();
       }
 
       remoteError = "";
@@ -1305,6 +1407,149 @@ window.FitMatchDataProvider = {
 
   listAppEvents() {
     return dedupeAppEvents([...remoteAppEvents, ...readAppEvents()]).slice(0, 200);
+  },
+
+
+  listReports() {
+    return dedupeReports([...(canUseRemote() ? remoteReports : []), ...readReports()]).slice(0, 200);
+  },
+
+  async createReport(payload = {}) {
+    const user = currentSession?.user;
+    const target = payload.target || {};
+    const reporter = payload.reporter || {};
+    const normalized = normalizeReport({
+      reporterId: user?.id || reporter.id || "local",
+      reporterEmail: user?.email || reporter.email || "",
+      reporterName: reporter.name || user?.email || "Usuario Fit Match",
+      targetId: target.id || payload.targetId || "",
+      targetRole: target.role || payload.targetRole || "",
+      targetName: target.name || payload.targetName || "Perfil Fit Match",
+      targetEmail: target.email || payload.targetEmail || "",
+      reason: payload.reason || "otro",
+      description: payload.description || "",
+      status: "pendiente",
+      priority: payload.priority || "media"
+    });
+
+    const localReports = dedupeReports([normalized, ...readReports()]);
+    writeReports(localReports);
+    remoteReports = dedupeReports([normalized, ...remoteReports]);
+
+    if (!canUseRemote() || !reportsRemoteAvailable) {
+      await this.trackEvent("profile_report_created", { targetId: normalized.targetId, reason: normalized.reason, source: "local" });
+      return normalized;
+    }
+
+    try {
+      const data = await assertNoError(
+        await supabaseClient.from("profile_reports").insert({
+          reporter_id: currentSession.user.id,
+          reporter_email: currentSession.user.email || null,
+          reporter_name: normalized.reporterName || null,
+          target_id: normalized.targetId,
+          target_role: normalized.targetRole || null,
+          target_name: normalized.targetName || null,
+          target_email: normalized.targetEmail || null,
+          reason: normalized.reason,
+          description: normalized.description || null,
+          status: normalized.status,
+          priority: normalized.priority
+        }).select("*").single()
+      );
+      const remoteReport = normalizeReport(data);
+      writeReports(dedupeReports([remoteReport, ...readReports()]));
+      remoteReports = dedupeReports([remoteReport, ...remoteReports]);
+      await this.trackEvent("profile_report_created", { targetId: remoteReport.targetId, reason: remoteReport.reason, source: "remote" });
+      return remoteReport;
+    } catch (error) {
+      reportsRemoteAvailable = false;
+      await this.trackEvent("profile_report_created", { targetId: normalized.targetId, reason: normalized.reason, source: "fallback" });
+      return normalized;
+    }
+  },
+
+  async updateReport(reportId, updates = {}) {
+    if (!reportId) return null;
+    const currentReports = this.listReports();
+    const current = currentReports.find((report) => report.id === reportId);
+    if (!current) return null;
+
+    const next = normalizeReport({
+      ...current,
+      ...updates,
+      moderatorId: updates.moderatorId || currentSession?.user?.id || current.moderatorId,
+      resolvedAt: ["resuelta", "descartada"].includes(updates.status || current.status)
+        ? (updates.resolvedAt || current.resolvedAt || new Date().toISOString())
+        : (updates.resolvedAt || current.resolvedAt || ""),
+      updatedAt: new Date().toISOString()
+    });
+
+    writeReports(dedupeReports([next, ...readReports()]));
+    remoteReports = dedupeReports([next, ...remoteReports]);
+    await this.logModerationAction("report_updated", {
+      reportId,
+      targetId: next.targetId,
+      notes: updates.internalNotes || updates.resolution || "Actualización de denuncia",
+      metadata: { status: next.status, priority: next.priority }
+    });
+
+    if (!canUseRemote() || !reportsRemoteAvailable) return next;
+
+    try {
+      await assertNoError(
+        await supabaseClient.from("profile_reports").update({
+          status: next.status,
+          priority: next.priority,
+          moderator_id: currentSession.user.id,
+          resolution: next.resolution || null,
+          internal_notes: next.internalNotes || null,
+          resolved_at: next.resolvedAt || null,
+          updated_at: new Date().toISOString()
+        }).eq("id", reportId)
+      );
+      await this.refreshRemoteData();
+      return remoteReports.find((report) => report.id === reportId) || next;
+    } catch (error) {
+      reportsRemoteAvailable = false;
+      return next;
+    }
+  },
+
+  listModerationActions() {
+    return [...(canUseRemote() ? remoteModerationActions : []), ...readModerationActions()]
+      .map(normalizeModerationAction)
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+      .slice(0, 200);
+  },
+
+  async logModerationAction(actionType, payload = {}) {
+    const action = normalizeModerationAction({
+      actionType,
+      reportId: payload.reportId,
+      targetId: payload.targetId,
+      notes: payload.notes,
+      metadata: payload.metadata || {}
+    });
+    writeModerationActions([action, ...readModerationActions()].slice(0, 200));
+    remoteModerationActions = [action, ...remoteModerationActions].slice(0, 200);
+
+    if (canUseRemote()) {
+      try {
+        await assertNoError(await supabaseClient.from("moderation_actions").insert({
+          report_id: action.reportId || null,
+          target_id: action.targetId || null,
+          moderator_id: currentSession.user.id,
+          action_type: action.actionType,
+          notes: action.notes || null,
+          metadata: action.metadata
+        }));
+      } catch (error) {
+        // La tabla de moderación es opcional hasta ejecutar la migración admin V2.
+      }
+    }
+
+    return action;
   },
 
   getLegalConsentVersion() {

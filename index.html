@@ -857,29 +857,6 @@
           </div>
         </div>
         <div class="requests-column">
-          <article class="fit-context-card fit-context-contact" aria-label="Compatibilidad de la conversación">
-            <div class="fit-context-score">
-              <strong>88%</strong>
-              <span>con potencial</span>
-            </div>
-            <div class="fit-context-body">
-              <span class="micro-label">Relación activa</span>
-              <strong>Cada contacto necesita seguimiento.</strong>
-              <p>Lee mensajes, responde y usa el contacto directo cuando los datos estén disponibles.</p>
-            </div>
-            <div class="fit-context-route" aria-hidden="true">
-              <span></span><span></span><span></span><span></span>
-            </div>
-            <div class="fit-context-signals" aria-hidden="true">
-              <span>Solicitud recibida</span>
-              <span>Mensaje leído</span>
-              <span>Respuesta pendiente</span>
-              <span>Contacto directo</span>
-            </div>
-          </article>
-          <figure class="panel-network-banner contact-network-banner" aria-hidden="true">
-            <img src="./assets/brand/fit-match-logo-soft.png" alt="" />
-          </figure>
           <div id="requestBox" class="request-box">
             <strong>Aún no tienes contactos.</strong>
             <p>Cuando envíes una solicitud desde un Match, aparecerá aquí.</p>
@@ -948,19 +925,55 @@
         </section>
 
         <div id="adminDashboard" class="admin-dashboard" hidden>
-          <section class="admin-kpi-grid" aria-label="Métricas principales">
+          <section class="admin-toolbar" aria-label="Filtro del panel admin">
+            <div>
+              <span class="micro-label">Periodo activo</span>
+              <strong id="adminPeriodLabel">Desde el inicio</strong>
+            </div>
+            <label class="admin-period-control" for="adminPeriodFilter">
+              <span>Filtrar datos</span>
+              <select id="adminPeriodFilter">
+                <option value="all">Desde el inicio</option>
+                <option value="today">Hoy</option>
+                <option value="7d">Últimos 7 días</option>
+                <option value="30d">Últimos 30 días</option>
+              </select>
+            </label>
+          </section>
+
+          <section class="admin-kpi-grid admin-kpi-grid-extended" aria-label="Métricas principales">
             <article class="admin-kpi-card">
-              <span>Registros</span>
+              <span>Usuarios registrados</span>
               <strong id="adminMetricProfiles">0</strong>
               <small id="adminMetricRoleSplit">0 clientes · 0 profesionales</small>
             </article>
             <article class="admin-kpi-card">
-              <span>Matches posibles</span>
-              <strong id="adminMetricMatches">0</strong>
-              <small>cruces estimados por compatibilidad</small>
+              <span>Clientes</span>
+              <strong id="adminMetricClients">0</strong>
+              <small id="adminMetricClientsTrend">Sin histórico suficiente</small>
             </article>
             <article class="admin-kpi-card">
-              <span>Contactos</span>
+              <span>Profesionales</span>
+              <strong id="adminMetricProfessionals">0</strong>
+              <small id="adminMetricProfessionalsTrend">Sin histórico suficiente</small>
+            </article>
+            <article class="admin-kpi-card">
+              <span>Activos hoy</span>
+              <strong id="adminMetricActiveToday">0</strong>
+              <small id="adminMetricActiveTrend">eventos únicos de hoy</small>
+            </article>
+            <article class="admin-kpi-card">
+              <span>Perfiles completos</span>
+              <strong id="adminMetricCompleteProfiles">0</strong>
+              <small id="adminMetricCompleteNote">80% o más</small>
+            </article>
+            <article class="admin-kpi-card">
+              <span>Matches generados</span>
+              <strong id="adminMetricMatches">0</strong>
+              <small id="adminMetricMatchesTrend">cruces estimados</small>
+            </article>
+            <article class="admin-kpi-card">
+              <span>Contactos iniciados</span>
               <strong id="adminMetricContacts">0</strong>
               <small><span id="adminMetricPending">0</span> pendientes</small>
             </article>
@@ -969,27 +982,67 @@
               <strong id="adminMetricRatings">0</strong>
               <small>media <span id="adminMetricAverage">--</span></small>
             </article>
+            <article class="admin-kpi-card admin-kpi-card-alert">
+              <span>Denuncias pendientes</span>
+              <strong id="adminMetricReports">0</strong>
+              <small id="adminMetricReportsNote">Sin incidencias abiertas</small>
+            </article>
+          </section>
+
+          <section class="admin-card admin-alert-card">
+            <div class="admin-card-heading">
+              <span class="micro-label">Estado de la beta</span>
+              <h3>Alertas accionables</h3>
+              <p>Ordenadas por gravedad para saber dónde mirar primero.</p>
+            </div>
+            <div id="adminAlertList" class="admin-alert-list"></div>
           </section>
 
           <section class="admin-grid-two">
             <article class="admin-card">
               <div class="admin-card-heading">
-                <span class="micro-label">Embudo beta</span>
-                <h3>De registro a contacto</h3>
+                <span class="micro-label">Embudo real</span>
+                <h3>De registro a valoración</h3>
               </div>
-              <div id="adminFunnelList" class="admin-metric-list"></div>
+              <div id="adminFunnelList" class="admin-funnel-list"></div>
             </article>
 
             <article class="admin-card">
               <div class="admin-card-heading">
-                <span class="micro-label">Salud del producto</span>
-                <h3>Señales rápidas</h3>
+                <span class="micro-label">Tiempos clave</span>
+                <h3>Velocidad del recorrido</h3>
               </div>
-              <div id="adminHealthList" class="admin-metric-list"></div>
+              <div id="adminTimeList" class="admin-metric-list"></div>
             </article>
           </section>
 
           <section class="admin-grid-two">
+            <article class="admin-card">
+              <div class="admin-card-heading">
+                <span class="micro-label">Usuarios sin progreso</span>
+                <h3>Bloqueos de la beta</h3>
+              </div>
+              <div id="adminNoProgressList" class="admin-detail-list"></div>
+            </article>
+
+            <article class="admin-card">
+              <div class="admin-card-heading">
+                <span class="micro-label">Calidad del matching</span>
+                <h3>Oferta, demanda y afinidad</h3>
+              </div>
+              <div id="adminMatchQualityList" class="admin-metric-list"></div>
+            </article>
+          </section>
+
+          <section class="admin-grid-two">
+            <article class="admin-card">
+              <div class="admin-card-heading">
+                <span class="micro-label">Calidad del perfil</span>
+                <h3>Campos que más faltan</h3>
+              </div>
+              <div id="adminMissingFieldsList" class="admin-metric-list"></div>
+            </article>
+
             <article class="admin-card">
               <div class="admin-card-heading">
                 <span class="micro-label">Actividad reciente</span>
@@ -997,13 +1050,72 @@
               </div>
               <div id="adminRecentActivity" class="admin-activity-list"></div>
             </article>
+          </section>
+
+          <section class="admin-card">
+            <div class="admin-card-heading admin-report-heading">
+              <div>
+                <span class="micro-label">Moderación</span>
+                <h3>Denuncias y revisión humana</h3>
+                <p>Las acciones quedan registradas. No hay sanciones automáticas.</p>
+              </div>
+              <div class="admin-filter-row">
+                <label>Estado
+                  <select id="adminReportStatusFilter">
+                    <option value="all">Todos</option>
+                    <option value="pendiente">Pendiente</option>
+                    <option value="en_revision">En revisión</option>
+                    <option value="requiere_informacion">Requiere información</option>
+                    <option value="resuelta">Resuelta</option>
+                    <option value="descartada">Descartada</option>
+                  </select>
+                </label>
+                <label>Motivo
+                  <select id="adminReportReasonFilter">
+                    <option value="all">Todos</option>
+                    <option value="perfil_falso">Perfil falso</option>
+                    <option value="informacion_enganosa">Información engañosa</option>
+                    <option value="conducta_inapropiada">Conducta inapropiada</option>
+                    <option value="acoso">Acoso</option>
+                    <option value="discriminacion">Discriminación</option>
+                    <option value="fraude">Fraude o estafa</option>
+                    <option value="suplantacion">Suplantación</option>
+                    <option value="contenido_ofensivo">Contenido ofensivo</option>
+                    <option value="spam">Spam</option>
+                    <option value="sin_cualificacion">Sin cualificación declarada</option>
+                    <option value="conducta">Código de conducta</option>
+                    <option value="otro">Otro</option>
+                  </select>
+                </label>
+                <label>Prioridad
+                  <select id="adminReportPriorityFilter">
+                    <option value="all">Todas</option>
+                    <option value="baja">Baja</option>
+                    <option value="media">Media</option>
+                    <option value="alta">Alta</option>
+                    <option value="critica">Crítica</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <div id="adminReportList" class="admin-report-list"></div>
+          </section>
+
+          <section class="admin-grid-two">
+            <article class="admin-card">
+              <div class="admin-card-heading">
+                <span class="micro-label">Reputación</span>
+                <h3>Valoraciones y alertas</h3>
+              </div>
+              <div id="adminReputationList" class="admin-metric-list"></div>
+            </article>
 
             <article class="admin-card">
               <div class="admin-card-heading">
-                <span class="micro-label">Siguiente revisión</span>
-                <h3>Dónde mirar primero</h3>
+                <span class="micro-label">Fichas admin</span>
+                <h3>Usuarios a revisar</h3>
               </div>
-              <div id="adminFocusList" class="admin-metric-list"></div>
+              <div id="adminUserList" class="admin-detail-list"></div>
             </article>
           </section>
 
