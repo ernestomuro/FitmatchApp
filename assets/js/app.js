@@ -197,6 +197,20 @@ function ratingText(summary) {
   return `${summary.average}/5 · ${summary.count} valoración${summary.count === 1 ? "" : "es"}`;
 }
 
+function ratingSavedFeedback(target, ratingType) {
+  const summary = ratingSummaryFor(target);
+  const config = ratingConfig(ratingType);
+  const targetName = target?.name || "esta cuenta";
+  return {
+    title: `${config.label} guardado`,
+    profileText: `La puntuación ya se suma al perfil público de ${targetName}.`,
+    summaryText: summary.count
+      ? `Media visible ahora: ${ratingText(summary)}.`
+      : "La valoración se ha guardado y aparecerá en cuanto se actualice el perfil.",
+    routeText: "Puedes volver a verla en Valoraciones y también dentro del perfil público."
+  };
+}
+
 function createRatingBadge(person, className = "rating-badge") {
   const summary = ratingSummaryFor(person);
   const text = summary.count ? `★ ${summary.average}/5 · ${summary.count}` : "★ Nuevo";
@@ -411,6 +425,7 @@ let isProcessingPhoto = false;
 let selectedRequestIds = new Set();
 let openRequestIds = new Set();
 let openRatingIds = new Set();
+let recentRatingFeedback = new Map();
 let openConversationIds = new Set();
 let isSavingProfile = false;
 
@@ -3954,25 +3969,22 @@ async function saveRequestRating(requestId, direction, button) {
       comment: panel.querySelector("[data-rating-comment]")?.value.trim() || ""
     });
     await dataProvider.refreshRemoteData?.();
-    openRatingIds.add(`${direction}:${requestId}`);
-    requestBox.className = "request-box request-success";
-    requestBox.replaceChildren(
-      createElement("span", "success-kicker", "Valoración guardada"),
-      createElement("strong", "", `Has valorado ${ratingConfig(ratingType).label.toLowerCase()} con ${target.name}`),
-      createElement("p", "", "La puntuación ya se suma al perfil público de esa cuenta en el apartado adecuado.")
-    );
+    const savedFeedback = ratingSavedFeedback(target, ratingType);
+    const feedbackKey = `${direction}:${requestId}`;
+    recentRatingFeedback.set(feedbackKey, {
+      ratingType,
+      targetName: target.name,
+      ...savedFeedback
+    });
+    openRatingIds.add(feedbackKey);
     renderRequestHistory();
     refreshMatches();
     updateProfileStatus();
+    renderProfileHome();
   } catch (error) {
     panel.classList.add("rating-panel-warning");
     const errorText = error.message || "No se pudo guardar la valoración.";
     panel.querySelector(".rating-heading p").textContent = errorText;
-    requestBox.className = "request-box";
-    requestBox.replaceChildren(
-      createElement("strong", "", "No se pudo guardar la valoración"),
-      createElement("p", "", errorText)
-    );
   } finally {
     button.disabled = false;
     button.textContent = originalButtonText;
@@ -4012,14 +4024,19 @@ function buildRequestCard(request, direction) {
   card.append(summary);
 
   const body = createElement("div", "history-card-body");
-  const message = createElement("p", "history-message", request.message);
-  body.append(message);
+  const messageFocus = createElement("section", "contact-message-focus");
+  const messageLabel = direction === "incoming" ? "Mensaje recibido" : "Mensaje enviado";
+  const messageText = (request.message || "").trim() || "Sin mensaje escrito.";
+  messageFocus.append(
+    createElement("span", "micro-label", messageLabel),
+    createElement("p", "history-message", messageText)
+  );
+  body.append(messageFocus);
 
   if (direction === "incoming") {
     body.append(
-      buildContactActions(request),
       buildReplyComposer(request),
-      createElement("p", "history-note", "Puedes responder dentro de Fit Match o usar email/teléfono si están disponibles.")
+      buildContactActions(request)
     );
   } else {
     body.append(createElement(
@@ -4144,12 +4161,26 @@ function buildRatingCard(request, direction) {
   const body = createElement("div", "rating-contact-body");
   const contactDone = requestContactStarted(request);
   const serviceDone = requestServiceCompleted(request);
+  const cardKey = `${direction}:${request.id}`;
+  const feedback = recentRatingFeedback.get(cardKey);
+
+  if (feedback) {
+    const feedbackBox = createElement("div", "request-box request-success rating-save-feedback");
+    feedbackBox.append(
+      createElement("span", "success-kicker", "Valoración guardada"),
+      createElement("strong", "", `Has valorado ${ratingConfig(feedback.ratingType).label.toLowerCase()} con ${feedback.targetName}`),
+      createElement("p", "", feedback.profileText),
+      createElement("p", "rating-save-summary", feedback.summaryText),
+      createElement("span", "pill", feedback.routeText)
+    );
+    body.append(feedbackBox);
+  }
 
   body.append(buildContactStagePanel(request, direction));
   if (contactDone) body.append(buildRatingPanel(request, direction, "first_contact"));
   if (serviceDone) body.append(buildRatingPanel(request, direction, "service"));
 
-  const cardKey = `${direction}:${request.id}`;
+  card.dataset.ratingCard = cardKey;
   card.open = openRatingIds.has(cardKey);
   card.addEventListener("toggle", () => {
     if (card.open) {
