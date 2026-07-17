@@ -828,6 +828,86 @@ function remoteWriteError(action, error) {
   return new Error(`${action}. ${message || "Supabase no confirmó la operación."}${permissionHint}`);
 }
 
+function isMissingRelationError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return error?.code === "42P01"
+    || error?.code === "PGRST205"
+    || error?.code === "PGRST204"
+    || message.includes("does not exist")
+    || message.includes("schema cache")
+    || message.includes("could not find");
+}
+
+async function remoteDeleteRows(action, buildQuery, options = {}) {
+  const result = await buildQuery(supabaseClient);
+  if (result.error) {
+    if (options.optional && isMissingRelationError(result.error)) return [];
+    throw remoteWriteError(action, result.error);
+  }
+  return Array.isArray(result.data) ? result.data : [];
+}
+
+async function remoteHasRows(action, buildQuery, options = {}) {
+  const result = await buildQuery(supabaseClient);
+  if (result.error) {
+    if (options.optional && isMissingRelationError(result.error)) return false;
+    throw remoteWriteError(action, result.error);
+  }
+  return Array.isArray(result.data) && result.data.length > 0;
+}
+
+async function assertRemoteProfileDeleted(userId) {
+  const contactFilter = `sender_id.eq.${userId},recipient_id.eq.${userId}`;
+  const ratingFilter = `rater_id.eq.${userId},target_id.eq.${userId}`;
+  const checks = [
+    {
+      label: "perfil público",
+      query: (client) => client.from("profiles").select("id").eq("id", userId).limit(1)
+    },
+    {
+      label: "perfil cliente",
+      query: (client) => client.from("client_profiles").select("user_id").eq("user_id", userId).limit(1)
+    },
+    {
+      label: "perfil profesional",
+      query: (client) => client.from("professional_profiles").select("user_id").eq("user_id", userId).limit(1)
+    },
+    {
+      label: "datos privados",
+      query: (client) => client.from("private_profile_data").select("user_id").eq("user_id", userId).limit(1)
+    },
+    {
+      label: "solicitudes de contacto",
+      query: (client) => client.from("contact_requests").select("id").or(contactFilter).limit(1)
+    },
+    {
+      label: "valoraciones",
+      optional: true,
+      query: (client) => client.from("profile_ratings").select("id").or(ratingFilter).limit(1)
+    },
+    {
+      label: "suscripción PRO",
+      optional: true,
+      query: (client) => client.from("professional_subscriptions").select("user_id").eq("user_id", userId).limit(1)
+    },
+    {
+      label: "métricas PRO",
+      optional: true,
+      query: (client) => client.from("professional_metrics").select("user_id").eq("user_id", userId).limit(1)
+    }
+  ];
+
+  const remaining = [];
+  for (const check of checks) {
+    const hasRows = await remoteHasRows(`Comprobar borrado de ${check.label}`, check.query, { optional: check.optional });
+    if (hasRows) remaining.push(check.label);
+  }
+
+  if (remaining.length) {
+    throw new Error(`Supabase no permitió borrar por completo: ${remaining.join(", ")}. Ejecuta docs/supabase-profile-delete.sql en Supabase y vuelve a intentarlo.`);
+  }
+}
+
 window.FitMatchDataProvider = {
   async init() {
     if (!supabaseClient) {
@@ -1196,6 +1276,7 @@ window.FitMatchDataProvider = {
       if (!role) {
         removeStorage(STORAGE_KEYS.registeredProfiles);
         removeStorage(STORAGE_KEYS.contactRequests);
+        removeStorage(STORAGE_KEYS.ratings);
         return [];
       }
       const remaining = readProfiles().filter((profile) => profile.role !== role);
@@ -1205,17 +1286,46 @@ window.FitMatchDataProvider = {
     }
 
     const userId = currentSession.user.id;
-    const detailTables = ["client_profiles", "professional_profiles"];
+    const contactFilter = `sender_id.eq.${userId},recipient_id.eq.${userId}`;
+    const ratingFilter = `rater_id.eq.${userId},target_id.eq.${userId}`;
 
-    // Se elimina la actividad relacionada para que el perfil no siga apareciendo en cruces ni historial.
-    await assertNoError(await supabaseClient.from("contact_requests").delete().or(`sender_id.eq.${userId},recipient_id.eq.${userId}`));
-    await assertNoError(await supabaseClient.from("private_profile_data").delete().eq("user_id", userId));
-    await Promise.all([...new Set(detailTables)].map(async (table) =>
-      assertNoError(await supabaseClient.from(table).delete().eq("user_id", userId))
+    // Se elimina toda la actividad asociada antes del perfil público para evitar perfiles fantasma en matches/contactos.
+    await remoteDeleteRows(
+      "No se pudieron borrar las valoraciones relacionadas con este perfil",
+      (client) => client.from("profile_ratings").delete().or(ratingFilter).select("id"),
+      { optional: true }
+    );
+    await remoteDeleteRows(
+      "No se pudieron borrar las solicitudes de contacto de este perfil",
+      (client) => client.from("contact_requests").delete().or(contactFilter).select("id")
+    );
+    await remoteDeleteRows(
+      "No se pudieron borrar los datos privados de este perfil",
+      (client) => client.from("private_profile_data").delete().eq("user_id", userId).select("user_id")
+    );
+    await Promise.all(["client_profiles", "professional_profiles"].map((table) =>
+      remoteDeleteRows(
+        `No se pudo borrar ${table}`,
+        (client) => client.from(table).delete().eq("user_id", userId).select("user_id")
+      )
     ));
+    await remoteDeleteRows(
+      "No se pudo borrar la suscripción PRO del perfil",
+      (client) => client.from("professional_subscriptions").delete().eq("user_id", userId).select("user_id"),
+      { optional: true }
+    );
+    await remoteDeleteRows(
+      "No se pudieron borrar las métricas PRO del perfil",
+      (client) => client.from("professional_metrics").delete().eq("user_id", userId).select("user_id"),
+      { optional: true }
+    );
 
-    // El auth user sigue existiendo; desde el navegador solo limpiamos los datos públicos/privados de la app.
-    await assertNoError(await supabaseClient.from("profiles").delete().eq("id", userId));
+    // El usuario de Auth sigue existiendo; desde el navegador limpiamos los datos de Fit Match y verificamos que no quede perfil activo.
+    await remoteDeleteRows(
+      "No se pudo borrar el perfil público de Fit Match",
+      (client) => client.from("profiles").delete().eq("id", userId).select("id")
+    );
+    await assertRemoteProfileDeleted(userId);
 
     this.clearProfileDraft();
     remoteProfiles = remoteProfiles.filter((profile) => profile.id !== userId);
@@ -1223,6 +1333,7 @@ window.FitMatchDataProvider = {
     remoteRatings = remoteRatings.filter((rating) => rating.raterId !== userId && rating.targetId !== userId);
     remotePrivateNotes = {};
     remoteProSubscription = null;
+    await this.trackEvent("profile_deleted", { role, profileId: userId, source: "remote" });
     await this.refreshRemoteData();
     return this.listProfiles(role);
   },
