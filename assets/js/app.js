@@ -4755,16 +4755,19 @@ resetProfileButton?.addEventListener("click", startCleanProfile);
 clearProfilesButton.addEventListener("click", async () => {
   const wasRemote = isRemoteMode();
   const targetText = wasRemote
-    ? "eliminar tu perfil, datos privados y solicitudes asociadas en Supabase"
+    ? "eliminar tu cuenta de acceso, tu perfil y datos asociados en Supabase"
     : "eliminar tu perfil guardado en este navegador";
   const confirmed = window.confirm(`¿Quieres ${targetText}?`);
   if (!confirmed) return;
   try {
-    await dataProvider.clearProfiles(profile.role);
+    const deletionResult = await dataProvider.clearProfiles(profile.role);
     if (wasRemote) {
       await dataProvider.signOut();
       resetProfileState(profile.role);
-      updateAuthPanel("Perfil y datos de Fit Match eliminados de Supabase. Sesión cerrada.");
+      const deletionMessage = deletionResult?.authDeleted
+        ? "Cuenta de acceso, perfil y datos de Fit Match eliminados de Supabase. Sesión cerrada."
+        : "Perfil de Fit Match eliminado. Para borrar tambien email y contrasena, ejecuta docs/supabase-account-delete.sql en Supabase.";
+      updateAuthPanel(deletionMessage);
       showView("home");
       return;
     }

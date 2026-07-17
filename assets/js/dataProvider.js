@@ -838,6 +838,25 @@ function isMissingRelationError(error) {
     || message.includes("could not find");
 }
 
+function isMissingRpcError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return error?.code === "PGRST202"
+    || message.includes("could not find the function")
+    || message.includes("function public.delete_current_user_account")
+    || message.includes("schema cache");
+}
+
+async function deleteCurrentAuthAccount() {
+  const result = await supabaseClient.rpc("delete_current_user_account");
+  if (result.error) {
+    if (isMissingRpcError(result.error)) {
+      return { ok: false, missingFunction: true };
+    }
+    throw remoteWriteError("No se pudo borrar la cuenta de acceso", result.error);
+  }
+  return { ok: true };
+}
+
 async function remoteDeleteRows(action, buildQuery, options = {}) {
   const result = await buildQuery(supabaseClient);
   if (result.error) {
@@ -1286,6 +1305,17 @@ window.FitMatchDataProvider = {
     }
 
     const userId = currentSession.user.id;
+    const accountDeletion = await deleteCurrentAuthAccount();
+    if (accountDeletion.ok) {
+      this.clearProfileDraft();
+      remoteProfiles = remoteProfiles.filter((profile) => profile.id !== userId);
+      remoteRequests = remoteRequests.filter((request) => request.profile.id !== userId && request.target.id !== userId);
+      remoteRatings = remoteRatings.filter((rating) => rating.raterId !== userId && rating.targetId !== userId);
+      remotePrivateNotes = {};
+      remoteProSubscription = null;
+      return { profileDeleted: true, authDeleted: true };
+    }
+
     const contactFilter = `sender_id.eq.${userId},recipient_id.eq.${userId}`;
     const ratingFilter = `rater_id.eq.${userId},target_id.eq.${userId}`;
 
@@ -1320,7 +1350,7 @@ window.FitMatchDataProvider = {
       { optional: true }
     );
 
-    // El usuario de Auth sigue existiendo; desde el navegador limpiamos los datos de Fit Match y verificamos que no quede perfil activo.
+    // Si la funcion segura de Supabase aun no esta instalada, dejamos al menos limpio el perfil de Fit Match.
     await remoteDeleteRows(
       "No se pudo borrar el perfil público de Fit Match",
       (client) => client.from("profiles").delete().eq("id", userId).select("id")
@@ -1335,7 +1365,7 @@ window.FitMatchDataProvider = {
     remoteProSubscription = null;
     await this.trackEvent("profile_deleted", { role, profileId: userId, source: "remote" });
     await this.refreshRemoteData();
-    return this.listProfiles(role);
+    return { profileDeleted: true, authDeleted: false, needsAccountDeleteSql: true, remainingProfiles: this.listProfiles(role) };
   },
 
   listContactRequests(role, options = {}) {
