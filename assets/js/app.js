@@ -410,6 +410,7 @@ let renderTimer = null;
 let isProcessingPhoto = false;
 let selectedRequestIds = new Set();
 let openRequestIds = new Set();
+let openRatingIds = new Set();
 let openConversationIds = new Set();
 let isSavingProfile = false;
 
@@ -3658,9 +3659,36 @@ async function markIncomingRequestAsRead(requestId) {
 
   try {
     await dataProvider.markContactRequestRead?.(requestId);
-    renderRequestHistory();
+    const updatedIncoming = dataProvider.listContactRequests(profile.role, { profileId: profile.id, direction: "incoming" });
+    const unreadRequests = updatedIncoming.filter((item) => !item.readAt).length;
+    historyTitle.textContent = unreadRequests ? `Bandeja · ${unreadRequests} nuevo${unreadRequests === 1 ? "" : "s"}` : "Bandeja de contactos";
+
+    const card = Array.from(requestList?.querySelectorAll("[data-request-id]") || [])
+      .find((item) => item.dataset.requestId === requestId);
+    if (card) {
+      card.classList.remove("unread-card");
+      card.classList.add("read-card");
+      const badge = card.querySelector(".status-badge");
+      if (badge) {
+        badge.textContent = "Leído";
+        badge.classList.remove("status-unread");
+        badge.classList.add("status-read");
+      }
+    }
+
+    const conversation = card?.closest(".conversation-card");
+    if (conversation) {
+      const groupKey = conversation.dataset.conversationId;
+      const group = groupRequestsByConversation(updatedIncoming, "incoming").find((item) => item.key === groupKey);
+      const badge = conversation.querySelector(":scope > .conversation-summary .status-badge");
+      if (badge && group) {
+        badge.textContent = group.unreadCount ? `${group.unreadCount} nuevo${group.unreadCount === 1 ? "" : "s"}` : "Leído";
+        badge.classList.toggle("status-unread", Boolean(group.unreadCount));
+        badge.classList.toggle("status-read", !group.unreadCount);
+      }
+    }
   } catch (error) {
-    // Si la política remota no permite marcar leído todavía, mantenemos la lectura visual sin romper la bandeja.
+    // Si la política remota no permite marcar leído todavía, mantenemos la bandeja abierta y estable.
   }
 }
 
@@ -3688,7 +3716,13 @@ function requestServiceCompleted(request) {
 
 function requestRatingFor(request, direction, ratingType = "service") {
   const target = ratingTargetForRequest(request, direction);
-  return dataProvider.getRatingForRequest?.(request.id, currentViewerId(), target.id, normalizeRatingType(ratingType));
+  const type = normalizeRatingType(ratingType);
+  const targetIds = relatedProfileIdsForPerson(target);
+  for (const targetId of targetIds) {
+    const rating = dataProvider.getRatingForRequest?.(request.id, currentViewerId(), targetId, type);
+    if (rating) return rating;
+  }
+  return null;
 }
 
 function requestCanBeRated(request, direction, ratingType = "service") {
@@ -3756,11 +3790,13 @@ function buildContactStagePanel(request, direction) {
     const button = createElement("button", "button primary contact-stage-action", "Confirmar primer contacto");
     button.type = "button";
     button.dataset.markContactStarted = request.id;
+    button.dataset.ratingDirection = direction;
     actions.append(button);
   } else if (!serviceDone) {
     const button = createElement("button", "button primary contact-stage-action", "Confirmar servicio real");
     button.type = "button";
     button.dataset.markServiceCompleted = request.id;
+    button.dataset.ratingDirection = direction;
     actions.append(button);
   }
 
@@ -3798,6 +3834,8 @@ function buildRatingPanel(request, direction, ratingType = "service") {
   const criteria = ratingCriteriaForRole(targetRole, type);
   const config = ratingConfig(type);
   const panel = createElement("div", `rating-panel rating-panel-actionable rating-panel-${type}`);
+  panel.dataset.ratingType = type;
+  panel.dataset.ratingRequest = request.id;
   const heading = createElement("div", "rating-heading");
   const title = createElement("strong", "", existing ? config.savedLabel : config.actionLabel);
   const copy = createElement("p", "", existing
@@ -3879,8 +3917,12 @@ async function saveRequestRating(requestId, direction, button) {
   const request = requests.find((item) => item.id === requestId);
   if (!request) return;
   const target = ratingTargetForRequest(request, direction);
-  const ratingType = normalizeRatingType(button.dataset.ratingType || "service");
   const panel = button.closest(".rating-panel");
+  const inferredRatingType = panel?.dataset.ratingType
+    || (panel?.classList.contains("rating-panel-first_contact") ? "first_contact" : "service");
+  const ratingType = normalizeRatingType(button.dataset.ratingType || inferredRatingType);
+  if (panel) panel.dataset.ratingType = ratingType;
+  button.dataset.ratingType = ratingType;
   const criteria = {};
   let completed = true;
 
@@ -3912,6 +3954,7 @@ async function saveRequestRating(requestId, direction, button) {
       comment: panel.querySelector("[data-rating-comment]")?.value.trim() || ""
     });
     await dataProvider.refreshRemoteData?.();
+    openRatingIds.add(`${direction}:${requestId}`);
     requestBox.className = "request-box request-success";
     requestBox.replaceChildren(
       createElement("span", "success-kicker", "Valoración guardada"),
@@ -3923,7 +3966,13 @@ async function saveRequestRating(requestId, direction, button) {
     updateProfileStatus();
   } catch (error) {
     panel.classList.add("rating-panel-warning");
-    panel.querySelector(".rating-heading p").textContent = error.message || "No se pudo guardar la valoración.";
+    const errorText = error.message || "No se pudo guardar la valoración.";
+    panel.querySelector(".rating-heading p").textContent = errorText;
+    requestBox.className = "request-box";
+    requestBox.replaceChildren(
+      createElement("strong", "", "No se pudo guardar la valoración"),
+      createElement("p", "", errorText)
+    );
   } finally {
     button.disabled = false;
     button.textContent = originalButtonText;
@@ -4093,11 +4142,22 @@ function buildRatingCard(request, direction) {
   summary.append(header, toggle);
 
   const body = createElement("div", "rating-contact-body");
-  body.append(
-    buildContactStagePanel(request, direction),
-    buildRatingPanel(request, direction, "first_contact"),
-    buildRatingPanel(request, direction, "service")
-  );
+  const contactDone = requestContactStarted(request);
+  const serviceDone = requestServiceCompleted(request);
+
+  body.append(buildContactStagePanel(request, direction));
+  if (contactDone) body.append(buildRatingPanel(request, direction, "first_contact"));
+  if (serviceDone) body.append(buildRatingPanel(request, direction, "service"));
+
+  const cardKey = `${direction}:${request.id}`;
+  card.open = openRatingIds.has(cardKey);
+  card.addEventListener("toggle", () => {
+    if (card.open) {
+      openRatingIds.add(cardKey);
+      return;
+    }
+    openRatingIds.delete(cardKey);
+  });
 
   card.append(summary, body);
   return card;
@@ -4120,7 +4180,7 @@ function uniqueRatingItems(items = []) {
   const map = new Map();
   items.forEach((item) => {
     const target = ratingTargetForRequest(item.request, item.direction);
-    const key = target?.id || item.request.id;
+    const key = canonicalPersonKey(target) || item.request.id;
     const current = map.get(key);
     if (!current || ratingItemPriority(item) >= ratingItemPriority(current)) {
       map.set(key, item);
@@ -4166,18 +4226,93 @@ function requestCounterpart(request, direction) {
   return direction === "incoming" ? request.sender : request.recipient;
 }
 
+function contactDirectoryProfiles() {
+  return [
+    ...dataProvider.listProfiles("client"),
+    ...dataProvider.listProfiles("professional")
+  ];
+}
+
+function personIdentityEmail(person = {}) {
+  return normalizeText(person.email || person.contactEmail || person.contact_email || "");
+}
+
+function personIdentityId(person = {}) {
+  return normalizeText(person.id || person.userId || person.user_id || "");
+}
+
+function resolveKnownProfileForPerson(person = {}) {
+  const role = person.role || "";
+  const id = personIdentityId(person);
+  const email = personIdentityEmail(person);
+  const name = normalizeText(person.name || "");
+  const profiles = contactDirectoryProfiles();
+
+  return profiles.find((item) => {
+    if (role && item.role && item.role !== role) return false;
+    const itemId = personIdentityId(item);
+    const itemEmail = personIdentityEmail(item);
+    if (id && itemId && id === itemId) return true;
+    if (email && itemEmail && email === itemEmail) return true;
+    return false;
+  }) || profiles.find((item) => {
+    if (role && item.role && item.role !== role) return false;
+    return name && normalizeText(item.name || "") === name && normalizeText(item.city || "") === normalizeText(person.city || "");
+  }) || null;
+}
+
+function resolveConversationPerson(person = {}) {
+  const known = resolveKnownProfileForPerson(person);
+  if (!known) return person;
+  return {
+    ...person,
+    ...known,
+    services: known.services?.length ? known.services : person.services || []
+  };
+}
+
+function personDisplayQuality(person = {}) {
+  return [person.id, person.email || person.contactEmail, person.name, person.photo, person.city, person.goal, person.sport, person.phone]
+    .filter(Boolean).length + (Array.isArray(person.services) ? person.services.length : 0);
+}
+
+function canonicalPersonKey(person = {}) {
+  const resolved = resolveConversationPerson(person);
+  const role = resolved.role || person.role || "profile";
+  const email = personIdentityEmail(resolved) || personIdentityEmail(person);
+  if (email) return `${role}:email:${email}`;
+
+  const id = personIdentityId(resolved) || personIdentityId(person);
+  if (id) return `${role}:id:${id}`;
+
+  const name = normalizeText(resolved.name || person.name || "");
+  const city = normalizeText(resolved.city || person.city || "");
+  return `${role}:legacy:${name}:${city}`;
+}
+
+function relatedProfileIdsForPerson(person = {}) {
+  const ids = new Set([person.id, resolveConversationPerson(person).id].filter(Boolean));
+  const key = canonicalPersonKey(person);
+  contactDirectoryProfiles().forEach((item) => {
+    if (canonicalPersonKey(item) === key && item.id) ids.add(item.id);
+  });
+  return ids.size ? Array.from(ids) : [person.id].filter(Boolean);
+}
+
 function conversationKeyForRequest(request, direction) {
   const person = requestCounterpart(request, direction) || {};
-  const identity = normalizeText(person.id || person.email || person.contactEmail || person.name || request.id);
-  return `${direction}:${person.role || "profile"}:${identity || request.id}`;
+  return `${direction}:${canonicalPersonKey(person) || request.id}`;
 }
 
 function groupRequestsByConversation(requests = [], direction) {
   const groups = new Map();
   requests.forEach((request) => {
     const key = conversationKeyForRequest(request, direction);
+    const person = resolveConversationPerson(requestCounterpart(request, direction) || {});
     if (!groups.has(key)) {
-      groups.set(key, { key, direction, person: requestCounterpart(request, direction), requests: [] });
+      groups.set(key, { key, direction, person, requests: [] });
+    } else if (personDisplayQuality(person) > personDisplayQuality(groups.get(key).person)) {
+      groups.get(key).person = person;
     }
     groups.get(key).requests.push(request);
   });
@@ -4221,6 +4356,14 @@ function buildConversationCard(group) {
   const thread = createElement("div", "conversation-thread-list");
   group.requests.forEach((request) => thread.append(buildRequestCard(request, group.direction)));
   card.append(thread);
+
+  const conversationActions = createElement("div", "conversation-actions");
+  const deleteConversationButton = createElement("button", "button quiet danger-button conversation-delete-button", "Eliminar conversación");
+  deleteConversationButton.type = "button";
+  deleteConversationButton.dataset.deleteConversation = group.requests.map((request) => request.id).join(",");
+  deleteConversationButton.setAttribute("aria-label", `Eliminar conversación con ${person.name || "este contacto"}`);
+  conversationActions.append(deleteConversationButton);
+  card.append(conversationActions);
 
   card.open = openConversationIds.has(group.key);
   card.addEventListener("toggle", () => {
@@ -4641,21 +4784,37 @@ clearRequestsButton.addEventListener("click", async () => {
 async function markRequestContactStage(requestId, stage = "contact", button) {
   if (!requestId) return;
   const originalText = button?.textContent || "";
+  const isService = stage === "service";
   if (button) {
     button.disabled = true;
     button.textContent = "Guardando...";
   }
   try {
-    if (stage === "service") {
+    if (isService) {
       await dataProvider.markServiceCompleted?.(requestId);
     } else {
       await dataProvider.markContactStarted?.(requestId);
     }
     await dataProvider.refreshRemoteData?.();
+    openRatingIds.add(`${button?.dataset.ratingDirection || ""}:${requestId}`);
+    requestBox.className = "request-box request-success";
+    requestBox.replaceChildren(
+      createElement("span", "success-kicker", isService ? "Servicio real confirmado" : "Primer contacto confirmado"),
+      createElement("strong", "", isService ? "Ya puedes valorar la experiencia real." : "Ya puedes valorar la primera conversación."),
+      createElement("p", "", isService
+        ? "La valoración de servicio se activa ahora para construir una reputación más completa."
+        : "La valoración de primer contacto se activa ahora, separada del servicio real.")
+    );
     renderRequestHistory();
     refreshMatches();
     updateProfileStatus();
   } catch (error) {
+    const errorText = error.message || "No se pudo guardar este paso.";
+    requestBox.className = "request-box";
+    requestBox.replaceChildren(
+      createElement("strong", "", "No se pudo guardar este paso"),
+      createElement("p", "", errorText)
+    );
     if (button) button.textContent = "No se pudo guardar";
   } finally {
     if (button) {
@@ -4695,6 +4854,18 @@ function handleContactPanelClick(event) {
     event.preventDefault();
     event.stopPropagation();
     markRequestContactStage(serviceCompletedButton.dataset.markServiceCompleted, "service", serviceCompletedButton);
+    return;
+  }
+
+  const deleteConversationButton = event.target.closest("[data-delete-conversation]");
+  if (deleteConversationButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    const ids = String(deleteConversationButton.dataset.deleteConversation || "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
+    deleteSelectedRequests(ids);
     return;
   }
 

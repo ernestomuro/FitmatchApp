@@ -1,5 +1,6 @@
 -- Fit Match · valoraciones públicas y consentimiento legal beta
 -- Ejecutar en Supabase SQL Editor después de tener las tablas base creadas.
+-- Esta versión permite una valoración de primer contacto y una de servicio real por cada par de usuarios.
 
 create extension if not exists pgcrypto;
 
@@ -10,14 +11,37 @@ create table if not exists public.profile_ratings (
   target_id uuid not null references public.profiles(id) on delete cascade,
   rater_role public.app_role not null,
   target_role public.app_role not null,
+  rating_type text not null default 'service' check (rating_type in ('first_contact', 'service')),
   criteria jsonb not null default '{}'::jsonb,
   average_score numeric(3,2) not null check (average_score >= 1 and average_score <= 5),
   comment text default '',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint profile_ratings_no_self_rating check (rater_id <> target_id),
-  constraint profile_ratings_one_per_request unique (request_id, rater_id, target_id)
+  constraint profile_ratings_no_self_rating check (rater_id <> target_id)
 );
+
+alter table public.profile_ratings
+  add column if not exists rating_type text not null default 'service';
+
+alter table public.profile_ratings
+  drop constraint if exists profile_ratings_rating_type_check;
+
+alter table public.profile_ratings
+  add constraint profile_ratings_rating_type_check
+  check (rating_type in ('first_contact', 'service'));
+
+update public.profile_ratings
+set rating_type = coalesce(criteria->>'_ratingType', rating_type, 'service')
+where rating_type is null or rating_type not in ('first_contact', 'service');
+
+alter table public.profile_ratings
+  drop constraint if exists profile_ratings_one_per_request;
+
+alter table public.profile_ratings
+  drop constraint if exists profile_ratings_one_per_person_type;
+
+alter table public.profile_ratings
+  add constraint profile_ratings_one_per_person_type unique (rater_id, target_id, rating_type);
 
 alter table public.profile_ratings enable row level security;
 
@@ -59,6 +83,20 @@ create trigger set_profile_ratings_updated_at
 create index if not exists profile_ratings_target_idx on public.profile_ratings (target_id);
 create index if not exists profile_ratings_rater_idx on public.profile_ratings (rater_id);
 create index if not exists profile_ratings_request_idx on public.profile_ratings (request_id);
+create index if not exists profile_ratings_pair_type_idx on public.profile_ratings (rater_id, target_id, rating_type);
 
 -- El consentimiento legal beta se guarda dentro de private_profile_data.private_notes
 -- como JSON bajo la clave legalConsent, junto a otros datos privados de usuario.
+
+
+-- Permite que emisor y destinatario actualicen el estado operativo de sus contactos.
+-- La app lo usa para marcar leido, contacto iniciado, servicio realizado y mensajes ocultos por usuario.
+alter table public.contact_requests enable row level security;
+
+drop policy if exists contact_requests_participants_update on public.contact_requests;
+create policy contact_requests_participants_update
+  on public.contact_requests
+  for update
+  to authenticated
+  using (auth.uid() = sender_id or auth.uid() = recipient_id)
+  with check (auth.uid() = sender_id or auth.uid() = recipient_id);

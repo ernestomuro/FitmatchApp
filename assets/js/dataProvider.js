@@ -227,9 +227,13 @@ function writeProSubscription(profileId, subscription) {
   return subscriptions[profileId || "local"];
 }
 
+function normalizeStoredRatingType(ratingType = "service") {
+  return ratingType === "first_contact" ? "first_contact" : "service";
+}
+
 function normalizeRating(rating = {}) {
   const baseCriteria = rating.criteria && typeof rating.criteria === "object" ? rating.criteria : {};
-  const ratingType = rating.ratingType || rating.rating_type || baseCriteria._ratingType || "service";
+  const ratingType = normalizeStoredRatingType(rating.ratingType || rating.rating_type || baseCriteria._ratingType || "service");
   const criteria = { ...baseCriteria, _ratingType: ratingType };
   const publicComment = rating.publicComment || rating.public_comment || criteria._publicComment || "";
   const values = Object.entries(criteria)
@@ -816,6 +820,14 @@ async function assertNoError(result) {
   return result.data;
 }
 
+function remoteWriteError(action, error) {
+  const message = String(error?.message || "").trim();
+  const permissionHint = message.toLowerCase().includes("row-level security") || message.toLowerCase().includes("permission")
+    ? " Puede faltar ejecutar la actualización de permisos en Supabase."
+    : "";
+  return new Error(`${action}. ${message || "Supabase no confirmó la operación."}${permissionHint}`);
+}
+
 window.FitMatchDataProvider = {
   async init() {
     if (!supabaseClient) {
@@ -960,7 +972,7 @@ window.FitMatchDataProvider = {
             .order("created_at", { ascending: false })
         );
         const syncedRatings = (ratingRows || []).map(normalizeRating);
-        remoteRatings = dedupeRatings([...syncedRatings, ...readRatings()]);
+        remoteRatings = dedupeRatings(syncedRatings);
         ratingsRemoteAvailable = true;
       } catch (error) {
         ratingsRemoteAvailable = false;
@@ -1315,15 +1327,21 @@ window.FitMatchDataProvider = {
       return updatedRequest;
     }
 
-    const current = await assertNoError(
-      await supabaseClient.from("contact_requests").select("reasons").eq("id", requestId).maybeSingle()
-    );
-    const reasons = marker(current?.reasons || [], userId);
-    await assertNoError(
-      await supabaseClient.from("contact_requests").update({ reasons }).eq("id", requestId)
-    );
-    await this.refreshRemoteData();
-    return remoteRequests.find((request) => request.id === requestId) || null;
+    try {
+      const current = await assertNoError(
+        await supabaseClient.from("contact_requests").select("reasons").eq("id", requestId).maybeSingle()
+      );
+      if (!current) throw new Error("No se encontró este contacto para la cuenta actual.");
+      const reasons = marker(current.reasons || [], userId);
+      const updated = await assertNoError(
+        await supabaseClient.from("contact_requests").update({ reasons }).eq("id", requestId).select("id").maybeSingle()
+      );
+      if (!updated?.id) throw new Error("Supabase no confirmó el cambio. Revisa que esta cuenta participe en este contacto.");
+      await this.refreshRemoteData();
+      return remoteRequests.find((request) => request.id === requestId) || null;
+    } catch (error) {
+      throw remoteWriteError("No se pudo actualizar el estado del contacto en Supabase", error);
+    }
   },
 
   async markContactStarted(requestId) {
@@ -1350,15 +1368,19 @@ window.FitMatchDataProvider = {
       return updated;
     }
 
-    await Promise.all(ids.map(async (id) => {
-      const current = await assertNoError(
-        await supabaseClient.from("contact_requests").select("reasons").eq("id", id).maybeSingle()
-      );
-      const reasons = markReasonsDeleted(current?.reasons || [], viewerId);
-      await assertNoError(
-        await supabaseClient.from("contact_requests").update({ reasons }).eq("id", id)
-      );
-    }));
+    try {
+      await Promise.all(ids.map(async (id) => {
+        const current = await assertNoError(
+          await supabaseClient.from("contact_requests").select("reasons").eq("id", id).maybeSingle()
+        );
+        const reasons = markReasonsDeleted(current?.reasons || [], viewerId);
+        await assertNoError(
+          await supabaseClient.from("contact_requests").update({ reasons }).eq("id", id)
+        );
+      }));
+    } catch (error) {
+      throw remoteWriteError("No se pudieron eliminar los mensajes en Supabase", error);
+    }
 
     await this.refreshRemoteData();
     return remoteRequests;
@@ -1689,7 +1711,8 @@ window.FitMatchDataProvider = {
   },
 
   listRatings() {
-    return dedupeRatings([...(canUseRemote() ? remoteRatings : []), ...readRatings()]);
+    const remote = canUseRemote() ? remoteRatings : [];
+    return dedupeRatings([...remote, ...readRatings()]);
   },
 
   getRatingSummary(targetId) {
@@ -1700,11 +1723,12 @@ window.FitMatchDataProvider = {
   },
 
   getRatingForRequest(requestId, raterId, targetId, ratingType = "service") {
+    const expectedType = normalizeStoredRatingType(ratingType);
     const ratings = this.listRatings().filter((rating) => {
       const item = normalizeRating(rating);
       return item.raterId === raterId
         && item.targetId === targetId
-        && item.ratingType === ratingType;
+        && item.ratingType === expectedType;
     });
     return ratings.find((rating) => rating.requestId === requestId) || ratings[0] || null;
   },
@@ -1712,7 +1736,7 @@ window.FitMatchDataProvider = {
   async saveRating(payload = {}) {
     const user = currentSession?.user;
     const raterId = payload.raterId || user?.id || "local";
-    const ratingType = payload.ratingType || payload.rating_type || "service";
+    const ratingType = normalizeStoredRatingType(payload.ratingType || payload.rating_type || "service");
     const normalized = normalizeRating({
       requestId: payload.requestId,
       raterId,
@@ -1729,58 +1753,62 @@ window.FitMatchDataProvider = {
       comment: payload.comment || ""
     });
 
-    const localSaved = saveLocalRating(normalized);
-    remoteRatings = dedupeRatings([localSaved, ...remoteRatings]);
-    remoteProfiles = applyRatingSummaries(dedupeProfiles(remoteProfiles), this.listRatings());
-
-    if (!canUseRemote() || !ratingsRemoteAvailable) {
-      this.trackEvent("rating_saved", { ratingType: normalized.ratingType, targetId: normalized.targetId, averageScore: normalized.averageScore, source: "local" });
+    if (!canUseRemote()) {
+      const localSaved = saveLocalRating(normalized);
+      remoteRatings = dedupeRatings([localSaved, ...remoteRatings]);
+      remoteProfiles = applyRatingSummaries(dedupeProfiles(remoteProfiles), this.listRatings());
+      this.trackEvent("rating_saved", { ratingType: localSaved.ratingType, targetId: localSaved.targetId, averageScore: localSaved.averageScore, source: "local" });
       return localSaved;
     }
 
+    if (!ratingsRemoteAvailable) {
+      throw new Error("Las valoraciones de Supabase no están disponibles. Ejecuta el SQL de valoraciones y vuelve a intentarlo.");
+    }
+
     const row = {
-      request_id: null,
+      request_id: normalized.requestId || null,
       rater_id: currentSession.user.id,
       target_id: normalized.targetId,
       rater_role: normalized.raterRole,
       target_role: normalized.targetRole,
+      rating_type: normalized.ratingType,
       criteria: normalized.criteria,
       average_score: normalized.averageScore,
       comment: normalized.comment || null
     };
 
+    const localMirror = saveLocalRating(normalized);
+    remoteRatings = dedupeRatings([localMirror, ...remoteRatings]);
+
     try {
-      const existingRows = await assertNoError(
+      const data = await assertNoError(
         await supabaseClient
           .from("profile_ratings")
-          .select("id, criteria")
-          .eq("rater_id", row.rater_id)
-          .eq("target_id", row.target_id)
+          .upsert(row, { onConflict: "rater_id,target_id,rating_type" })
+          .select("*")
+          .single()
       );
-      const idsToReplace = (existingRows || [])
-        .filter((item) => normalizeRating({ criteria: item.criteria }).ratingType === normalized.ratingType)
-        .map((item) => item.id)
-        .filter(Boolean);
-      if (idsToReplace.length) {
-        await assertNoError(
-          await supabaseClient.from("profile_ratings").delete().in("id", idsToReplace)
-        );
+      const savedType = normalizeStoredRatingType(data.rating_type || data.criteria?._ratingType || normalized.ratingType);
+      if (savedType !== normalized.ratingType) {
+        throw new Error(`Supabase guardó esta valoración como ${savedType}, pero la app intentó guardar ${normalized.ratingType}. Ejecuta de nuevo el SQL de valoraciones.`);
       }
-      const data = await assertNoError(
-        await supabaseClient.from("profile_ratings").insert(row).select("*").single()
-      );
-      const remoteSaved = normalizeRating(data);
+      const remoteSaved = normalizeRating({
+        ...data,
+        request_id: data.request_id || normalized.requestId,
+        rating_type: savedType,
+        criteria: {
+          ...(data.criteria || {}),
+          _ratingType: savedType
+        }
+      });
       saveLocalRating(remoteSaved);
-      remoteRatings = dedupeRatings([remoteSaved, ...remoteRatings, ...readRatings()]);
+      remoteRatings = dedupeRatings([remoteSaved, ...remoteRatings]);
+      remoteProfiles = applyRatingSummaries(dedupeProfiles(remoteProfiles), this.listRatings());
       await this.trackEvent("rating_saved", { ratingType: remoteSaved.ratingType, targetId: remoteSaved.targetId, averageScore: remoteSaved.averageScore, source: "remote" });
       await this.refreshRemoteData();
       return remoteSaved;
     } catch (error) {
-      ratingsRemoteAvailable = false;
-      remoteRatings = dedupeRatings([localSaved, ...remoteRatings]);
-      remoteProfiles = applyRatingSummaries(dedupeProfiles(remoteProfiles), this.listRatings());
-      this.trackEvent("rating_saved", { ratingType: localSaved.ratingType, targetId: localSaved.targetId, averageScore: localSaved.averageScore, source: "fallback" });
-      return localSaved;
+      throw remoteWriteError("No se pudo guardar la valoración en Supabase", error);
     }
   }
 
