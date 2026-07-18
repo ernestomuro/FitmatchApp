@@ -188,7 +188,45 @@ const RATING_TYPES = {
   }
 };
 
+function ratingTargetIdsForPerson(person = {}) {
+  const hasIdentity = person?.id
+    || person?.userId
+    || person?.user_id
+    || person?.email
+    || person?.contactEmail
+    || person?.contact_email
+    || person?.name;
+  if (!hasIdentity) return [];
+  return relatedProfileIdsForPerson(person).filter(Boolean);
+}
+
+function ratingDisplayType(rating = {}) {
+  return normalizeRatingType(rating.ratingType || rating.criteria?._ratingType || "service");
+}
+
+function dedupeRatingsForDisplay(ratings = []) {
+  const map = new Map();
+  ratings.forEach((rating) => {
+    const key = `${rating.raterId || rating.rater_id || rating.requestId || rating.id || "anon"}:${ratingDisplayType(rating)}`;
+    const current = map.get(key);
+    const currentTime = current ? new Date(current.updatedAt || current.createdAt || 0).getTime() : 0;
+    const nextTime = new Date(rating.updatedAt || rating.createdAt || 0).getTime();
+    if (!current || nextTime >= currentTime) map.set(key, rating);
+  });
+  return Array.from(map.values());
+}
+
+function ratingSummaryFromList(ratings = []) {
+  const validRatings = ratings.filter((rating) => Number(rating.averageScore || 0) > 0);
+  if (!validRatings.length) return { average: 0, count: 0, label: "Sin valoraciones" };
+  const total = validRatings.reduce((sum, rating) => sum + Number(rating.averageScore || 0), 0);
+  return { average: roundRating(total / validRatings.length), count: validRatings.length };
+}
+
 function ratingSummaryFor(person) {
+  const targetIds = ratingTargetIdsForPerson(person);
+  const ratings = dedupeRatingsForDisplay((dataProvider.listRatings?.() || []).filter((rating) => targetIds.includes(rating.targetId)));
+  if (ratings.length) return ratingSummaryFromList(ratings);
   return dataProvider.getRatingSummary?.(person?.id) || person?.ratingSummary || { average: 0, count: 0, label: "Sin valoraciones" };
 }
 
@@ -237,10 +275,12 @@ function roundRating(value) {
 }
 
 function ratingsForPerson(person, ratingType = "") {
-  return (dataProvider.listRatings?.() || []).filter((rating) => {
-    const type = normalizeRatingType(rating.ratingType || rating.criteria?._ratingType || "service");
-    return rating.targetId === person?.id && (!ratingType || type === normalizeRatingType(ratingType));
-  });
+  const targetIds = ratingTargetIdsForPerson(person);
+  const expectedType = ratingType ? normalizeRatingType(ratingType) : "";
+  return dedupeRatingsForDisplay((dataProvider.listRatings?.() || []).filter((rating) => {
+    const type = ratingDisplayType(rating);
+    return targetIds.includes(rating.targetId) && (!expectedType || type === expectedType);
+  }));
 }
 
 function publicRatingCommentsFor(person) {
@@ -3931,7 +3971,7 @@ async function saveRequestRating(requestId, direction, button) {
   const requests = dataProvider.listContactRequests(profile.role, { profileId: profile.id, direction });
   const request = requests.find((item) => item.id === requestId);
   if (!request) return;
-  const target = ratingTargetForRequest(request, direction);
+  const target = resolveConversationPerson(ratingTargetForRequest(request, direction));
   const panel = button.closest(".rating-panel");
   const inferredRatingType = panel?.dataset.ratingType
     || (panel?.classList.contains("rating-panel-first_contact") ? "first_contact" : "service");
