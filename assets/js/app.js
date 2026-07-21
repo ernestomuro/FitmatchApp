@@ -4308,28 +4308,46 @@ function personIdentityEmail(person = {}) {
   return normalizeText(person.email || person.contactEmail || person.contact_email || "");
 }
 
+function personIdentityPhone(person = {}) {
+  return normalizeText(person.phone || person.telephone || person.telefono || "");
+}
+
 function personIdentityId(person = {}) {
   return normalizeText(person.id || person.userId || person.user_id || "");
+}
+
+function personIdentityName(person = {}) {
+  return normalizeText(person.name || person.displayName || person.display_name || "");
 }
 
 function resolveKnownProfileForPerson(person = {}) {
   const role = person.role || "";
   const id = personIdentityId(person);
   const email = personIdentityEmail(person);
-  const name = normalizeText(person.name || "");
+  const phone = personIdentityPhone(person);
+  const name = personIdentityName(person);
+  const city = normalizeText(person.city || "");
   const profiles = contactDirectoryProfiles();
+  const matchesRole = (item) => !role || !item.role || item.role === role;
 
   return profiles.find((item) => {
-    if (role && item.role && item.role !== role) return false;
+    if (!matchesRole(item)) return false;
     const itemId = personIdentityId(item);
     const itemEmail = personIdentityEmail(item);
+    const itemPhone = personIdentityPhone(item);
     if (id && itemId && id === itemId) return true;
     if (email && itemEmail && email === itemEmail) return true;
+    if (phone && itemPhone && phone === itemPhone) return true;
     return false;
   }) || profiles.find((item) => {
-    if (role && item.role && item.role !== role) return false;
-    return name && normalizeText(item.name || "") === name && normalizeText(item.city || "") === normalizeText(person.city || "");
-  }) || null;
+    if (!matchesRole(item)) return false;
+    const itemCity = normalizeText(item.city || "");
+    return name && personIdentityName(item) === name && (!city || !itemCity || itemCity === city);
+  }) || (() => {
+    if (!name) return null;
+    const sameName = profiles.filter((item) => matchesRole(item) && personIdentityName(item) === name);
+    return sameName.length === 1 ? sameName[0] : null;
+  })();
 }
 
 function resolveConversationPerson(person = {}) {
@@ -4353,20 +4371,26 @@ function canonicalPersonKey(person = {}) {
   const email = personIdentityEmail(resolved) || personIdentityEmail(person);
   if (email) return `${role}:email:${email}`;
 
+  const phone = personIdentityPhone(resolved) || personIdentityPhone(person);
+  if (phone) return `${role}:phone:${phone}`;
+
   const id = personIdentityId(resolved) || personIdentityId(person);
   if (id) return `${role}:id:${id}`;
 
-  const name = normalizeText(resolved.name || person.name || "");
-  const city = normalizeText(resolved.city || person.city || "");
-  return `${role}:legacy:${name}:${city}`;
+  const name = personIdentityName(resolved) || personIdentityName(person);
+  if (name) return `${role}:legacy:${name}`;
+
+  return "";
 }
 
 function relatedProfileIdsForPerson(person = {}) {
   const ids = new Set([person.id, resolveConversationPerson(person).id].filter(Boolean));
   const key = canonicalPersonKey(person);
-  contactDirectoryProfiles().forEach((item) => {
-    if (canonicalPersonKey(item) === key && item.id) ids.add(item.id);
-  });
+  if (key) {
+    contactDirectoryProfiles().forEach((item) => {
+      if (canonicalPersonKey(item) === key && item.id) ids.add(item.id);
+    });
+  }
   return ids.size ? Array.from(ids) : [person.id].filter(Boolean);
 }
 
