@@ -4247,15 +4247,35 @@ function ratingItemPriority(item) {
   ].reduce((sum, value) => sum + value, 0);
 }
 
+function ratingItemIdentityKeys(item = {}) {
+  const target = resolveConversationPerson(ratingTargetForRequest(item.request, item.direction) || {});
+  const role = target.role || "profile";
+  const keys = new Set();
+  const addKey = (type, value) => {
+    const cleanValue = normalizeText(value || "");
+    if (cleanValue) keys.add(`${role}:${type}:${cleanValue}`);
+  };
+
+  addKey("canonical", canonicalPersonKey(target));
+  relatedProfileIdsForPerson(target).forEach((id) => addKey("id", id));
+  addKey("email", personIdentityEmail(target));
+  addKey("phone", personIdentityPhone(target));
+  addKey("name", personIdentityName(target));
+  if (!keys.size && item.request?.id) keys.add(`request:${item.request.id}`);
+  return Array.from(keys);
+}
+
 function uniqueRatingItems(items = []) {
   const map = new Map();
+  const aliases = new Map();
   items.forEach((item) => {
-    const target = ratingTargetForRequest(item.request, item.direction);
-    const key = canonicalPersonKey(target) || item.request.id;
+    const keys = ratingItemIdentityKeys(item);
+    const key = keys.map((itemKey) => aliases.get(itemKey) || itemKey).find((itemKey) => map.has(itemKey)) || keys[0] || item.request.id;
     const current = map.get(key);
     if (!current || ratingItemPriority(item) >= ratingItemPriority(current)) {
       map.set(key, item);
     }
+    keys.forEach((itemKey) => aliases.set(itemKey, key));
   });
   return Array.from(map.values()).sort((a, b) => new Date(b.request.updatedAt || b.request.createdAt || 0) - new Date(a.request.updatedAt || a.request.createdAt || 0));
 }
