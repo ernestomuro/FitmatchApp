@@ -7485,10 +7485,6 @@ body.role-client .button.primary:hover {
   font-size: 1.1rem !important;
 }
 
-#accountRatingDetailsButton {
-  justify-self: start !important;
-}
-
 @media (max-width: 720px) {
   .rating-contact-summary,
   .account-rating-heading,
@@ -7496,8 +7492,7 @@ body.role-client .button.primary:hover {
     grid-template-columns: 1fr !important;
   }
 
-  .rating-card-toggle,
-  #accountRatingDetailsButton {
+  .rating-card-toggle {
     width: 100% !important;
   }
 
@@ -10687,5 +10682,127 @@ body.role-professional .professional-hemisphere::after {
   .contact-message-focus .history-message,
   .request-history .contact-message-focus .history-message {
     font-size: 1.2rem !important;
+  }
+}
+
+/* Revisión Codex: perfil con reputación directa y menos texto */
+#modal .profile-detail-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+#modal .profile-rating-section {
+  gap: clamp(14px, 2vw, 18px) !important;
+}
+
+#modal .profile-rating-section .rating-breakdown-heading {
+  grid-template-columns: minmax(112px, 0.22fr) minmax(0, 1fr) !important;
+  gap: clamp(14px, 2vw, 22px) !important;
+}
+
+#modal .profile-rating-section .rating-breakdown-score {
+  min-height: 94px !important;
+  border-radius: 24px !important;
+}
+
+#modal .profile-rating-section .rating-breakdown-score strong {
+  letter-spacing: 0 !important;
+}
+
+#modal .profile-rating-section .rating-breakdown-copy {
+  gap: 4px !important;
+}
+
+#modal .profile-rating-section .rating-breakdown-copy strong,
+#modal .ratings-comments-heading strong {
+  font-size: clamp(1.18rem, 2.1vw, 1.45rem) !important;
+}
+
+.rating-moment-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+}
+
+.rating-moment-summary {
+  display: grid !important;
+  gap: 4px !important;
+  border: 1px solid rgba(31, 118, 95, 0.13) !important;
+  border-radius: 18px !important;
+  padding: 14px 16px !important;
+  background: rgba(255, 255, 255, 0.62) !important;
+}
+
+.rating-moment-summary strong {
+  color: #173f38 !important;
+  font-size: 0.96rem !important;
+  line-height: 1.2 !important;
+}
+
+.rating-moment-summary span {
+  color: #0f2e2b !important;
+  font-size: clamp(1.25rem, 2.3vw, 1.7rem) !important;
+  font-weight: 900 !important;
+  line-height: 1.05 !important;
+  letter-spacing: 0 !important;
+}
+
+.rating-moment-summary small,
+#modal .ratings-comment-card small {
+  color: #65786e !important;
+  font-weight: 800 !important;
+}
+
+#modal .ratings-comments-section {
+  gap: clamp(12px, 1.8vw, 16px) !important;
+  border-color: rgba(235, 125, 92, 0.24) !important;
+}
+
+#modal .ratings-comments-heading {
+  gap: 4px !important;
+}
+
+#modal .ratings-comments-heading p {
+  display: none !important;
+}
+
+#modal .ratings-comment-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+
+#modal .ratings-comment-card,
+#modal .ratings-comment-empty {
+  gap: 10px !important;
+  border-radius: 18px !important;
+  padding: 16px !important;
+}
+
+#modal .ratings-comment-card p,
+#modal .ratings-comment-empty strong {
+  margin: 0 !important;
+  color: #173f38 !important;
+  font-size: clamp(1rem, 1.8vw, 1.18rem) !important;
+  line-height: 1.42 !important;
+  font-weight: 820 !important;
+}
+
+#modal .rating-comment-score {
+  padding: 6px 11px !important;
+  background: rgba(235, 125, 92, 0.12) !important;
+  color: #bf604b !important;
+}
+
+@media (max-width: 720px) {
+  #modal .profile-detail-stats,
+  #modal .profile-rating-section .rating-breakdown-heading,
+  .rating-moment-grid,
+  #modal .ratings-comment-list {
+    grid-template-columns: 1fr !important;
+  }
+
+  #modal .profile-rating-section .rating-breakdown-score {
+    justify-items: start !important;
+    min-height: 0 !important;
+    padding: 16px !important;
   }
 }

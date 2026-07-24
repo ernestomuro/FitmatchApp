@@ -13,7 +13,7 @@ const ROLE_COPY = {
     submit: "Guardar perfil cliente y ver profesionales",
     matchesTitle: "Profesionales que encajan contigo",
     matchesCopy:
-      "Revisa primero las coincidencias con más afinidad y abre cada perfil antes de contactar.",
+      "Elige por afinidad. Abre el perfil y decide.",
     requestTitle: "Solicitudes preparadas",
     requestCopy:
       "Elige un profesional compatible y prepara una solicitud con contexto real.",
@@ -36,7 +36,7 @@ const ROLE_COPY = {
     submit: "Guardar perfil profesional y ver clientes",
     matchesTitle: "Clientes que encajan contigo",
     matchesCopy:
-      "Revisa primero las coincidencias con más afinidad y abre cada perfil antes de proponer contacto.",
+      "Elige por afinidad. Abre el perfil y decide.",
     requestTitle: "Propuestas preparadas",
     requestCopy:
       "Elige un cliente compatible y prepara una propuesta clara y contextual.",
@@ -245,7 +245,7 @@ function ratingSavedFeedback(target, ratingType) {
     summaryText: summary.count
       ? `Media visible ahora: ${ratingText(summary)}.`
       : "La valoración se ha guardado y aparecerá en cuanto se actualice el perfil.",
-    routeText: "Puedes volver a verla en Valoraciones y también dentro del perfil público."
+    routeText: "Perfil actualizado."
   };
 }
 
@@ -316,51 +316,21 @@ function ratingBreakdownFor(person, ratingType = "service") {
   return { summary, rows };
 }
 
-function createReadOnlyStars(value, labelText) {
-  const rounded = Math.round(Number(value || 0));
-  const stars = createElement("span", "rating-read-stars");
-  stars.setAttribute("aria-label", value ? `${value}/5 en ${labelText}` : `Sin puntuación en ${labelText}`);
-  for (let index = 1; index <= 5; index += 1) {
-    stars.append(createElement("span", index <= rounded ? "rating-read-star filled" : "rating-read-star", "★"));
-  }
-  return stars;
-}
-
-function createRatingRowsList(person, ratingType = "service") {
+function createRatingMomentSummary(person, ratingType = "service") {
   const breakdown = ratingBreakdownFor(person, ratingType);
   const config = ratingConfig(ratingType);
-  const group = createElement("div", `rating-breakdown-group rating-breakdown-group-${normalizeRatingType(ratingType)}`);
-  const groupHeading = createElement("div", "rating-breakdown-group-heading");
-  groupHeading.append(
+  const group = createElement("div", `rating-moment-summary rating-moment-summary-${normalizeRatingType(ratingType)}`);
+  group.append(
     createElement("strong", "", config.label),
-    createElement("small", "", breakdown.summary.count ? `${breakdown.summary.average}/5 · ${breakdown.summary.count} valoración${breakdown.summary.count === 1 ? "" : "es"}` : "Sin datos todavía")
+    createElement("span", "", breakdown.summary.count ? `${breakdown.summary.average}/5` : "--"),
+    createElement("small", "", breakdown.summary.count ? `${breakdown.summary.count} valoración${breakdown.summary.count === 1 ? "" : "es"}` : "Sin datos")
   );
-
-  const list = createElement("div", "rating-breakdown-list");
-  breakdown.rows.forEach((row) => {
-    const item = createElement("div", "rating-breakdown-row");
-    const labelBlock = createElement("div", "rating-breakdown-label");
-    labelBlock.append(
-      createElement("strong", "", row.label),
-      createElement("small", "", row.count ? `${row.count} valoración${row.count === 1 ? "" : "es"}` : "Pendiente")
-    );
-    const valueBlock = createElement("div", "rating-breakdown-value");
-    valueBlock.append(
-      createReadOnlyStars(row.average, row.label),
-      createElement("span", "", row.count ? `${row.average}/5` : "--")
-    );
-    item.append(labelBlock, valueBlock);
-    list.append(item);
-  });
-
-  group.append(groupHeading, list);
   return group;
 }
 
-function createRatingBreakdownSection(person, { showDetailsButton = true, collapsed = false } = {}) {
+function createRatingBreakdownSection(person) {
   const summary = ratingSummaryFor(person);
-  const section = createElement(collapsed ? "details" : "div", `profile-detail-section rating-breakdown-section${collapsed ? " rating-breakdown-collapsible" : ""}`);
-  if (collapsed) section.open = false;
+  const section = createElement("section", "profile-detail-section rating-breakdown-section profile-rating-section");
 
   const heading = createElement("div", "rating-breakdown-heading");
   const score = createElement("div", "rating-breakdown-score");
@@ -370,56 +340,18 @@ function createRatingBreakdownSection(person, { showDetailsButton = true, collap
 
   const copy = createElement("div", "rating-breakdown-copy");
   copy.append(
-    createElement("span", "micro-label", "Valoración pública"),
-    createElement("strong", "", summary.count ? "Reputación separada por momento" : "Aún sin puntuaciones públicas"),
-    createElement("p", "", summary.count
-      ? "La media general aparece resumida, pero el detalle distingue primer contacto y servicio real para que la lectura sea justa."
-      : "Cuando esta cuenta reciba valoraciones, aquí aparecerán separadas por primer contacto y servicio real.")
+    createElement("span", "micro-label", "Valoraciones"),
+    createElement("strong", "", summary.count ? "Reputación" : "Sin valoraciones")
   );
   heading.append(score, copy);
 
-  const groups = createElement("div", "rating-breakdown-groups");
-  groups.append(
-    createRatingRowsList(person, "first_contact"),
-    createRatingRowsList(person, "service")
+  const moments = createElement("div", "rating-moment-grid");
+  moments.append(
+    createRatingMomentSummary(person, "first_contact"),
+    createRatingMomentSummary(person, "service")
   );
 
-  const body = createElement("div", collapsed ? "rating-breakdown-collapsible-content" : "rating-breakdown-body");
-  body.append(heading, groups);
-
-  if (showDetailsButton) {
-    const comments = publicRatingCommentsFor(person);
-    const actions = createElement("div", "rating-breakdown-actions");
-    const button = createElement("button", "button primary", comments.length ? `Ver valoraciones (${comments.length})` : "Ver valoraciones");
-    button.type = "button";
-    button.dataset.openRatingDetails = person.id;
-    button.setAttribute("aria-label", `Ver valoraciones públicas de ${person.name || profileTitle(person)}`);
-    actions.append(
-      button,
-      createElement("small", "", comments.length
-        ? "Incluye comentarios públicos destacados y el detalle por criterio."
-        : "Aún no hay comentarios públicos, pero puedes ver cómo se calcula la reputación.")
-    );
-    body.append(actions);
-  }
-
-  if (collapsed) {
-    const summaryElement = createElement("summary", "rating-breakdown-summary");
-    const summaryCopy = createElement("div", "rating-breakdown-summary-copy");
-    summaryCopy.append(
-      createElement("span", "micro-label", "Valoraciones"),
-      createElement("strong", "", summary.count ? `${summary.average}/5 · ${summary.count} valoración${summary.count === 1 ? "" : "es"}` : "Valoraciones recogidas"),
-      createElement("small", "", "Abre para ver primer contacto, servicio real y comentarios públicos.")
-    );
-    summaryElement.append(
-      summaryCopy,
-      createElement("span", "rating-breakdown-summary-action", "Ver detalle")
-    );
-    section.append(summaryElement, body);
-    return section;
-  }
-
-  section.append(body);
+  section.append(heading, moments);
   return section;
 }
 
@@ -459,7 +391,6 @@ const profile = {
 
 let selectedMatch = null;
 let modalOpener = null;
-let ratingsModalOpener = null;
 let renderTimer = null;
 let isProcessingPhoto = false;
 let selectedRequestIds = new Set();
@@ -526,10 +457,6 @@ const sortInput = document.querySelector("#sortInput");
 const modal = document.querySelector("#modal");
 const modalTitle = document.querySelector("#modalTitle");
 const modalText = document.querySelector("#modalText");
-const ratingsModal = document.querySelector("#ratingsModal");
-const ratingsModalTitle = document.querySelector("#ratingsModalTitle");
-const ratingsModalText = document.querySelector("#ratingsModalText");
-const ratingsModalContent = document.querySelector("#ratingsModalContent");
 const profileDetail = document.querySelector("#profileDetail");
 const messageInput = document.querySelector("#messageInput");
 const requestBox = document.querySelector("#requestBox");
@@ -653,7 +580,6 @@ const accountRatingAverage = document.querySelector("#accountRatingAverage");
 const accountRatingCount = document.querySelector("#accountRatingCount");
 const accountRatingFirstContact = document.querySelector("#accountRatingFirstContact");
 const accountRatingService = document.querySelector("#accountRatingService");
-const accountRatingDetailsButton = document.querySelector("#accountRatingDetailsButton");
 const profileContextCard = document.querySelector("#profileContextCard");
 const profileContextScore = document.querySelector("#profileContextScore");
 const profileContextScoreLabel = document.querySelector("#profileContextScoreLabel");
@@ -1862,10 +1788,6 @@ function renderProfileHome() {
   if (accountRatingCount) accountRatingCount.textContent = ownRatingSummary.count ? `${ownRatingSummary.count} valoración${ownRatingSummary.count === 1 ? "" : "es"}` : "sin datos";
   if (accountRatingFirstContact) accountRatingFirstContact.textContent = firstContactRatings.length ? `${firstContactAverage}/5` : "--";
   if (accountRatingService) accountRatingService.textContent = serviceRatings.length ? `${serviceAverage}/5` : "--";
-  if (accountRatingDetailsButton) {
-    accountRatingDetailsButton.dataset.openRatingDetails = profile.id || "";
-    accountRatingDetailsButton.disabled = !profile.id;
-  }
 
   if (accountWorkspaceTitle) accountWorkspaceTitle.textContent = profile.role === "client" ? "Tu búsqueda cliente" : "Tu espacio profesional";
   if (accountWorkspaceCopy) accountWorkspaceCopy.textContent = profile.role === "client"
@@ -3351,7 +3273,6 @@ function renderProfileDetail(person) {
 
   const detailStats = createElement("div", "stats profile-detail-stats");
   detailStats.append(
-    buildStat("Valoración", ratingText(ratingSummaryFor(person))),
     buildStat(person.role === "client" ? "Presupuesto" : "Precio", priceText(person)),
     buildStat("Ciudad", person.city || "Online"),
     buildStat("Disponibilidad", person.availability || "Por definir")
@@ -3366,11 +3287,12 @@ function renderProfileDetail(person) {
   );
   affinity.append(affinityHeader, reasons);
 
-  const ratingBreakdown = createRatingBreakdownSection(person, { collapsed: true });
+  const ratingBreakdown = createRatingBreakdownSection(person);
+  const publicComments = createPublicCommentsSection(person);
   const reportBox = buildProfileReportBox(person);
 
   profileDetail.hidden = false;
-  profileDetail.replaceChildren(...[identity, detailStats, affinity, ratingBreakdown, reportBox].filter(Boolean));
+  profileDetail.replaceChildren(...[identity, detailStats, affinity, ratingBreakdown, publicComments, reportBox].filter(Boolean));
 }
 
 function findProfileForRatings(profileId) {
@@ -3388,18 +3310,14 @@ function createPublicCommentsSection(person) {
   const heading = createElement("div", "ratings-comments-heading");
   heading.append(
     createElement("span", "micro-label", "Comentarios públicos"),
-    createElement("strong", "", comments.length ? "Lo que otras personas destacan" : "Aún sin comentarios públicos"),
-    createElement("p", "", comments.length
-      ? "Mostramos una selección breve para entender la experiencia sin convertir el perfil en una lista infinita."
-      : "Las estrellas ya pueden construir reputación. Cuando alguien deje un comentario público, aparecerá aquí de forma resumida.")
+    createElement("strong", "", comments.length ? "Opiniones reales" : "Sin comentarios públicos")
   );
   section.append(heading);
 
   if (!comments.length) {
     const empty = createElement("article", "ratings-comment-empty");
     empty.append(
-      createElement("strong", "", "Sin comentarios visibles todavía"),
-      createElement("p", "", "Las notas privadas no se muestran. Solo aparecerán comentarios escritos expresamente para ayudar a otros usuarios.")
+      createElement("strong", "", "Todavía sin comentarios")
     );
     section.append(empty);
     return section;
@@ -3411,60 +3329,13 @@ function createPublicCommentsSection(person) {
     item.append(
       createElement("span", "rating-comment-score", `${rating.averageScore}/5`),
       createElement("p", "", `“${rating.publicComment}”`),
-      createElement("small", "", `${ratingConfig(rating.ratingType || rating.criteria?._ratingType).label} · ${roleLabel(rating.raterRole)} · ${formatDate(rating.updatedAt || rating.createdAt)}`)
+      createElement("small", "", ratingConfig(rating.ratingType || rating.criteria?._ratingType).label)
     );
     list.append(item);
   });
   section.append(list);
   return section;
 }
-
-function renderRatingsModal(person) {
-  if (!ratingsModalContent || !person) return;
-  const summary = ratingSummaryFor(person);
-  const hero = createElement("section", "ratings-modal-hero");
-  const score = createElement("div", "ratings-modal-score");
-  score.append(
-    createElement("strong", "", summary.count ? String(summary.average) : "--"),
-    createElement("span", "", summary.count ? `/5 · ${summary.count} valoración${summary.count === 1 ? "" : "es"}` : "Sin valoraciones")
-  );
-  const copy = createElement("div", "ratings-modal-copy");
-  copy.append(
-    createElement("span", "micro-label", "Experiencia de otros usuarios"),
-    createElement("strong", "", summary.count ? "Reputación basada en contactos reales" : "Reputación en construcción"),
-    createElement("p", "", "Las valoraciones ayudan a entender cómo ha sido la experiencia real de otras personas: comunicación, claridad, confianza y calidad del contacto.")
-  );
-  hero.append(score, copy);
-
-  ratingsModalContent.replaceChildren(
-    hero,
-    createRatingBreakdownSection(person, { showDetailsButton: false }),
-    createPublicCommentsSection(person)
-  );
-}
-
-function openRatingsModal(profileId, opener) {
-  const person = findProfileForRatings(profileId);
-  if (!person || !ratingsModal) return;
-  ratingsModalOpener = opener || null;
-  ratingsModalTitle.textContent = `Valoraciones de ${person.name || profileTitle(person)}`;
-  ratingsModalText.textContent = "Media general, criterios y comentarios públicos escritos para orientar nuevas decisiones.";
-  renderRatingsModal(person);
-  ratingsModal.classList.remove("hidden");
-  ratingsModal.scrollTop = 0;
-  ratingsModal.querySelector(".modal-card")?.scrollTo({ top: 0, left: 0 });
-  ratingsModal.focus();
-}
-
-function closeRatingsModal() {
-  ratingsModal?.classList.add("hidden");
-  ratingsModalContent?.replaceChildren();
-  if (ratingsModalOpener) {
-    ratingsModalOpener.focus();
-    ratingsModalOpener = null;
-  }
-}
-
 
 function openRequestModal(matchId, opener) {
   selectedMatch = activeDirectory().find((person) => person.id === matchId);
@@ -3473,7 +3344,7 @@ function openRequestModal(matchId, opener) {
   modalOpener = opener;
   const copy = currentCopy();
   modalTitle.textContent = selectedMatch.name;
-  modalText.textContent = `${calculateScore(selectedMatch)}% de afinidad. Revisa el perfil completo antes de preparar el contacto.`;
+  modalText.textContent = `${calculateScore(selectedMatch)}% de afinidad. Mira lo esencial y decide.`;
   renderProfileDetail(selectedMatch);
   messageInput.value = profile.role === "client"
     ? "Hola, he revisado tu perfil y me interesa saber disponibilidad, enfoque y cómo sería el primer plan."
@@ -5068,28 +4939,13 @@ matchList.addEventListener("click", (event) => {
 
 
 document.querySelector("#closeModal").addEventListener("click", closeModal);
-document.querySelector("#closeRatingsModal")?.addEventListener("click", closeRatingsModal);
 sendRequestButton.addEventListener("click", sendRequest);
 
-function handleOpenRatingDetails(event) {
-  const trigger = event.target.closest("[data-open-rating-details]");
-  if (!trigger) return;
-  event.preventDefault();
-  openRatingsModal(trigger.dataset.openRatingDetails, trigger);
-}
-
-profileDetail?.addEventListener("click", handleOpenRatingDetails);
 profileDetail?.addEventListener("click", handleSubmitProfileReport);
-profileHomeCard?.addEventListener("click", handleOpenRatingDetails);
 
 modal.addEventListener("click", (event) => {
   if (event.target === modal) closeModal();
 });
-
-ratingsModal?.addEventListener("click", (event) => {
-  if (event.target === ratingsModal) closeRatingsModal();
-});
-
 
 proInterestButton?.addEventListener("click", async () => {
   if (profile.role !== "professional") return;
@@ -5158,16 +5014,10 @@ acceptLegalTermsButton?.addEventListener("click", async () => {
 });
 
 document.addEventListener("keydown", (event) => {
-  const ratingsModalIsOpen = ratingsModal && !ratingsModal.classList.contains("hidden");
   const legalDocModalIsOpen = legalDocModal && !legalDocModal.classList.contains("hidden");
   const legalModalIsOpen = legalModal && !legalModal.classList.contains("hidden");
   const baseModalIsOpen = !modal.classList.contains("hidden");
-  const modalIsOpen = ratingsModalIsOpen || legalDocModalIsOpen || legalModalIsOpen || baseModalIsOpen;
-
-  if (event.key === "Escape" && ratingsModalIsOpen) {
-    closeRatingsModal();
-    return;
-  }
+  const modalIsOpen = legalDocModalIsOpen || legalModalIsOpen || baseModalIsOpen;
 
   if (event.key === "Escape" && legalDocModalIsOpen) {
     closeLegalDocModal();
@@ -5180,7 +5030,7 @@ document.addEventListener("keydown", (event) => {
 
   if (event.key !== "Tab" || !modalIsOpen) return;
 
-  const activeModal = ratingsModalIsOpen ? ratingsModal : legalDocModalIsOpen ? legalDocModal : legalModalIsOpen ? legalModal : modal;
+  const activeModal = legalDocModalIsOpen ? legalDocModal : legalModalIsOpen ? legalModal : modal;
   const focusableElements = Array.from(
     activeModal.querySelectorAll('a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])')
   );

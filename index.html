@@ -247,7 +247,6 @@
                   <span><small>Primer contacto</small><strong id="accountRatingFirstContact">--</strong></span>
                   <span><small>Servicio real</small><strong id="accountRatingService">--</strong></span>
                 </div>
-                <button id="accountRatingDetailsButton" class="button primary" type="button">Ver detalle de valoraciones</button>
               </article>
               <p id="profileHomeUnreadAlert" class="profile-home-alert" hidden></p>
               <div class="profile-home-actions account-quick-actions">
@@ -800,7 +799,7 @@
             <p class="eyebrow">Matches</p>
             <h2 id="matchesTitle">Quién encaja contigo</h2>
             <p id="matchesCopy">
-              Revisa primero las coincidencias con más afinidad y abre cada perfil antes de contactar.
+              Elige por afinidad. Abre el perfil y decide.
             </p>
           </div>
           <div class="screen-actions">
@@ -833,7 +832,7 @@
           </div>
           <div class="match-toolbar">
             <p id="resultsSummary" role="status" aria-live="polite">Calculando afinidad...</p>
-            <span class="score-guide">Abre cada perfil para revisar detalles antes de contactar.</span>
+            <span class="score-guide">Perfil. Afinidad. Contacto.</span>
           </div>
           <figure class="panel-network-banner match-network-banner" aria-hidden="true">
             <img src="./assets/brand/fit-match-logo-soft.png" alt="" />
@@ -880,10 +879,8 @@
         <div class="screen-header ratings-header">
           <div>
             <p class="eyebrow">Valoraciones</p>
-            <h2>Valora experiencias reales.</h2>
-            <p>
-              Las valoraciones no nacen de un simple match. Sirven para reflejar primer contacto, servicio real y confianza construida con el tiempo.
-            </p>
+            <h2>Experiencias reales.</h2>
+            <p>Primer contacto. Servicio real.</p>
           </div>
           <div class="screen-actions">
             <button class="button quiet" type="button" data-view="contacts">Ver contactos</button>
@@ -896,7 +893,7 @@
               <div>
                 <span class="micro-label">Valoraciones</span>
                 <strong id="ratingHistoryTitle">Experiencias para valorar</strong>
-                <p>Con el tiempo la relación puede cambiar; tu valoración también. Puedes volver y actualizarla cuando lo necesites.</p>
+                <p>Valora cuando haya contacto real.</p>
               </div>
             </div>
             <div id="ratingList" class="rating-list" aria-live="polite"></div>
@@ -1165,26 +1162,6 @@
         <button id="sendRequest" class="button primary full" type="button">Enviar solicitud</button>
       </div>
     </div>
-
-
-    <div
-      id="ratingsModal"
-      class="modal ratings-modal hidden"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="ratingsModalTitle"
-      aria-describedby="ratingsModalText"
-      tabindex="-1"
-    >
-      <div class="modal-card ratings-modal-card">
-        <button id="closeRatingsModal" class="icon-button" type="button" aria-label="Cerrar valoraciones">×</button>
-        <p class="eyebrow">Reputación pública</p>
-        <h2 id="ratingsModalTitle">Valoraciones</h2>
-        <p id="ratingsModalText">Consulta la media por criterios y comentarios públicos de experiencias reales.</p>
-        <div id="ratingsModalContent" class="ratings-modal-content"></div>
-      </div>
-    </div>
-
 
     <div
       id="legalModal"
