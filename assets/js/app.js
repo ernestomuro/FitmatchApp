@@ -2759,43 +2759,79 @@ function profileKeywords(person) {
   );
 }
 
-function sharedObservationKeywords(person) {
-  const ownKeywords = profileKeywords(profile);
-  const otherKeywords = profileKeywords(person);
+function sharedObservationKeywordsBetween(source = {}, target = {}) {
+  const ownKeywords = profileKeywords(source);
+  const otherKeywords = profileKeywords(target);
   return Array.from(ownKeywords).filter((word) => otherKeywords.has(word)).slice(0, 4);
 }
 
-function sameSport(person) {
-  const ownSport = normalizeText(profile.sport);
-  const otherSport = normalizeText(person.sport);
+function sharedObservationKeywords(person) {
+  return sharedObservationKeywordsBetween(profile, person);
+}
+
+function sameSportBetween(source = {}, target = {}) {
+  const ownSport = normalizeText(source.sport);
+  const otherSport = normalizeText(target.sport);
   if (!ownSport || !otherSport) return false;
   return ownSport === otherSport || ownSport.includes(otherSport) || otherSport.includes(ownSport);
 }
 
-function sameCity(person) {
-  const ownCity = normalizeText(profile.city);
-  const otherCity = normalizeText(person.city);
-  if (!ownCity || !otherCity || otherCity === "online") return false;
+function sameSport(person) {
+  return sameSportBetween(profile, person);
+}
+
+function sameCityBetween(source = {}, target = {}) {
+  const ownCity = normalizeText(source.city);
+  const otherCity = normalizeText(target.city);
+  if (!ownCity || !otherCity || ownCity === "online" || otherCity === "online") return false;
   return ownCity === otherCity || ownCity.includes(otherCity) || otherCity.includes(ownCity);
 }
 
-function calculateScore(person) {
+function sameCity(person) {
+  return sameCityBetween(profile, person);
+}
+
+function compatibilityValues(person = {}, singleKey, listKey) {
+  const values = [
+    person[singleKey],
+    ...(Array.isArray(person[listKey]) ? person[listKey] : [])
+  ];
+  return new Set(values.map(normalizeText).filter(Boolean));
+}
+
+function hasSharedCompatibilityValue(source = {}, target = {}, singleKey, listKey) {
+  const sourceValues = compatibilityValues(source, singleKey, listKey);
+  const targetValues = compatibilityValues(target, singleKey, listKey);
+  return Array.from(sourceValues).some((value) => targetValues.has(value));
+}
+
+function sharedServicesBetween(source = {}, target = {}) {
+  const targetServices = new Set((target.services || []).map(normalizeText).filter(Boolean));
+  return (source.services || []).filter((service, index, services) => {
+    const normalized = normalizeText(service);
+    return normalized && targetServices.has(normalized) && services.findIndex((item) => normalizeText(item) === normalized) === index;
+  });
+}
+
+function calculateScoreBetween(source = {}, target = {}) {
   let score = 10;
 
-  if ((person.goals || []).includes(profile.goal)) score += 25;
-  if ((person.modes || []).includes(profile.mode)) score += 20;
-  if ((person.levels || []).includes(profile.level)) score += 15;
-  if (sameCity(person)) score += 10;
+  if (hasSharedCompatibilityValue(source, target, "goal", "goals")) score += 25;
+  if (hasSharedCompatibilityValue(source, target, "mode", "modes")) score += 20;
+  if (hasSharedCompatibilityValue(source, target, "level", "levels")) score += 15;
+  if (sameCityBetween(source, target)) score += 10;
 
-  const sharedServices = profile.services.filter((service) =>
-    (person.services || []).includes(service)
-  );
+  const sharedServices = sharedServicesBetween(source, target);
   score += Math.min(sharedServices.length * 12, 24);
 
-  if (sameSport(person)) score += 12;
-  score += Math.min(sharedObservationKeywords(person).length * 4, 16);
+  if (sameSportBetween(source, target)) score += 12;
+  score += Math.min(sharedObservationKeywordsBetween(source, target).length * 4, 16);
 
   return Math.min(score, 99);
+}
+
+function calculateScore(person) {
+  return calculateScoreBetween(profile, person);
 }
 
 function scoreLevel(score) {
@@ -2805,8 +2841,7 @@ function scoreLevel(score) {
 }
 
 function sharedServiceLabels(person) {
-  return profile.services
-    .filter((service) => (person.services || []).includes(service))
+  return sharedServicesBetween(profile, person)
     .map((service) => label("services", service));
 }
 
@@ -2814,10 +2849,10 @@ function getMatchReasons(person) {
   const reasons = [];
   const sharedServices = sharedServiceLabels(person);
 
-  if ((person.goals || []).includes(profile.goal)) reasons.push("Coincide en objetivo");
+  if (hasSharedCompatibilityValue(profile, person, "goal", "goals")) reasons.push("Coincide en objetivo");
   if (sameCity(person)) reasons.push("Disponible en tu ciudad");
-  if ((person.modes || []).includes(profile.mode)) reasons.push("Modalidad compatible");
-  if ((person.levels || []).includes(profile.level)) reasons.push("Nivel adecuado");
+  if (hasSharedCompatibilityValue(profile, person, "mode", "modes")) reasons.push("Modalidad compatible");
+  if (hasSharedCompatibilityValue(profile, person, "level", "levels")) reasons.push("Nivel adecuado");
   if (sharedServices.length) reasons.push(`Servicio compartido: ${sharedServices[0]}`);
   if (sameSport(person)) reasons.push(`Mismo deporte: ${person.sport}`);
 
