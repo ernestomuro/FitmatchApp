@@ -655,6 +655,8 @@ const adminMetricRatings = document.querySelector("#adminMetricRatings");
 const adminMetricAverage = document.querySelector("#adminMetricAverage");
 const adminMetricReports = document.querySelector("#adminMetricReports");
 const adminMetricReportsNote = document.querySelector("#adminMetricReportsNote");
+const adminMetricBetaFeedback = document.querySelector("#adminMetricBetaFeedback");
+const adminMetricBetaFeedbackNote = document.querySelector("#adminMetricBetaFeedbackNote");
 const adminAlertList = document.querySelector("#adminAlertList");
 const adminFunnelList = document.querySelector("#adminFunnelList");
 const adminTimeList = document.querySelector("#adminTimeList");
@@ -668,7 +670,16 @@ const adminReportPriorityFilter = document.querySelector("#adminReportPriorityFi
 const adminReportList = document.querySelector("#adminReportList");
 const adminReputationList = document.querySelector("#adminReputationList");
 const adminUserList = document.querySelector("#adminUserList");
+const adminBetaFeedbackList = document.querySelector("#adminBetaFeedbackList");
+const adminRatingDetailList = document.querySelector("#adminRatingDetailList");
+const adminInsightReport = document.querySelector("#adminInsightReport");
+const adminCopyInsightReport = document.querySelector("#adminCopyInsightReport");
+const adminInsightCopyStatus = document.querySelector("#adminInsightCopyStatus");
 const adminLastSync = document.querySelector("#adminLastSync");
+const betaFeedbackForm = document.querySelector("#betaFeedbackForm");
+const betaRoleInput = document.querySelector("#betaRoleInput");
+const betaFeedbackSubmit = document.querySelector("#betaFeedbackSubmit");
+const betaFeedbackStatus = document.querySelector("#betaFeedbackStatus");
 
 const LEGAL_DOCUMENTS = {
   privacy: {
@@ -771,6 +782,10 @@ const viewAliases = {
   valoraciones: "ratings",
   valoracion: "ratings",
   valoración: "ratings",
+  beta: "beta",
+  feedback: "beta",
+  testers: "beta",
+  prueba: "beta",
   trust: "account",
   confianza: "account",
   legal: "account",
@@ -857,6 +872,10 @@ function showView(viewName, { push = true, focus = true } = {}) {
 
   if (nextView === "admin") {
     renderAdminDashboard();
+  }
+
+  if (nextView === "beta") {
+    renderBetaFeedbackState();
   }
 
   if (push) {
@@ -1547,23 +1566,30 @@ function proSubscriptionFor(person = profile) {
 }
 
 function proStatusLabel(subscription = {}) {
-  const status = String(subscription.status || "FREE").toUpperCase();
+  const status = dataProvider.getProLifecycleStatus?.(subscription) || String(subscription.status || "FREE").toUpperCase();
   if (status === "PRO") return "PRO activo";
-  if (status === "TRIAL") return "TRIAL";
+  if (status === "TRIAL") return "Trial PRO";
+  if (status === "INTERESTED") return "Interés PRO";
   if (status === "EXPIRED") return "Expirado";
   if (status === "CANCELLED") return "Cancelado";
   return "FREE";
 }
 
+function canUseProFeature(person = {}, featureId = "") {
+  const subscription = proSubscriptionFor(person);
+  return Boolean(dataProvider.canUseProFeature?.(featureId, subscription));
+}
+
 function isProVisible(person = {}) {
-  return person.role === "professional" && ["PRO", "TRIAL"].includes(String(person.proStatus || "").toUpperCase());
+  return person.role === "professional" && canUseProFeature(person, "profile_badge");
 }
 
 function createProBadge(person) {
   if (person.role !== "professional") return null;
-  const status = String(person.proStatus || "FREE").toUpperCase();
+  const subscription = proSubscriptionFor(person);
+  const status = dataProvider.getProLifecycleStatus?.(subscription) || String(person.proStatus || "FREE").toUpperCase();
   const verified = Boolean(person.verified);
-  if (!verified && !["PRO", "TRIAL"].includes(status)) return null;
+  if (!verified && !canUseProFeature(person, "profile_badge")) return null;
   const badge = createElement("span", `pro-mini-badge ${status === "TRIAL" ? "is-trial" : ""}`, verified ? "Verificado" : "FIT MATCH PRO");
   badge.title = verified
     ? "Profesional verificado. La verificación no depende del pago."
@@ -1618,26 +1644,26 @@ function renderProPanel({ matchCount = 0, activeContacts = 0 } = {}) {
   if (!visible) return;
 
   const subscription = proSubscriptionFor(profile);
-  const status = String(subscription.status || "FREE").toUpperCase();
-  const hasInterest = Boolean(subscription.proInterest || profile.proInterest);
-  const isFullPro = status === "PRO";
+  const lifecycle = dataProvider.getProLifecycleStatus?.(subscription) || "FREE";
+  const hasInterest = lifecycle === "INTERESTED" || Boolean(subscription.proInterest || profile.proInterest);
+  const hasAdvancedMetrics = Boolean(dataProvider.canUseProFeature?.("advanced_metrics", subscription));
   const metrics = dataProvider.getProMetrics?.(profile) || { matches: matchCount, contacts: activeContacts, conversion: 0, profileStrength: profileCompleteness() };
   const recommendations = dataProvider.getProRecommendations?.(profile) || [];
   const profileScore = metrics.profileStrength || profileCompleteness();
 
-  proPanel.dataset.proStatus = isFullPro ? "pro" : "building";
-  if (proStatusBadge) proStatusBadge.textContent = isFullPro ? "PRO activo" : "En construcción";
+  proPanel.dataset.proStatus = hasAdvancedMetrics ? "pro" : "building";
+  if (proStatusBadge) proStatusBadge.textContent = hasAdvancedMetrics ? proStatusLabel(subscription) : "En construcción";
   if (proPanelTitle) proPanelTitle.textContent = "Próximamente · Fit Match PRO";
   if (proPanelCopy) proPanelCopy.textContent = "Más visibilidad. Más confianza. Más oportunidades.";
   if (proProfileScore) proProfileScore.textContent = `${profileScore} / 100`;
-  if (proScoreState) proScoreState.textContent = isFullPro ? "Análisis completo activo." : "Vista previa limitada. Disponible próximamente en Fit Match PRO.";
+  if (proScoreState) proScoreState.textContent = hasAdvancedMetrics ? "Análisis completo activo." : "Vista previa limitada. Disponible próximamente en Fit Match PRO.";
   renderProList(proScoreActions, koroScoreActions(profileScore, profile));
   if (proMetricViews) proMetricViews.textContent = `${profileCompleteness()}%`;
-  if (proMetricMatches) proMetricMatches.textContent = isFullPro ? String(metrics.matches || matchCount) : "Preview";
-  if (proMetricContacts) proMetricContacts.textContent = isFullPro ? String(metrics.contacts || activeContacts) : "Preview";
-  if (proMetricConversion) proMetricConversion.textContent = isFullPro ? `${metrics.conversion || 0}%` : "Preview";
-  renderProList(proRecommendations, isFullPro ? recommendations : recommendations.slice(0, 3));
-  if (proLockMessage) proLockMessage.textContent = isFullPro
+  if (proMetricMatches) proMetricMatches.textContent = hasAdvancedMetrics ? String(metrics.matches || matchCount) : "Preview";
+  if (proMetricContacts) proMetricContacts.textContent = hasAdvancedMetrics ? String(metrics.contacts || activeContacts) : "Preview";
+  if (proMetricConversion) proMetricConversion.textContent = hasAdvancedMetrics ? `${metrics.conversion || 0}%` : "Preview";
+  renderProList(proRecommendations, hasAdvancedMetrics ? recommendations : recommendations.slice(0, 3));
+  if (proLockMessage) proLockMessage.textContent = hasAdvancedMetrics
     ? "Análisis completo disponible para tu plan PRO."
     : "Disponible próximamente en Fit Match PRO.";
 
@@ -2251,6 +2277,334 @@ function adminRenderActivity(container, items = []) {
     });
 }
 
+function betaRoleLabel(role = "") {
+  if (role === "client") return "Cliente";
+  if (role === "professional") return "Profesional";
+  return "Visitante";
+}
+
+function betaCurrentRole() {
+  if (profile.role === "client" || profile.role === "professional") return profile.role;
+  return "visitor";
+}
+
+function betaFeedbackAverage(item = {}) {
+  if (Number(item.averageScore) > 0) return Number(item.averageScore);
+  const scores = Object.values(item.scores || {}).map(Number).filter((score) => score > 0);
+  return scores.length ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0;
+}
+
+function renderBetaFeedbackState() {
+  if (betaRoleInput) betaRoleInput.value = betaCurrentRole();
+  const ownUserId = currentUser()?.id || profile.id || "local";
+  const ownFeedback = dataProvider.listBetaFeedback?.().find((item) =>
+    item.userId === ownUserId || (profile.email && item.email === profile.email)
+  );
+  if (!betaFeedbackStatus) return;
+  betaFeedbackStatus.textContent = ownFeedback
+    ? "Feedback recibido. Puedes enviar otro si pruebas algo nuevo."
+    : "";
+  betaFeedbackStatus.classList.toggle("is-success", Boolean(ownFeedback));
+}
+
+function betaFormScore(formData, key) {
+  const value = Number(formData.get(key));
+  return Number.isFinite(value) ? value : 0;
+}
+
+function betaFeedbackPayload() {
+  if (!betaFeedbackForm) return null;
+  const formData = new FormData(betaFeedbackForm);
+  const scores = {
+    entryClarity: betaFormScore(formData, "entryClarity"),
+    profileClarity: betaFormScore(formData, "profileClarity"),
+    matchLogic: betaFormScore(formData, "matchLogic"),
+    contactTrust: betaFormScore(formData, "contactTrust"),
+    speed: betaFormScore(formData, "speed")
+  };
+  const missingScores = Object.values(scores).some((score) => score < 1 || score > 5);
+  if (missingScores) return null;
+  return {
+    role: formData.get("role") || betaCurrentRole(),
+    profileId: profile.id || currentUser()?.id || "",
+    route: activeView,
+    scores,
+    comments: {
+      mainDoubt: formData.get("mainDoubt") || "",
+      missing: formData.get("missing") || "",
+      firstChange: formData.get("firstChange") || ""
+    }
+  };
+}
+
+async function handleBetaFeedbackSubmit(event) {
+  event.preventDefault();
+  const payload = betaFeedbackPayload();
+  if (!payload) {
+    if (betaFeedbackStatus) {
+      betaFeedbackStatus.textContent = "Marca una puntuación en cada bloque.";
+      betaFeedbackStatus.classList.remove("is-success");
+    }
+    return;
+  }
+
+  const previousText = betaFeedbackSubmit?.textContent || "Enviar feedback";
+  if (betaFeedbackSubmit) {
+    betaFeedbackSubmit.disabled = true;
+    betaFeedbackSubmit.textContent = "Enviando...";
+  }
+  if (betaFeedbackStatus) betaFeedbackStatus.textContent = "";
+
+  try {
+    await dataProvider.saveBetaFeedback?.(payload);
+    betaFeedbackForm?.reset();
+    renderBetaFeedbackState();
+    if (betaFeedbackStatus) {
+      betaFeedbackStatus.textContent = "Gracias. Esto nos ayuda a mejorar la beta.";
+      betaFeedbackStatus.classList.add("is-success");
+    }
+    renderAdminDashboard();
+  } catch (error) {
+    if (betaFeedbackStatus) {
+      betaFeedbackStatus.textContent = error.message || "No se pudo enviar. Inténtalo de nuevo.";
+      betaFeedbackStatus.classList.remove("is-success");
+    }
+  } finally {
+    if (betaFeedbackSubmit) {
+      betaFeedbackSubmit.disabled = false;
+      betaFeedbackSubmit.textContent = previousText;
+    }
+  }
+}
+
+function adminRenderBetaFeedback(container, feedback = []) {
+  if (!container) return;
+  container.innerHTML = "";
+  if (!feedback.length) {
+    adminRenderEmpty(container, "Aún no hay respuestas del cuestionario beta.");
+    return;
+  }
+
+  const average = adminAverage(feedback.map(betaFeedbackAverage)).toFixed(1);
+  adminRenderMetricRow(container, "Media beta", `${average}/5`, `${feedback.length} respuesta${feedback.length === 1 ? "" : "s"}`);
+
+  feedback.slice(0, 10).forEach((item) => {
+    const article = createElement("article", "admin-beta-feedback-item");
+    const score = betaFeedbackAverage(item);
+    const commentRows = [
+      ["Duda", item.comments?.mainDoubt],
+      ["Falta", item.comments?.missing],
+      ["Cambiaría", item.comments?.firstChange]
+    ].filter(([, value]) => value);
+    const chips = createElement("div", "admin-report-chips");
+    chips.append(
+      createElement("span", "", betaRoleLabel(item.role)),
+      createElement("span", "", `${score ? score.toFixed(1) : "--"}/5`),
+      createElement("span", "", adminDateLabel(item.createdAt, true))
+    );
+    article.append(
+      createElement("strong", "", item.email || item.userId || "Tester Fit Match"),
+      chips
+    );
+    if (commentRows.length) {
+      const list = createElement("div", "admin-beta-comment-list");
+      commentRows.forEach(([labelText, comment]) => list.append(createElement("p", "", `${labelText}: ${comment}`)));
+      article.append(list);
+    } else {
+      article.append(createElement("p", "", "Sin comentarios abiertos."));
+    }
+    container.append(article);
+  });
+}
+
+function adminRatingTypeLabel(rating = {}) {
+  return ratingConfig(normalizeRatingType(rating.ratingType || rating.criteria?._ratingType)).label;
+}
+
+function adminPersonForRating(profiles = [], personId = "", role = "") {
+  const found = profiles.find((person) => person.id === personId);
+  if (found) return found;
+  return {
+    id: personId || "",
+    role: role || "",
+    name: personId ? "Perfil no disponible" : "Usuario no identificado"
+  };
+}
+
+function adminRoleLabel(role = "") {
+  if (role === "client") return "Cliente";
+  if (role === "professional") return "Profesional";
+  return "Perfil";
+}
+
+function adminCriteriaRowsForRating(rating = {}, targetRole = "") {
+  const type = normalizeRatingType(rating.ratingType || rating.criteria?._ratingType);
+  const criteria = ratingCriteriaForRole(targetRole || rating.targetRole, type);
+  const knownLabels = new Map(criteria.map(([key, labelText]) => [key, labelText]));
+  return Object.entries(rating.criteria || {})
+    .filter(([key]) => !String(key).startsWith("_"))
+    .map(([key, value]) => [knownLabels.get(key) || key, Number(value) || 0])
+    .filter(([, value]) => value > 0);
+}
+
+function adminRatingCommentRows(rating = {}) {
+  return [
+    ["Comentario público", rating.publicComment || rating.criteria?._publicComment || ""],
+    ["Nota privada", rating.comment || ""]
+  ].filter(([, value]) => String(value || "").trim());
+}
+
+function adminRenderRatingDetails(container, ratings = [], profiles = []) {
+  if (!container) return;
+  container.innerHTML = "";
+  if (!ratings.length) {
+    adminRenderEmpty(container, "Aún no hay valoraciones detalladas.");
+    return;
+  }
+
+  ratings
+    .slice()
+    .sort((a, b) => adminDateMs(b.createdAt || b.updatedAt) - adminDateMs(a.createdAt || a.updatedAt))
+    .slice(0, 30)
+    .forEach((rating) => {
+      const target = adminPersonForRating(profiles, rating.targetId, rating.targetRole);
+      const rater = adminPersonForRating(profiles, rating.raterId, rating.raterRole);
+      const article = createElement("article", "admin-rating-detail-item");
+      const header = createElement("div", "admin-rating-detail-head");
+      const title = createElement("strong", "", `${target.name} · ${Number(rating.averageScore || 0).toFixed(1)}/5`);
+      const chips = createElement("div", "admin-report-chips");
+      chips.append(
+        createElement("span", "", adminRatingTypeLabel(rating)),
+        createElement("span", "", `${adminRoleLabel(target.role)} valorado`),
+        createElement("span", "", `por ${rater.name}`),
+        createElement("span", "", adminDateLabel(rating.createdAt, true))
+      );
+      header.append(title, chips);
+      article.append(header);
+
+      const criteriaRows = adminCriteriaRowsForRating(rating, target.role);
+      if (criteriaRows.length) {
+        const criteriaList = createElement("div", "admin-rating-criteria-list");
+        criteriaRows.forEach(([labelText, value]) => {
+          criteriaList.append(createElement("span", "", `${labelText}: ${value}/5`));
+        });
+        article.append(criteriaList);
+      }
+
+      const commentRows = adminRatingCommentRows(rating);
+      if (commentRows.length) {
+        const commentList = createElement("div", "admin-beta-comment-list");
+        commentRows.forEach(([labelText, comment]) => commentList.append(createElement("p", "", `${labelText}: ${comment}`)));
+        article.append(commentList);
+      } else {
+        article.append(createElement("p", "", "Sin comentario escrito."));
+      }
+
+      container.append(article);
+    });
+}
+
+function adminRatingSummaryLines(ratings = [], profiles = []) {
+  if (!ratings.length) return ["Sin valoraciones todavía."];
+  const byType = ["first_contact", "service"].map((type) => {
+    const items = ratings.filter((rating) => normalizeRatingType(rating.ratingType || rating.criteria?._ratingType) === type);
+    return `${ratingConfig(type).label}: ${items.length} · media ${items.length ? adminAverage(items.map((rating) => rating.averageScore)).toFixed(1) : "--"}/5`;
+  });
+  const lowRatings = ratings.filter((rating) => Number(rating.averageScore || 0) < 3.5);
+  const publicComments = ratings.filter((rating) => rating.publicComment || rating.criteria?._publicComment).length;
+  const mostRated = Array.from(adminRatingsByTarget(ratings).entries())
+    .map(([targetId, items]) => {
+      const target = adminPersonForRating(profiles, targetId);
+      return `${target.name}: ${items.length} valoracion(es), media ${adminAverage(items.map((rating) => rating.averageScore)).toFixed(1)}/5`;
+    })
+    .sort((a, b) => Number((b.match(/: (\d+)/) || [0, 0])[1]) - Number((a.match(/: (\d+)/) || [0, 0])[1]))
+    .slice(0, 5);
+  return [
+    `Total valoraciones: ${ratings.length}`,
+    `Media general: ${adminAverage(ratings.map((rating) => rating.averageScore)).toFixed(1)}/5`,
+    ...byType,
+    `Valoraciones por debajo de 3.5/5: ${lowRatings.length}`,
+    `Comentarios públicos escritos: ${publicComments}`,
+    mostRated.length ? `Perfiles más valorados: ${mostRated.join(" | ")}` : "Sin volumen por perfil todavía."
+  ];
+}
+
+function adminBuildShareableInsightReport({ profiles = [], requests = [], ratings = [], reports = [], feedback = [], events = [], period } = {}) {
+  const lines = [];
+  const periodLabel = period?.label || "Desde el inicio";
+  lines.push("# Informe Fit Match beta");
+  lines.push(`Periodo: ${periodLabel}`);
+  lines.push(`Generado: ${adminDateLabel(new Date().toISOString(), true)}`);
+  lines.push("");
+  lines.push("## Resumen");
+  lines.push(`Usuarios: ${profiles.length} (${profiles.filter((item) => item.role === "client").length} clientes, ${profiles.filter((item) => item.role === "professional").length} profesionales)`);
+  lines.push(`Contactos/solicitudes: ${requests.length}`);
+  lines.push(`Valoraciones: ${ratings.length}`);
+  lines.push(`Feedback beta: ${feedback.length}`);
+  lines.push(`Denuncias: ${reports.length}`);
+  lines.push(`Eventos registrados: ${events.length}`);
+  lines.push("");
+  lines.push("## Valoraciones");
+  lines.push(...adminRatingSummaryLines(ratings, profiles).map((line) => `- ${line}`));
+  lines.push("");
+  ratings.slice().sort((a, b) => adminDateMs(b.createdAt) - adminDateMs(a.createdAt)).slice(0, 20).forEach((rating) => {
+    const target = adminPersonForRating(profiles, rating.targetId, rating.targetRole);
+    const rater = adminPersonForRating(profiles, rating.raterId, rating.raterRole);
+    const criteria = adminCriteriaRowsForRating(rating, target.role).map(([labelText, value]) => `${labelText} ${value}/5`).join(", ");
+    const comments = adminRatingCommentRows(rating).map(([labelText, comment]) => `${labelText}: ${comment}`).join(" | ");
+    lines.push(`- ${adminRatingTypeLabel(rating)} · ${target.name} (${adminRoleLabel(target.role)}) recibió ${Number(rating.averageScore || 0).toFixed(1)}/5 de ${rater.name}. Criterios: ${criteria || "sin detalle"}. ${comments || "Sin comentario."}`);
+  });
+  lines.push("");
+  lines.push("## Feedback beta");
+  if (!feedback.length) {
+    lines.push("- Sin respuestas del cuestionario beta.");
+  } else {
+    lines.push(`- Media beta: ${adminAverage(feedback.map(betaFeedbackAverage)).toFixed(1)}/5`);
+    feedback.slice(0, 20).forEach((item) => {
+      const comments = [
+        item.comments?.mainDoubt ? `Duda: ${item.comments.mainDoubt}` : "",
+        item.comments?.missing ? `Falta: ${item.comments.missing}` : "",
+        item.comments?.firstChange ? `Cambiaría: ${item.comments.firstChange}` : ""
+      ].filter(Boolean).join(" | ");
+      lines.push(`- ${betaRoleLabel(item.role)} · ${betaFeedbackAverage(item).toFixed(1)}/5 · ${comments || "Sin comentario abierto."}`);
+    });
+  }
+  lines.push("");
+  lines.push("## Señales para revisar");
+  const lowRatings = ratings.filter((rating) => Number(rating.averageScore || 0) < 3.5);
+  if (lowRatings.length) {
+    lines.push(`- Revisar ${lowRatings.length} valoración(es) por debajo de 3.5/5.`);
+  }
+  const doubts = feedback.filter((item) => item.comments?.mainDoubt).map((item) => item.comments.mainDoubt).slice(0, 8);
+  if (doubts.length) {
+    lines.push(`- Dudas repetibles de testers: ${doubts.join(" | ")}`);
+  }
+  if (!lowRatings.length && !doubts.length) {
+    lines.push("- Sin señales críticas todavía. Necesita más respuestas reales.");
+  }
+  return lines.join("\n");
+}
+
+async function copyAdminInsightReport() {
+  const text = adminInsightReport?.value || "";
+  if (!text.trim()) return;
+  if (adminInsightCopyStatus) adminInsightCopyStatus.textContent = "";
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      adminInsightReport?.focus();
+      adminInsightReport?.select();
+      document.execCommand("copy");
+    }
+    if (adminInsightCopyStatus) adminInsightCopyStatus.textContent = "Informe copiado.";
+  } catch (error) {
+    adminInsightReport?.focus();
+    adminInsightReport?.select();
+    if (adminInsightCopyStatus) adminInsightCopyStatus.textContent = "Selecciona el texto y cópialo manualmente.";
+  }
+}
+
 function adminRenderFunnel(container, stages = []) {
   if (!container) return;
   container.innerHTML = "";
@@ -2514,6 +2868,12 @@ function renderAdminDashboard() {
   const ratings = dataProvider.listRatings?.() || [];
   const reports = dataProvider.listReports?.() || [];
   const events = dataProvider.listAppEvents?.() || [];
+  const feedback = dataProvider.listBetaFeedback?.() || [];
+  const periodRatings = ratings.filter((item) => adminInPeriod(item, period));
+  const periodReports = reports.filter((item) => adminInPeriod(item, period));
+  const periodRequests = requests.filter((item) => adminInPeriod(item, period));
+  const periodEvents = events.filter((item) => adminInPeriod(item, period));
+  const periodFeedback = feedback.filter((item) => adminInPeriod(item, period));
   const possibleMatches = adminPotentialMatches(clients, professionals);
   const allMatchPairs = adminAllMatchPairs(clients, professionals);
   const pendingRequests = requests.filter((request) => request.status === "pending" && !adminHasConversation(request)).length;
@@ -2543,6 +2903,8 @@ function renderAdminDashboard() {
   adminSetText(adminMetricAverage, averageRating === "--" ? "--" : averageRating + "/5");
   adminSetText(adminMetricReports, String(pendingReports.length));
   adminSetText(adminMetricReportsNote, pendingReports.length ? `${pendingReports.filter((report) => ["alta", "critica"].includes(report.priority)).length} de alta prioridad` : "Sin incidencias abiertas");
+  adminSetText(adminMetricBetaFeedback, String(periodFeedback.length));
+  adminSetText(adminMetricBetaFeedbackNote, periodFeedback.length ? `media ${adminAverage(periodFeedback.map(betaFeedbackAverage)).toFixed(1)}/5` : "Sin respuestas");
 
   const matchedUserIds = new Set(possibleMatches.flatMap((match) => [match.client.id, match.professional.id]));
   const requestSenderIds = new Set(requests.map((request) => request.sender?.id).filter(Boolean));
@@ -2557,7 +2919,8 @@ function renderAdminDashboard() {
     { label: "Primera solicitud enviada", count: requestSenderIds.size },
     { label: "Primer contacto aceptado", count: conversationUserIds.size },
     { label: "Primera conversación iniciada", count: conversationUserIds.size },
-    { label: "Primera experiencia valorada", count: ratedUserIds.size }
+    { label: "Primera experiencia valorada", count: ratedUserIds.size },
+    { label: "Feedback beta enviado", count: new Set(feedback.map((item) => item.userId || item.email).filter(Boolean)).size }
   ];
   adminRenderFunnel(adminFunnelList, funnelStages);
 
@@ -2635,6 +2998,13 @@ function renderAdminDashboard() {
     related: report.targetName || report.targetId,
     createdAt: report.createdAt
   }));
+  const feedbackActivity = feedback.map((item) => ({
+    type: "feedback",
+    title: "Feedback beta recibido",
+    user: item.email || item.userId || "Tester",
+    related: `${betaRoleLabel(item.role)} · ${betaFeedbackAverage(item).toFixed(1)}/5`,
+    createdAt: item.createdAt
+  }));
   const eventActivity = events.map((event) => ({
     type: event.eventType,
     title: event.eventType === "view_opened" ? `Vista abierta: ${event.metadata?.view || "app"}` : event.eventType.replaceAll("_", " "),
@@ -2642,12 +3012,25 @@ function renderAdminDashboard() {
     related: event.metadata?.targetId || event.metadata?.profileId || "",
     createdAt: event.createdAt
   }));
-  adminRenderActivity(adminRecentActivity, [...requestActivity, ...reportActivity, ...eventActivity]);
+  adminRenderActivity(adminRecentActivity, [...requestActivity, ...reportActivity, ...feedbackActivity, ...eventActivity]);
 
   adminRenderAlerts(adminAlertList, adminBuildAlerts({ profiles, requests, reports, reputationAlerts }));
   adminRenderReports(adminReportList, reports, profiles);
   adminRenderReputation(adminReputationList, profiles, ratings, reports);
   adminRenderUsers(adminUserList, profiles, requests, ratings, reports, events);
+  adminRenderRatingDetails(adminRatingDetailList, periodRatings, profiles);
+  adminRenderBetaFeedback(adminBetaFeedbackList, periodFeedback);
+  if (adminInsightReport) {
+    adminInsightReport.value = adminBuildShareableInsightReport({
+      profiles,
+      requests: periodRequests,
+      ratings: periodRatings,
+      reports: periodReports,
+      feedback: periodFeedback,
+      events: periodEvents,
+      period
+    });
+  }
 
   if (adminLastSync) adminLastSync.textContent = `Última actualización: ${adminDateLabel(new Date().toISOString(), true)} · ${period.label}`;
 }
@@ -3256,6 +3639,13 @@ async function handleSubmitProfileReport(event) {
 }
 
 async function handleAdminReportSave(event) {
+  const copyButton = event.target.closest("#adminCopyInsightReport");
+  if (copyButton) {
+    event.preventDefault();
+    await copyAdminInsightReport();
+    return;
+  }
+
   const button = event.target.closest("[data-admin-report-save]");
   if (!button) return;
   const reportId = button.dataset.adminReportSave;
@@ -3381,6 +3771,7 @@ function openRequestModal(matchId, opener) {
   modalTitle.textContent = selectedMatch.name;
   modalText.textContent = `${calculateScore(selectedMatch)}% de afinidad. Mira lo esencial y decide.`;
   renderProfileDetail(selectedMatch);
+  dataProvider.trackProfileView?.(selectedMatch, profile);
   messageInput.value = profile.role === "client"
     ? "Hola, he revisado tu perfil y me interesa saber disponibilidad, enfoque y cómo sería el primer plan."
     : "Hola, he revisado tu perfil y creo que puedo ayudarte. Me gustaría proponerte una primera valoración.";
@@ -4683,6 +5074,7 @@ adminReportStatusFilter?.addEventListener("change", renderAdminDashboard);
 adminReportReasonFilter?.addEventListener("change", renderAdminDashboard);
 adminReportPriorityFilter?.addEventListener("change", renderAdminDashboard);
 adminDashboard?.addEventListener("click", handleAdminReportSave);
+betaFeedbackForm?.addEventListener("submit", handleBetaFeedbackSubmit);
 
 adminRefreshButton?.addEventListener("click", async () => {
   const previousText = adminRefreshButton.textContent;

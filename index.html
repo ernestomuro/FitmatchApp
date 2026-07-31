@@ -35,6 +35,7 @@
         <button class="nav-link" type="button" data-view="matches">Matches</button>
         <button class="nav-link" type="button" data-view="contacts">Contactos</button>
         <button class="nav-link" type="button" data-view="ratings">Valoraciones</button>
+        <button class="nav-link beta-nav-link" type="button" data-view="beta">Beta</button>
         <button id="adminNavButton" class="nav-link admin-nav-link" type="button" data-view="admin" hidden>Admin</button>
       </nav>
     </header>
@@ -901,6 +902,127 @@
         </div>
       </section>
 
+      <section id="beta" class="workspace beta-view app-view" data-view-name="beta" hidden>
+        <div class="screen-header beta-header">
+          <div>
+            <p class="eyebrow">Beta Fit Match</p>
+            <h2>Tu experiencia cuenta.</h2>
+            <p>2 minutos. Respuestas claras. Mejoras reales.</p>
+          </div>
+          <div class="screen-actions">
+            <button class="button quiet" type="button" data-view="matches">Volver a matches</button>
+            <button class="button secondary" type="button" data-view="account">Ir a cuenta</button>
+          </div>
+        </div>
+
+        <div class="beta-layout">
+          <form id="betaFeedbackForm" class="beta-feedback-card" novalidate>
+            <div class="beta-form-heading">
+              <span class="micro-label">Cuestionario beta</span>
+              <strong>Ayúdanos a afinar Fit Match.</strong>
+              <p>Sin datos públicos. Solo aprendizaje de producto.</p>
+            </div>
+
+            <label class="beta-route-field">
+              Estoy probando como
+              <select name="role" id="betaRoleInput">
+                <option value="client">Cliente</option>
+                <option value="professional">Profesional</option>
+                <option value="visitor">Visitante</option>
+              </select>
+            </label>
+
+            <fieldset class="beta-scale-field">
+              <legend>Primera impresión</legend>
+              <div class="beta-scale-options" aria-label="Primera impresión">
+                <label><input type="radio" name="entryClarity" value="1" required /><span>1</span></label>
+                <label><input type="radio" name="entryClarity" value="2" /><span>2</span></label>
+                <label><input type="radio" name="entryClarity" value="3" /><span>3</span></label>
+                <label><input type="radio" name="entryClarity" value="4" /><span>4</span></label>
+                <label><input type="radio" name="entryClarity" value="5" /><span>5</span></label>
+              </div>
+            </fieldset>
+
+            <fieldset class="beta-scale-field">
+              <legend>Crear perfil</legend>
+              <div class="beta-scale-options" aria-label="Crear perfil">
+                <label><input type="radio" name="profileClarity" value="1" required /><span>1</span></label>
+                <label><input type="radio" name="profileClarity" value="2" /><span>2</span></label>
+                <label><input type="radio" name="profileClarity" value="3" /><span>3</span></label>
+                <label><input type="radio" name="profileClarity" value="4" /><span>4</span></label>
+                <label><input type="radio" name="profileClarity" value="5" /><span>5</span></label>
+              </div>
+            </fieldset>
+
+            <fieldset class="beta-scale-field">
+              <legend>Matches</legend>
+              <div class="beta-scale-options" aria-label="Matches">
+                <label><input type="radio" name="matchLogic" value="1" required /><span>1</span></label>
+                <label><input type="radio" name="matchLogic" value="2" /><span>2</span></label>
+                <label><input type="radio" name="matchLogic" value="3" /><span>3</span></label>
+                <label><input type="radio" name="matchLogic" value="4" /><span>4</span></label>
+                <label><input type="radio" name="matchLogic" value="5" /><span>5</span></label>
+              </div>
+            </fieldset>
+
+            <fieldset class="beta-scale-field">
+              <legend>Confianza para contactar</legend>
+              <div class="beta-scale-options" aria-label="Confianza para contactar">
+                <label><input type="radio" name="contactTrust" value="1" required /><span>1</span></label>
+                <label><input type="radio" name="contactTrust" value="2" /><span>2</span></label>
+                <label><input type="radio" name="contactTrust" value="3" /><span>3</span></label>
+                <label><input type="radio" name="contactTrust" value="4" /><span>4</span></label>
+                <label><input type="radio" name="contactTrust" value="5" /><span>5</span></label>
+              </div>
+            </fieldset>
+
+            <fieldset class="beta-scale-field">
+              <legend>Rapidez</legend>
+              <div class="beta-scale-options" aria-label="Rapidez">
+                <label><input type="radio" name="speed" value="1" required /><span>1</span></label>
+                <label><input type="radio" name="speed" value="2" /><span>2</span></label>
+                <label><input type="radio" name="speed" value="3" /><span>3</span></label>
+                <label><input type="radio" name="speed" value="4" /><span>4</span></label>
+                <label><input type="radio" name="speed" value="5" /><span>5</span></label>
+              </div>
+            </fieldset>
+
+            <label class="beta-text-field">
+              ¿Qué te hizo dudar?
+              <textarea name="mainDoubt" rows="3" maxlength="500" placeholder="Una pantalla, palabra o paso que te frenó."></textarea>
+            </label>
+
+            <label class="beta-text-field">
+              ¿Qué echaste en falta?
+              <textarea name="missing" rows="3" maxlength="500" placeholder="Algo que esperabas ver y no apareció."></textarea>
+            </label>
+
+            <label class="beta-text-field">
+              ¿Qué cambiarías primero?
+              <textarea name="firstChange" rows="3" maxlength="500" placeholder="Lo más importante para mejorar tu experiencia."></textarea>
+            </label>
+
+            <div class="beta-submit-row">
+              <button id="betaFeedbackSubmit" class="button primary" type="submit">Enviar feedback</button>
+              <p id="betaFeedbackStatus" class="beta-feedback-status" aria-live="polite"></p>
+            </div>
+          </form>
+
+          <aside class="beta-guide-card" aria-label="Guía para testers">
+            <span class="micro-label">Modo beta</span>
+            <strong>Busca fricción.</strong>
+            <div class="beta-guide-list">
+              <span><small>01</small> Entra</span>
+              <span><small>02</small> Crea perfil</span>
+              <span><small>03</small> Revisa matches</span>
+              <span><small>04</small> Contacta</span>
+              <span><small>05</small> Responde</span>
+            </div>
+            <p>Lo útil no es decir que todo va bien. Lo útil es encontrar dónde dudas.</p>
+          </aside>
+        </div>
+      </section>
+
       <section id="admin" class="workspace admin-view app-view" data-view-name="admin" hidden>
         <div class="screen-header admin-header">
           <div>
@@ -983,6 +1105,11 @@
               <span>Denuncias pendientes</span>
               <strong id="adminMetricReports">0</strong>
               <small id="adminMetricReportsNote">Sin incidencias abiertas</small>
+            </article>
+            <article class="admin-kpi-card">
+              <span>Feedback beta</span>
+              <strong id="adminMetricBetaFeedback">0</strong>
+              <small id="adminMetricBetaFeedbackNote">Sin respuestas</small>
             </article>
           </section>
 
@@ -1114,6 +1241,37 @@
               </div>
               <div id="adminUserList" class="admin-detail-list"></div>
             </article>
+          </section>
+
+          <section class="admin-card admin-insight-card">
+            <div class="admin-card-heading admin-report-heading">
+              <div>
+                <span class="micro-label">Análisis compartible</span>
+                <h3>Informe para ChatGPT</h3>
+                <p>Resumen privado de valoraciones, feedback beta y señales de mejora.</p>
+              </div>
+              <button id="adminCopyInsightReport" class="button primary" type="button">Copiar informe</button>
+            </div>
+            <textarea id="adminInsightReport" class="admin-export-textarea" readonly aria-label="Informe de beta para compartir"></textarea>
+            <p id="adminInsightCopyStatus" class="admin-copy-status" aria-live="polite"></p>
+          </section>
+
+          <section class="admin-card">
+            <div class="admin-card-heading">
+              <span class="micro-label">Valoraciones completas</span>
+              <h3>Opiniones y criterios</h3>
+              <p>Cada valoración con puntuación, tipo, comentario y detalle por criterio.</p>
+            </div>
+            <div id="adminRatingDetailList" class="admin-rating-detail-list"></div>
+          </section>
+
+          <section class="admin-card">
+            <div class="admin-card-heading">
+              <span class="micro-label">Beta testers</span>
+              <h3>Respuestas del cuestionario</h3>
+              <p>Señales cualitativas separadas de valoraciones, contactos y perfiles.</p>
+            </div>
+            <div id="adminBetaFeedbackList" class="admin-beta-feedback-list"></div>
           </section>
 
           <p id="adminLastSync" class="admin-sync-note">Última actualización: ahora</p>

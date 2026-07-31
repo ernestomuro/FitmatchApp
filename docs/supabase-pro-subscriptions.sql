@@ -4,8 +4,8 @@
 
 create table if not exists public.professional_subscriptions (
   user_id uuid primary key references public.profiles(id) on delete cascade,
-  professional_plan text not null default 'FREE' check (professional_plan in ('FREE', 'PRO', 'TRIAL', 'EXPIRED', 'CANCELLED')),
-  status text not null default 'FREE' check (status in ('FREE', 'PRO', 'EXPIRED', 'CANCELLED', 'TRIAL')),
+  professional_plan text not null default 'FREE',
+  status text not null default 'FREE',
   plan text not null default 'free',
   pro_interest boolean not null default false,
   profile_score integer not null default 0 check (profile_score >= 0 and profile_score <= 100),
@@ -20,15 +20,37 @@ create table if not exists public.professional_subscriptions (
   updated_at timestamptz not null default now()
 );
 
+alter table public.professional_subscriptions
+  drop constraint if exists professional_subscriptions_professional_plan_check;
+
+alter table public.professional_subscriptions
+  add constraint professional_subscriptions_professional_plan_check
+  check (professional_plan in ('FREE', 'INTERESTED', 'PRO', 'TRIAL', 'EXPIRED', 'CANCELLED'));
+
+alter table public.professional_subscriptions
+  drop constraint if exists professional_subscriptions_status_check;
+
+alter table public.professional_subscriptions
+  add constraint professional_subscriptions_status_check
+  check (status in ('FREE', 'INTERESTED', 'PRO', 'EXPIRED', 'CANCELLED', 'TRIAL'));
+
 create table if not exists public.professional_metrics (
   user_id uuid primary key references public.profiles(id) on delete cascade,
   visits integer not null default 0,
+  profile_view_count integer not null default 0,
+  estimated_exposure integer not null default 0,
   match_count integer not null default 0,
   contact_count integer not null default 0,
   conversion_rate numeric(5,2) not null default 0,
   month_key text not null default to_char(now(), 'YYYY-MM'),
   updated_at timestamptz not null default now()
 );
+
+alter table public.professional_metrics
+  add column if not exists profile_view_count integer not null default 0;
+
+alter table public.professional_metrics
+  add column if not exists estimated_exposure integer not null default 0;
 
 create table if not exists public.stripe_events (
   id text primary key,
@@ -54,6 +76,11 @@ create policy "users read own metrics"
 -- El registro de interes puede escribirse desde Edge Function o desde una politica controlada.
 -- Los cobros reales y eventos de Stripe deben escribirlos Edge Functions con service role.
 -- No crear politicas publicas de insert/update para pagos desde el navegador.
+-- Para beta manual antes de Stripe, actualizar status/plan desde Supabase con una cuenta admin:
+-- update public.professional_subscriptions
+-- set status = 'TRIAL', professional_plan = 'TRIAL', plan = 'trial',
+--     trial_started_at = now(), trial_ends_at = now() + interval '30 days', updated_at = now()
+-- where user_id = '<uuid-del-profesional>';
 
 create index if not exists professional_subscriptions_status_idx
   on public.professional_subscriptions (status);

@@ -5,12 +5,60 @@ const STORAGE_KEYS = {
   ratings: "fit-match.profile-ratings.v1",
   legalConsents: "fit-match.legal-consents.v1",
   proSubscriptions: "fit-match.pro-subscriptions.v1",
+  betaFeedback: "fit-match.beta-feedback.v1",
   appEvents: "fit-match.app-events.v1",
   reports: "fit-match.profile-reports.v1",
   moderationActions: "fit-match.moderation-actions.v1"
 };
 
 const LEGAL_CONSENT_VERSION = "fit-match-beta-legal-v2";
+const PRO_STATUSES = Object.freeze({
+  FREE: "FREE",
+  INTERESTED: "INTERESTED",
+  TRIAL: "TRIAL",
+  PRO: "PRO",
+  EXPIRED: "EXPIRED",
+  CANCELLED: "CANCELLED"
+});
+const PRO_ACTIVE_STATUSES = Object.freeze([PRO_STATUSES.TRIAL, PRO_STATUSES.PRO]);
+const PRO_PLAN_CATALOG = Object.freeze({
+  free: {
+    id: "free",
+    label: "Fit Match Free",
+    status: PRO_STATUSES.FREE,
+    features: ["profile_score_preview", "basic_recommendations"]
+  },
+  interested: {
+    id: "interested",
+    label: "Interés PRO registrado",
+    status: PRO_STATUSES.INTERESTED,
+    features: ["profile_score_preview", "basic_recommendations", "pro_waitlist"]
+  },
+  trial: {
+    id: "trial",
+    label: "Fit Match PRO Trial",
+    status: PRO_STATUSES.TRIAL,
+    features: ["profile_badge", "advanced_metrics", "koro_profile_coach", "monthly_report", "video_profile", "verification", "conversion_recommendations"]
+  },
+  pro: {
+    id: "pro",
+    label: "Fit Match PRO",
+    status: PRO_STATUSES.PRO,
+    features: ["profile_badge", "advanced_metrics", "koro_profile_coach", "monthly_report", "video_profile", "verification", "conversion_recommendations"]
+  }
+});
+const PRO_FEATURE_CATALOG = Object.freeze({
+  profile_score_preview: { label: "Calidad del perfil", preview: true },
+  basic_recommendations: { label: "Recomendaciones básicas", preview: true },
+  pro_waitlist: { label: "Lista de interés PRO", preview: true },
+  profile_badge: { label: "Insignia PRO" },
+  advanced_metrics: { label: "Estadísticas avanzadas" },
+  koro_profile_coach: { label: "KORO Profile Coach" },
+  monthly_report: { label: "Informe mensual del perfil" },
+  video_profile: { label: "Vídeo de presentación" },
+  verification: { label: "Verificación profesional" },
+  conversion_recommendations: { label: "Recomendaciones de conversión" }
+});
 
 const SUPABASE_CONFIG = window.FIT_MATCH_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient && SUPABASE_CONFIG.url && SUPABASE_CONFIG.publishableKey
@@ -23,6 +71,7 @@ let remoteRequests = [];
 let remoteRatings = [];
 let remotePrivateNotes = {};
 let remoteProSubscription = null;
+let remoteBetaFeedback = [];
 let remoteAppEvents = [];
 let remoteReports = [];
 let remoteModerationActions = [];
@@ -161,6 +210,76 @@ function parseJsonObject(value, fallback = {}) {
   }
 }
 
+function normalizeBetaRole(role = "") {
+  const value = String(role || "").toLowerCase();
+  if (value === "client" || value === "professional" || value === "visitor") return value;
+  return "visitor";
+}
+
+function normalizeBetaScore(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return Math.min(5, Math.max(1, Math.round(number)));
+}
+
+function cleanBetaText(value = "") {
+  return String(value || "").trim().slice(0, 500);
+}
+
+function normalizeBetaFeedback(feedback = {}) {
+  const answers = parseJsonObject(feedback.answers, {});
+  const scoresSource = parseJsonObject(feedback.scores || answers.scores, {});
+  const commentsSource = parseJsonObject(feedback.comments || answers.comments, {});
+  const scores = {
+    entryClarity: normalizeBetaScore(feedback.entryClarity || feedback.entry_clarity || scoresSource.entryClarity),
+    profileClarity: normalizeBetaScore(feedback.profileClarity || feedback.profile_clarity || scoresSource.profileClarity),
+    matchLogic: normalizeBetaScore(feedback.matchLogic || feedback.match_logic || scoresSource.matchLogic),
+    contactTrust: normalizeBetaScore(feedback.contactTrust || feedback.contact_trust || scoresSource.contactTrust),
+    speed: normalizeBetaScore(feedback.speed || scoresSource.speed)
+  };
+  const scoreValues = Object.values(scores).filter((score) => score > 0);
+  const storedAverage = Number(feedback.averageScore || feedback.average_score) || 0;
+  const comments = {
+    mainDoubt: cleanBetaText(feedback.mainDoubt || feedback.main_doubt || commentsSource.mainDoubt),
+    missing: cleanBetaText(feedback.missing || commentsSource.missing),
+    firstChange: cleanBetaText(feedback.firstChange || feedback.first_change || commentsSource.firstChange)
+  };
+  return {
+    id: feedback.id || createId("beta-feedback"),
+    userId: feedback.userId || feedback.user_id || currentSession?.user?.id || "local",
+    email: feedback.email || currentSession?.user?.email || "",
+    role: normalizeBetaRole(feedback.role || feedback.testerRole || feedback.tester_role),
+    profileId: feedback.profileId || feedback.profile_id || "",
+    route: feedback.route || answers.route || "",
+    scores,
+    comments,
+    averageScore: scoreValues.length ? Math.round((scoreValues.reduce((sum, score) => sum + score, 0) / scoreValues.length) * 10) / 10 : storedAverage,
+    source: feedback.source || answers.source || "local",
+    createdAt: feedback.createdAt || feedback.created_at || new Date().toISOString(),
+    updatedAt: feedback.updatedAt || feedback.updated_at || feedback.createdAt || feedback.created_at || new Date().toISOString()
+  };
+}
+
+function readBetaFeedback() {
+  return dedupeBetaFeedback(readStorage(STORAGE_KEYS.betaFeedback, []));
+}
+
+function writeBetaFeedback(feedback = []) {
+  writeStorage(STORAGE_KEYS.betaFeedback, dedupeBetaFeedback(feedback));
+}
+
+function dedupeBetaFeedback(feedback = []) {
+  const map = new Map();
+  feedback.map(normalizeBetaFeedback).forEach((item) => {
+    if (!item.id) return;
+    const current = map.get(item.id);
+    const currentTime = current ? new Date(current.updatedAt || current.createdAt || 0).getTime() : 0;
+    const nextTime = new Date(item.updatedAt || item.createdAt || 0).getTime();
+    if (!current || nextTime >= currentTime) map.set(item.id, item);
+  });
+  return Array.from(map.values()).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+}
+
 function currentUserKey(user = currentSession?.user) {
   return user?.id || user?.email || "local";
 }
@@ -175,14 +294,78 @@ function normalizeRatingSummary(summary = {}) {
   };
 }
 
+function normalizeProStatus(status = "") {
+  const value = String(status || PRO_STATUSES.FREE).toUpperCase();
+  return Object.values(PRO_STATUSES).includes(value) ? value : PRO_STATUSES.FREE;
+}
+
+function proLifecycleStatus(subscription = {}) {
+  const status = normalizeProStatus(subscription.status || subscription.proStatus);
+  if (status === PRO_STATUSES.FREE && Boolean(subscription.proInterest || subscription.pro_interest)) {
+    return PRO_STATUSES.INTERESTED;
+  }
+  return status;
+}
+
+function proPlanForStatus(status = PRO_STATUSES.FREE) {
+  const normalized = normalizeProStatus(status);
+  if (normalized === PRO_STATUSES.PRO) return PRO_PLAN_CATALOG.pro;
+  if (normalized === PRO_STATUSES.TRIAL) return PRO_PLAN_CATALOG.trial;
+  if (normalized === PRO_STATUSES.INTERESTED) return PRO_PLAN_CATALOG.interested;
+  return PRO_PLAN_CATALOG.free;
+}
+
+function proFeatureAccess(subscription = {}, featureId = "") {
+  const feature = PRO_FEATURE_CATALOG[featureId];
+  if (!feature) return { featureId, enabled: false, preview: false, status: PRO_STATUSES.FREE };
+  const lifecycle = proLifecycleStatus(subscription);
+  const plan = proPlanForStatus(lifecycle);
+  const enabled = plan.features.includes(featureId);
+  return {
+    featureId,
+    label: feature.label,
+    enabled,
+    preview: Boolean(feature.preview) && !PRO_ACTIVE_STATUSES.includes(lifecycle),
+    status: lifecycle,
+    plan: plan.id
+  };
+}
+
+function cloneProCatalog() {
+  return Object.entries(PRO_FEATURE_CATALOG).map(([id, feature]) => ({
+    id,
+    label: feature.label,
+    preview: Boolean(feature.preview)
+  }));
+}
+
+function normalizeProfessionalSubscriptionRow(row = {}) {
+  if (!row) return null;
+  return proDefaultSubscription({
+    profileId: row.user_id || row.profileId,
+    role: "professional",
+    status: row.status || row.professional_plan,
+    plan: row.plan || row.professional_plan || "free",
+    proInterest: row.pro_interest,
+    profileScore: row.profile_score,
+    profileRecommendations: row.profile_recommendations,
+    stripeCustomerId: row.stripe_customer_id,
+    stripeSubscriptionId: row.stripe_subscription_id,
+    startedAt: row.trial_started_at || row.started_at,
+    trialEndsAt: row.trial_ends_at,
+    currentPeriodEnd: row.current_period_end,
+    updatedAt: row.updated_at
+  });
+}
+
 function proDefaultSubscription(overrides = {}) {
-  const status = String(overrides.status || "FREE").toUpperCase();
+  const status = normalizeProStatus(overrides.status || overrides.proStatus);
   const trialEndsAt = overrides.trialEndsAt || overrides.trial_ends_at || "";
-  const expiredTrial = status === "TRIAL" && trialEndsAt && new Date(trialEndsAt).getTime() < Date.now();
+  const expiredTrial = status === PRO_STATUSES.TRIAL && trialEndsAt && new Date(trialEndsAt).getTime() < Date.now();
   return {
     profileId: overrides.profileId || overrides.profile_id || currentSession?.user?.id || "local",
     role: overrides.role || "professional",
-    status: expiredTrial ? "FREE" : status,
+    status: expiredTrial ? PRO_STATUSES.FREE : status,
     plan: overrides.plan || "free",
     startedAt: overrides.startedAt || overrides.started_at || "",
     trialEndsAt: expiredTrial ? "" : trialEndsAt,
@@ -213,7 +396,7 @@ function publicProMetaFromSubscription(subscription = {}, extras = {}) {
 }
 
 function isProActiveStatus(status = "") {
-  return ["PRO", "TRIAL"].includes(String(status || "").toUpperCase());
+  return PRO_ACTIVE_STATUSES.includes(normalizeProStatus(status));
 }
 
 function readProSubscriptions() {
@@ -1015,6 +1198,7 @@ window.FitMatchDataProvider = {
     remoteRatings = [];
     remotePrivateNotes = {};
     remoteProSubscription = null;
+    remoteBetaFeedback = [];
     remoteAppEvents = [];
     remoteReports = [];
     remoteModerationActions = [];
@@ -1064,6 +1248,25 @@ window.FitMatchDataProvider = {
       }
 
       try {
+        const subscriptionResult = await supabaseClient
+          .from("professional_subscriptions")
+          .select("*")
+          .eq("user_id", currentSession.user.id)
+          .maybeSingle();
+        if (!subscriptionResult.error && subscriptionResult.data) {
+          remoteProSubscription = normalizeProfessionalSubscriptionRow(subscriptionResult.data);
+          remoteProfiles = remoteProfiles.map((profile) => profile.id === currentSession.user.id
+            ? {
+                ...profile,
+                ...publicProMetaFromSubscription(remoteProSubscription, { verified: profile.verified })
+              }
+            : profile);
+        }
+      } catch (error) {
+        // professional_subscriptions es opcional hasta activar PRO con pagos.
+      }
+
+      try {
         const ratingRows = await assertNoError(
           await supabaseClient
             .from("profile_ratings")
@@ -1087,6 +1290,19 @@ window.FitMatchDataProvider = {
           .order("created_at", { ascending: false })
       );
       remoteRequests = (requests || []).map((request) => mapRemoteRequest(request, profilesById));
+
+      try {
+        const feedbackRows = await assertNoError(
+          await supabaseClient
+            .from("beta_feedback")
+            .select("*")
+            .order("created_at", { ascending: false })
+            .limit(200)
+        );
+        remoteBetaFeedback = dedupeBetaFeedback([...(feedbackRows || []).map(normalizeBetaFeedback), ...readBetaFeedback()]);
+      } catch (error) {
+        remoteBetaFeedback = readBetaFeedback();
+      }
 
       try {
         const eventRows = await assertNoError(
@@ -1151,6 +1367,29 @@ window.FitMatchDataProvider = {
 
   getLabels() {
     return window.FIT_MATCH_DATA.labels;
+  },
+
+  getProFeatureCatalog() {
+    return cloneProCatalog();
+  },
+
+  getProPlanCatalog() {
+    return Object.values(PRO_PLAN_CATALOG).map((plan) => ({
+      ...plan,
+      features: [...plan.features]
+    }));
+  },
+
+  getProLifecycleStatus(subscription = {}) {
+    return proLifecycleStatus(subscription);
+  },
+
+  getProFeatureAccess(featureId, subscription = {}) {
+    return proFeatureAccess(subscription, featureId);
+  },
+
+  canUseProFeature(featureId, subscription = {}) {
+    return proFeatureAccess(subscription, featureId).enabled;
   },
 
   getProfileDraft(role) {
@@ -1568,6 +1807,66 @@ window.FitMatchDataProvider = {
     return event;
   },
 
+  async trackProfileView(target = {}, viewer = {}) {
+    if (!target?.id) return null;
+    return this.trackEvent("profile_viewed", {
+      targetId: target.id,
+      targetRole: target.role || "",
+      targetName: target.name || "",
+      viewerRole: viewer.role || "",
+      viewerId: viewer.id || currentSession?.user?.id || "local"
+    });
+  },
+
+  listBetaFeedback() {
+    return dedupeBetaFeedback([...(canUseRemote() ? remoteBetaFeedback : []), ...readBetaFeedback()]).slice(0, 200);
+  },
+
+  async saveBetaFeedback(payload = {}) {
+    const user = currentSession?.user;
+    const normalized = normalizeBetaFeedback({
+      ...payload,
+      userId: user?.id || payload.userId || "local",
+      email: user?.email || payload.email || "",
+      profileId: payload.profileId || user?.id || "",
+      source: canUseRemote() ? "remote" : "local",
+      updatedAt: new Date().toISOString()
+    });
+
+    if (!canUseRemote()) {
+      writeBetaFeedback([normalized, ...readBetaFeedback()]);
+      remoteBetaFeedback = dedupeBetaFeedback([normalized, ...remoteBetaFeedback]).slice(0, 200);
+      await this.trackEvent("beta_feedback_saved", { role: normalized.role, averageScore: normalized.averageScore, source: "local" });
+      return normalized;
+    }
+
+    try {
+      const data = await assertNoError(
+        await supabaseClient.from("beta_feedback").insert({
+          user_id: currentSession.user.id,
+          email: currentSession.user.email || null,
+          role: normalized.role,
+          profile_id: normalized.profileId || null,
+          route: normalized.route || null,
+          scores: normalized.scores,
+          comments: normalized.comments,
+          average_score: normalized.averageScore,
+          metadata: { source: "beta_form" }
+        }).select("*").single()
+      );
+      const remoteSaved = normalizeBetaFeedback({ ...data, source: "remote" });
+      writeBetaFeedback([remoteSaved, ...readBetaFeedback()]);
+      remoteBetaFeedback = dedupeBetaFeedback([remoteSaved, ...remoteBetaFeedback]).slice(0, 200);
+      await this.trackEvent("beta_feedback_saved", { role: remoteSaved.role, averageScore: remoteSaved.averageScore, source: "remote" });
+      return remoteSaved;
+    } catch (error) {
+      writeBetaFeedback([normalized, ...readBetaFeedback()]);
+      remoteBetaFeedback = dedupeBetaFeedback([normalized, ...remoteBetaFeedback]).slice(0, 200);
+      await this.trackEvent("beta_feedback_saved", { role: normalized.role, averageScore: normalized.averageScore, source: "fallback" });
+      return normalized;
+    }
+  },
+
   listAppEvents() {
     return dedupeAppEvents([...remoteAppEvents, ...readAppEvents()]).slice(0, 200);
   },
@@ -1807,6 +2106,7 @@ window.FitMatchDataProvider = {
 
     if (!canUseRemote()) {
       writeProSubscription(profileId, subscription);
+      this.trackEvent("pro_interest_registered", { profileId, role: "professional", source: "local" });
       return subscription;
     }
 
@@ -1819,6 +2119,7 @@ window.FitMatchDataProvider = {
     }));
 
     await this.refreshRemoteData();
+    await this.trackEvent("pro_interest_registered", { profileId, role: "professional", source: "remote" });
     return subscription;
   },
 
@@ -1827,12 +2128,16 @@ window.FitMatchDataProvider = {
     const activeContacts = allRequests.filter((request) => !["rejected", "cancelled"].includes(request.status)).length;
     const ratings = this.listRatings().filter((rating) => rating.targetId === profile.id);
     const directorySize = profile.role === "professional" ? this.listProfiles("client").length : this.listProfiles("professional").length;
+    const profileViews = this.listAppEvents().filter((event) => event.eventType === "profile_viewed" && event.metadata?.targetId === profile.id).length;
     const completedSignals = [profile.photo, profile.bio, profile.availability, profile.services?.length, profile.sport || profile.notes, profile.price].filter(Boolean).length;
     const matches = Math.max(0, directorySize);
-    const views = Math.max(0, matches * 12 + activeContacts * 11 + ratings.length * 9 + completedSignals * 5);
+    const estimatedExposure = Math.max(0, matches * 12 + activeContacts * 11 + ratings.length * 9 + completedSignals * 5);
+    const views = Math.max(profileViews, estimatedExposure);
     const conversion = views ? Math.min(99, Math.round((activeContacts / views) * 100)) : 0;
     return {
       views,
+      profileViews,
+      estimatedExposure,
       matches,
       contacts: activeContacts,
       conversion,

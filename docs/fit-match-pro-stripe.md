@@ -17,8 +17,38 @@ La app queda preparada con una primera capa visible solo para profesionales:
 - score visual de calidad del perfil;
 - recomendaciones iniciales para mejorar perfil, confianza y conversion;
 - beneficios futuros PRO listados sin activar cobros.
+- catalogo interno de funciones PRO por feature;
+- permisos centralizados por estado de suscripcion;
+- lectura opcional de `professional_subscriptions` si la tabla existe;
+- eventos internos para medir interes PRO y visitas de perfil.
 
 No hay cobros activos. No hay Stripe activo. No hay checkout. No hay suscripcion real todavia.
+
+## Cimientos tecnicos preparados
+
+La base PRO se organiza por estados:
+
+- `FREE`: profesional sin PRO.
+- `INTERESTED`: profesional que ha pedido probar PRO.
+- `TRIAL`: acceso beta manual o prueba futura.
+- `PRO`: suscripcion activa.
+- `EXPIRED`: acceso caducado.
+- `CANCELLED`: suscripcion cancelada.
+
+La app debe consultar siempre permisos por funcion, no por textos sueltos:
+
+- `profile_score_preview`
+- `basic_recommendations`
+- `pro_waitlist`
+- `profile_badge`
+- `advanced_metrics`
+- `koro_profile_coach`
+- `monthly_report`
+- `video_profile`
+- `verification`
+- `conversion_recommendations`
+
+Regla de producto: ninguna funcion PRO debe modificar el porcentaje principal de compatibilidad. PRO puede actuar como desempate suave solo cuando la compatibilidad sea equivalente.
 
 ## KORO Profile Coach
 
@@ -45,7 +75,19 @@ Estructura preparada para analizar:
 
 - Clientes: no ven esta seccion.
 - Profesionales FREE: ven Fit Match PRO en construccion, beneficios futuros, preview limitada y registro de interes.
+- Profesionales INTERESTED: siguen sin pagar; queda registrado su interes para beta.
+- Profesionales TRIAL: podran probar funciones PRO manualmente antes de Stripe.
 - Profesionales PRO: veran analisis completo cuando el plan se active.
+
+## Beta manual antes de pagos
+
+Antes de conectar Stripe, conviene probar PRO con pocos profesionales reales:
+
+1. Ejecutar `docs/supabase-pro-subscriptions.sql` cuando se decida usar tabla propia.
+2. Registrar interes desde el boton actual.
+3. Activar `TRIAL` manualmente desde Supabase para usuarios concretos.
+4. Comprobar que el panel desbloquea metricas y KORO sin cobrar.
+5. Revisar si las metricas aportan valor antes de convertirlo en producto de pago.
 
 ## Preparacion para Stripe futuro
 
