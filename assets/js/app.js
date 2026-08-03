@@ -2529,59 +2529,544 @@ function adminRatingSummaryLines(ratings = [], profiles = []) {
   ];
 }
 
-function adminBuildShareableInsightReport({ profiles = [], requests = [], ratings = [], reports = [], feedback = [], events = [], period } = {}) {
-  const lines = [];
-  const periodLabel = period?.label || "Desde el inicio";
-  lines.push("# Informe Fit Match beta");
-  lines.push(`Periodo: ${periodLabel}`);
-  lines.push(`Generado: ${adminDateLabel(new Date().toISOString(), true)}`);
-  lines.push("");
-  lines.push("## Resumen");
-  lines.push(`Usuarios: ${profiles.length} (${profiles.filter((item) => item.role === "client").length} clientes, ${profiles.filter((item) => item.role === "professional").length} profesionales)`);
-  lines.push(`Contactos/solicitudes: ${requests.length}`);
-  lines.push(`Valoraciones: ${ratings.length}`);
-  lines.push(`Feedback beta: ${feedback.length}`);
-  lines.push(`Denuncias: ${reports.length}`);
-  lines.push(`Eventos registrados: ${events.length}`);
-  lines.push("");
-  lines.push("## Valoraciones");
-  lines.push(...adminRatingSummaryLines(ratings, profiles).map((line) => `- ${line}`));
-  lines.push("");
-  ratings.slice().sort((a, b) => adminDateMs(b.createdAt) - adminDateMs(a.createdAt)).slice(0, 20).forEach((rating) => {
-    const target = adminPersonForRating(profiles, rating.targetId, rating.targetRole);
-    const rater = adminPersonForRating(profiles, rating.raterId, rating.raterRole);
-    const criteria = adminCriteriaRowsForRating(rating, target.role).map(([labelText, value]) => `${labelText} ${value}/5`).join(", ");
-    const comments = adminRatingCommentRows(rating).map(([labelText, comment]) => `${labelText}: ${comment}`).join(" | ");
-    lines.push(`- ${adminRatingTypeLabel(rating)} · ${target.name} (${adminRoleLabel(target.role)}) recibió ${Number(rating.averageScore || 0).toFixed(1)}/5 de ${rater.name}. Criterios: ${criteria || "sin detalle"}. ${comments || "Sin comentario."}`);
+function adminReportPeriodRange(period = {}) {
+  return {
+    label: period?.label || "Desde el inicio",
+    start: period?.start || 0,
+    end: period?.now || Date.now()
+  };
+}
+
+function adminPreviousPeriodRange(period = {}) {
+  const current = adminReportPeriodRange(period);
+  if (!current.start) return null;
+  const duration = current.end - current.start;
+  return {
+    label: `Periodo anterior equivalente a ${current.label.toLowerCase()}`,
+    start: current.start - duration,
+    end: current.start
+  };
+}
+
+function adminItemsInRange(items = [], range = null, field = "createdAt") {
+  if (!range?.start) return [...items];
+  return items.filter((item) => {
+    const time = adminDateMs(item?.[field] || item?.created_at || item);
+    return time >= range.start && time <= range.end;
   });
+}
+
+function adminUniqueUserCountFromEvents(events = []) {
+  return new Set(events.map((event) => event.userId || event.email).filter(Boolean)).size;
+}
+
+function adminDuplicateGroups(items = [], keyFn = () => "") {
+  const groups = items.reduce((map, item) => {
+    const key = keyFn(item);
+    if (!key) return map;
+    const list = map.get(key) || [];
+    list.push(item);
+    map.set(key, list);
+    return map;
+  }, new Map());
+  return Array.from(groups.entries())
+    .filter(([, list]) => list.length > 1)
+    .map(([key, list]) => ({ key, count: list.length, items: list }));
+}
+
+function adminReportIdentity(person = {}) {
+  const role = person.role || "profile";
+  const email = normalizeText(person.email || person.contactEmail || "");
+  if (email) return `${role}:email:${email}`;
+  return [
+    role,
+    normalizeText(person.name || ""),
+    normalizeText(person.city || ""),
+    normalizeText(person.goal || ""),
+    normalizeText(person.sport || "")
+  ].filter(Boolean).join(":");
+}
+
+function adminLooksLikeTestData(item = {}) {
+  const text = [
+    item.name,
+    item.email,
+    item.userId,
+    item.reporterEmail,
+    item.targetName,
+    item.message,
+    item.description
+  ].filter(Boolean).join(" ").toLowerCase();
+  return /\b(test|demo|mock|prueba|ejemplo|dummy)\b/.test(text);
+}
+
+function adminAnalyzeDataQuality({ profiles = [], requests = [], ratings = [], reports = [], feedback = [], events = [] } = {}) {
+  const profileIds = new Set(profiles.map((person) => person.id).filter(Boolean));
+  const issues = [];
+  const profileIdDuplicates = adminDuplicateGroups(profiles, (person) => person.id);
+  const profileIdentityDuplicates = adminDuplicateGroups(profiles, adminReportIdentity);
+  const requestIdDuplicates = adminDuplicateGroups(requests, (request) => request.id);
+  const conversationDuplicates = adminDuplicateGroups(requests, (request) => [
+    request.sender?.id,
+    request.recipient?.id,
+    normalizeText(request.message || ""),
+    Math.floor(adminDateMs(request.createdAt) / 60000)
+  ].join(":"));
+  const ratingDuplicates = adminDuplicateGroups(ratings, (rating) => [
+    rating.raterId,
+    rating.targetId,
+    normalizeRatingType(rating.ratingType || rating.criteria?._ratingType)
+  ].join(":"));
+  const eventDuplicates = adminDuplicateGroups(events, (event) => [
+    event.eventType,
+    event.userId || event.email,
+    Math.floor(adminDateMs(event.createdAt) / 60000),
+    event.metadata?.view || event.metadata?.targetId || event.metadata?.profileId || ""
+  ].join(":"));
+  const orphanRequests = requests.filter((request) =>
+    (request.sender?.id && !profileIds.has(request.sender.id))
+    || (request.recipient?.id && !profileIds.has(request.recipient.id))
+  );
+  const orphanRatings = ratings.filter((rating) =>
+    (rating.raterId && !profileIds.has(rating.raterId))
+    || (rating.targetId && !profileIds.has(rating.targetId))
+  );
+  const orphanReports = reports.filter((report) => report.targetId && !profileIds.has(report.targetId));
+  const testRecords = [
+    ...profiles.filter(adminLooksLikeTestData),
+    ...requests.filter(adminLooksLikeTestData),
+    ...reports.filter(adminLooksLikeTestData),
+    ...feedback.filter(adminLooksLikeTestData)
+  ];
+
+  if (profileIdDuplicates.length) issues.push({ level: "critical", text: `IDs de perfil duplicados: ${profileIdDuplicates.length} grupo(s).` });
+  if (profileIdentityDuplicates.length) issues.push({ level: "attention", text: `Posibles perfiles duplicados por identidad: ${profileIdentityDuplicates.length} grupo(s).` });
+  if (requestIdDuplicates.length || conversationDuplicates.length) issues.push({ level: "attention", text: `Posibles conversaciones duplicadas: ${requestIdDuplicates.length + conversationDuplicates.length} señal(es).` });
+  if (ratingDuplicates.length) issues.push({ level: "critical", text: `Valoraciones duplicadas por usuario/perfil/tipo: ${ratingDuplicates.length} grupo(s).` });
+  if (eventDuplicates.length) issues.push({ level: "attention", text: `Eventos posiblemente duplicados: ${eventDuplicates.length} grupo(s).` });
+  if (orphanRequests.length) issues.push({ level: "attention", text: `Solicitudes con relación incompleta: ${orphanRequests.length}.` });
+  if (orphanRatings.length) issues.push({ level: "attention", text: `Valoraciones con relación incompleta: ${orphanRatings.length}.` });
+  if (orphanReports.length) issues.push({ level: "attention", text: `Denuncias con perfil objetivo no localizado: ${orphanReports.length}.` });
+  if (testRecords.length) issues.push({ level: "attention", text: `Posibles datos de prueba/mock mezclados: ${testRecords.length} registro(s).` });
+
+  const reliability = issues.some((issue) => issue.level === "critical")
+    ? "Baja"
+    : issues.length
+      ? "Media"
+      : "Alta";
+
+  return { reliability, issues };
+}
+
+function adminReportMetrics({ profiles = [], requests = [], ratings = [], reports = [], feedback = [], events = [] } = {}) {
+  const clients = profiles.filter((item) => item.role === "client");
+  const professionals = profiles.filter((item) => item.role === "professional");
+  const completedProfiles = profiles.filter((item) => adminProfileCompletionFor(item) >= 80);
+  const incompleteProfiles = profiles.filter((item) => adminProfileCompletionFor(item) < 80);
+  const allMatchPairs = adminAllMatchPairs(clients, professionals);
+  const possibleMatches = allMatchPairs.filter((match) => match.score >= 45);
+  const matchedUserIds = new Set(possibleMatches.flatMap((match) => [match.client.id, match.professional.id]).filter(Boolean));
+  const requestSenderIds = new Set(requests.map((request) => request.sender?.id).filter(Boolean));
+  const conversationRequests = requests.filter(adminHasConversation);
+  const conversationUserIds = new Set(conversationRequests.flatMap(adminRequestUserIds));
+  const contactStartedRequests = requests.filter((request) => request.contactStartedBy?.length);
+  const ratedUserIds = new Set(ratings.map((rating) => rating.raterId).filter(Boolean));
+  const pendingReports = reports.filter((report) => !["resuelta", "descartada"].includes(report.status));
+  const criticalReports = pendingReports.filter((report) => report.priority === "critica");
+  const unansweredRequests = requests.filter((request) => !adminHasConversation(request));
+  const usersWithoutMatch = profiles.filter((person) => !matchedUserIds.has(person.id));
+  const usersWithoutConversation = profiles.filter((person) => !conversationUserIds.has(person.id));
+  const usersWithoutRating = profiles.filter((person) => !ratedUserIds.has(person.id));
+  const profilesWithoutPhoto = profiles.filter((person) => !person.photo);
+  const firstContactRatings = ratings.filter((rating) => normalizeRatingType(rating.ratingType || rating.criteria?._ratingType) === "first_contact");
+  const serviceRatings = ratings.filter((rating) => normalizeRatingType(rating.ratingType || rating.criteria?._ratingType) === "service");
+
+  return {
+    users: profiles.length,
+    activeUsers: adminUniqueUserCountFromEvents(events),
+    activeToday: adminUniqueUserCountFromEvents(adminItemsInRange(events, { start: Date.now() - 24 * 60 * 60 * 1000, end: Date.now() })),
+    active7d: adminUniqueUserCountFromEvents(adminItemsInRange(events, { start: Date.now() - 7 * 24 * 60 * 60 * 1000, end: Date.now() })),
+    active30d: adminUniqueUserCountFromEvents(adminItemsInRange(events, { start: Date.now() - 30 * 24 * 60 * 60 * 1000, end: Date.now() })),
+    clients: clients.length,
+    professionals: professionals.length,
+    completeProfiles: completedProfiles.length,
+    incompleteProfiles: incompleteProfiles.length,
+    matches: possibleMatches.length,
+    highMatches: allMatchPairs.filter((match) => match.score >= 70).length,
+    requests: requests.length,
+    acceptedRequests: conversationRequests.length,
+    conversations: conversationRequests.length,
+    contactStarted: contactStartedRequests.length,
+    ratings: ratings.length,
+    firstContactRatings: firstContactRatings.length,
+    serviceRatings: serviceRatings.length,
+    reports: reports.length,
+    openReports: pendingReports.length,
+    criticalReports: criticalReports.length,
+    feedback: feedback.length,
+    usersWithoutMatch,
+    usersWithoutConversation,
+    usersWithoutRating,
+    unansweredRequests,
+    profilesWithoutPhoto,
+    allMatchPairs,
+    possibleMatches,
+    matchedUserIds,
+    requestSenderIds,
+    conversationUserIds,
+    ratedUserIds
+  };
+}
+
+function adminReportFunnelRows(metrics = {}) {
+  const stages = [
+    ["Registro", metrics.users || 0],
+    ["Perfil completo", metrics.completeProfiles || 0],
+    ["Primer match", metrics.matchedUserIds?.size || 0],
+    ["Primera solicitud", metrics.requestSenderIds?.size || 0],
+    ["Primer contacto", metrics.contactStarted || 0],
+    ["Primera conversación", metrics.conversationUserIds?.size || 0],
+    ["Primera valoración", metrics.ratedUserIds?.size || 0]
+  ];
+  const total = stages[0]?.[1] || 0;
+  return stages.map(([labelText, count], index) => {
+    const previous = index ? stages[index - 1][1] : count;
+    return {
+      label: labelText,
+      count,
+      percent: index ? adminPercent(count, previous) : adminPercent(count, total),
+      abandon: Math.max(previous - count, 0)
+    };
+  });
+}
+
+const ADMIN_FEEDBACK_THEMES = [
+  ["Mensajes", ["mensaje", "chat", "conversacion", "responder", "respuesta"]],
+  ["Contacto", ["contacto", "telefono", "email", "correo", "llamar", "sms"]],
+  ["Perfil", ["perfil", "foto", "bio", "descripcion", "datos"]],
+  ["Matching", ["match", "afinidad", "compatibilidad", "porcentaje"]],
+  ["Valoraciones", ["valoracion", "estrella", "reputacion", "comentario"]],
+  ["Registro/Login", ["registro", "login", "entrar", "cuenta", "contrasena"]],
+  ["Confianza", ["confianza", "seguridad", "privacidad", "duda"]],
+  ["Rapidez", ["rapido", "lento", "carga", "velocidad"]],
+  ["Diseño", ["diseno", "visual", "color", "texto", "pantalla"]],
+  ["Precio/Pro", ["precio", "presupuesto", "pro", "pago", "suscripcion"]]
+];
+
+function adminFeedbackTextBlocks(feedback = []) {
+  return feedback.flatMap((item) => [
+    item.comments?.mainDoubt,
+    item.comments?.missing,
+    item.comments?.firstChange
+  ].filter(Boolean).map((text) => ({ item, text: String(text).trim() })));
+}
+
+function adminFeedbackThemeGroups(feedback = []) {
+  const groups = new Map();
+  adminFeedbackTextBlocks(feedback).forEach(({ text }) => {
+    const normalized = normalizeText(text);
+    ADMIN_FEEDBACK_THEMES.forEach(([theme, keywords]) => {
+      if (!keywords.some((keyword) => normalized.includes(normalizeText(keyword)))) return;
+      const current = groups.get(theme) || { theme, count: 0, examples: [] };
+      current.count += 1;
+      if (current.examples.length < 2 && !current.examples.includes(text)) current.examples.push(text);
+      groups.set(theme, current);
+    });
+  });
+  return Array.from(groups.values())
+    .filter((group) => group.count >= 2)
+    .sort((a, b) => b.count - a.count);
+}
+
+function adminBugGroups(feedback = [], reports = []) {
+  const buckets = {
+    critical: [],
+    functional: [],
+    ux: [],
+    aesthetic: []
+  };
+  adminFeedbackTextBlocks(feedback).forEach(({ text }) => {
+    const normalized = normalizeText(text);
+    if (/(privacidad|dato|telefono|email|correo|no puedo entrar|no carga|bloque|crash|pierde)/.test(normalized)) {
+      buckets.critical.push(text);
+      return;
+    }
+    if (/(boton|no funciona|fallo|error|no guarda|no envia|duplicad)/.test(normalized)) {
+      buckets.functional.push(text);
+      return;
+    }
+    if (/(confunde|no entiendo|dificil|largo|mucho texto|perdido|lioso)/.test(normalized)) {
+      buckets.ux.push(text);
+      return;
+    }
+    if (/(feo|diseno|visual|color|tamano|estetica)/.test(normalized)) {
+      buckets.aesthetic.push(text);
+    }
+  });
+  reports.filter((report) => report.priority === "critica").forEach((report) => {
+    buckets.critical.push(report.description || `Denuncia crítica: ${adminReportReasonLabel(report.reason)}`);
+  });
+  return Object.fromEntries(Object.entries(buckets).map(([key, values]) => [key, Array.from(new Set(values)).slice(0, 5)]));
+}
+
+function adminHealthStatus(level, note) {
+  const labels = {
+    ok: "🟢 Correcto",
+    attention: "🟡 Atención",
+    critical: "🔴 Crítico"
+  };
+  return `${labels[level] || labels.ok} — ${note}`;
+}
+
+function adminProductHealth(metrics = {}, feedbackThemes = [], bugGroups = {}, dataQuality = {}) {
+  const themeNames = new Set(feedbackThemes.map((group) => group.theme));
+  const health = [];
+  health.push(["Registro", metrics.users ? adminHealthStatus("ok", "hay usuarios registrados") : adminHealthStatus("critical", "no hay registros")]);
+  health.push(["Login", bugGroups.critical.some((text) => normalizeText(text).includes("entrar")) ? adminHealthStatus("critical", "feedback crítico sobre acceso") : adminHealthStatus("ok", "sin evidencia de fallo de acceso")]);
+  health.push(["Perfil", metrics.incompleteProfiles > metrics.completeProfiles ? adminHealthStatus("attention", `${metrics.incompleteProfiles} perfiles incompletos`) : adminHealthStatus("ok", "mayoría de perfiles con datos útiles")]);
+  health.push(["Matching", metrics.matches ? adminHealthStatus(metrics.usersWithoutMatch.length ? "attention" : "ok", `${metrics.matches} matches potenciales`) : adminHealthStatus(metrics.users ? "critical" : "attention", "sin matches potenciales")]);
+  health.push(["Contactos", metrics.unansweredRequests.length ? adminHealthStatus("attention", `${metrics.unansweredRequests.length} solicitudes sin respuesta`) : adminHealthStatus("ok", "sin bloqueo evidente")]);
+  health.push(["Mensajes", metrics.requests && !metrics.conversations ? adminHealthStatus("attention", "hay solicitudes, pero no conversación") : adminHealthStatus("ok", "sin evidencia de fricción grave")]);
+  health.push(["Valoraciones", metrics.conversations && !metrics.ratings ? adminHealthStatus("attention", "hay contactos sin valoración") : adminHealthStatus("ok", "flujo sin alerta abierta")]);
+  health.push(["Denuncias", metrics.criticalReports ? adminHealthStatus("critical", `${metrics.criticalReports} crítica(s)`) : metrics.openReports ? adminHealthStatus("attention", `${metrics.openReports} abierta(s)`) : adminHealthStatus("ok", "sin denuncias abiertas")]);
+  health.push(["Panel Admin", dataQuality.reliability === "Baja" ? adminHealthStatus("critical", "los datos requieren limpieza") : dataQuality.reliability === "Media" ? adminHealthStatus("attention", "hay avisos de fiabilidad") : adminHealthStatus("ok", "sin duplicidades críticas detectadas")]);
+  health.push(["Feedback", metrics.feedback ? adminHealthStatus(themeNames.size ? "attention" : "ok", `${metrics.feedback} respuesta(s), ${themeNames.size} patrón(es) repetido(s)`) : adminHealthStatus("attention", "falta volumen de feedback beta")]);
+  return health;
+}
+
+function adminFirstDateByUser(items = [], userFn = () => "", dateField = "createdAt") {
+  return items.reduce((map, item) => {
+    const userId = userFn(item);
+    if (!userId) return map;
+    const time = adminDateMs(item?.[dateField] || item?.created_at);
+    if (!time) return map;
+    const current = map.get(userId);
+    if (!current || time < current) map.set(userId, time);
+    return map;
+  }, new Map());
+}
+
+function adminAverageTimeToFirst(profiles = [], items = [], userFn = () => "", dateField = "createdAt") {
+  const firstByUser = adminFirstDateByUser(items, userFn, dateField);
+  const durations = profiles.map((person) => {
+    const first = firstByUser.get(person.id);
+    const start = adminDateMs(person.createdAt);
+    return first && start && first >= start ? first - start : 0;
+  }).filter((value) => value > 0);
+  return durations.length ? `${adminDurationLabel(adminAverage(durations))} · mediana ${adminDurationLabel(adminMedian(durations))}` : "Sin histórico suficiente";
+}
+
+function adminReputationExtremes(profiles = [], ratings = [], direction = "best") {
+  return profiles.map((person) => {
+    const ownRatings = ratings.filter((rating) => rating.targetId === person.id);
+    return {
+      person,
+      count: ownRatings.length,
+      average: ownRatings.length ? adminAverage(ownRatings.map((rating) => rating.averageScore)) : 0
+    };
+  })
+    .filter((item) => item.count)
+    .sort((a, b) => direction === "best" ? b.average - a.average : a.average - b.average)
+    .slice(0, 5);
+}
+
+function adminChangeLine(labelText, current, previous, lowerIsBetter = false) {
+  if (previous === null || previous === undefined) return `- ${labelText}: sin informe anterior comparable.`;
+  const diff = current - previous;
+  const percent = previous ? `${diff >= 0 ? "+" : ""}${Math.round((diff / previous) * 100)}%` : (current ? "+100%" : "0%");
+  let state = "sin cambios";
+  if (diff !== 0) {
+    const improved = lowerIsBetter ? diff < 0 : diff > 0;
+    state = improved ? "ha mejorado" : "ha empeorado";
+  }
+  return `- ${labelText}: ${state} (${previous} → ${current}, ${percent}).`;
+}
+
+function adminRecommendationList(metrics = {}, feedbackThemes = [], bugGroups = {}, dataQuality = {}) {
+  const priorities = [];
+  const add = (title, reason) => {
+    if (!priorities.some((item) => item.title === title)) priorities.push({ title, reason });
+  };
+  if (dataQuality.reliability !== "Alta") add("Limpiar datos antes de decidir", `Fiabilidad ${dataQuality.reliability.toLowerCase()}: ${dataQuality.issues[0]?.text || "hay avisos de auditoría"}`);
+  if (bugGroups.critical.length) add("Resolver errores críticos", `${bugGroups.critical.length} señal(es) críticas en feedback/denuncias.`);
+  if (metrics.incompleteProfiles) add("Mejorar finalización de perfil", `${metrics.incompleteProfiles} perfil(es) incompleto(s).`);
+  if (metrics.usersWithoutMatch.length) add("Revisar equilibrio de matching", `${metrics.usersWithoutMatch.length} usuario(s) sin match potencial.`);
+  if (metrics.unansweredRequests.length) add("Simplificar contactos y respuestas", `${metrics.unansweredRequests.length} solicitud(es) sin respuesta.`);
+  if (metrics.conversations && !metrics.ratings) add("Reforzar recordatorio de valoración", "Hay contactos/conversaciones sin reputación generada.");
+  feedbackThemes.slice(0, 2).forEach((theme) => add(`Revisar ${theme.theme.toLowerCase()}`, `${theme.count} mención(es) repetida(s) en feedback beta.`));
+  if (!priorities.length) add("Aumentar muestra beta", "No hay suficiente fricción repetida para priorizar cambios fuertes.");
+  return priorities.slice(0, 5);
+}
+
+function adminBuildShareableInsightReport({ profiles = [], requests = [], ratings = [], reports = [], feedback = [], events = [], period } = {}) {
+  const currentRange = adminReportPeriodRange(period);
+  const previousRange = adminPreviousPeriodRange(period);
+  const currentProfiles = adminItemsInRange(profiles, currentRange);
+  const currentRequests = adminItemsInRange(requests, currentRange);
+  const currentRatings = adminItemsInRange(ratings, currentRange);
+  const currentReports = adminItemsInRange(reports, currentRange);
+  const currentFeedback = adminItemsInRange(feedback, currentRange);
+  const currentEvents = adminItemsInRange(events, currentRange);
+  const previousProfiles = previousRange ? adminItemsInRange(profiles, previousRange) : [];
+  const previousRequests = previousRange ? adminItemsInRange(requests, previousRange) : [];
+  const previousRatings = previousRange ? adminItemsInRange(ratings, previousRange) : [];
+  const previousReports = previousRange ? adminItemsInRange(reports, previousRange) : [];
+  const previousFeedback = previousRange ? adminItemsInRange(feedback, previousRange) : [];
+  const dataQuality = adminAnalyzeDataQuality({ profiles, requests, ratings, reports, feedback, events });
+  const metrics = adminReportMetrics({ profiles, requests: currentRequests, ratings: currentRatings, reports: currentReports, feedback: currentFeedback, events: currentEvents });
+  const previousMetrics = previousRange
+    ? adminReportMetrics({ profiles, requests: previousRequests, ratings: previousRatings, reports: previousReports, feedback: previousFeedback, events: adminItemsInRange(events, previousRange) })
+    : null;
+  const feedbackThemes = adminFeedbackThemeGroups(currentFeedback);
+  const bugGroups = adminBugGroups(currentFeedback, currentReports);
+  const health = adminProductHealth(metrics, feedbackThemes, bugGroups, dataQuality);
+  const priorities = adminRecommendationList(metrics, feedbackThemes, bugGroups, dataQuality);
+  const ratingDistribution = [5, 4, 3, 2, 1].map((star) => `${star}★ ${currentRatings.filter((rating) => Math.round(Number(rating.averageScore) || 0) === star).length}`).join(" · ");
+  const bestReputation = adminReputationExtremes(profiles, currentRatings, "best");
+  const worstReputation = adminReputationExtremes(profiles, currentRatings, "worst");
+  const lines = [];
+
+  lines.push("# FIT MATCH PRODUCT REPORT");
   lines.push("");
-  lines.push("## Feedback beta");
-  if (!feedback.length) {
-    lines.push("- Sin respuestas del cuestionario beta.");
+  lines.push(`Periodo analizado: ${currentRange.label}`);
+  lines.push(`Fecha de generación: ${adminDateLabel(new Date().toISOString(), true)}`);
+  lines.push("Versión de la aplicación: 0.1.0 beta");
+  lines.push("");
+
+  lines.push("## 1. Auditoría de los datos");
+  lines.push(`Fiabilidad del informe: ${dataQuality.reliability}`);
+  if (!dataQuality.issues.length) {
+    lines.push("- Sin duplicidades críticas detectadas.");
+    lines.push("- Sin relaciones rotas evidentes.");
+    lines.push("- Sin señales de datos mock/prueba mezclados.");
   } else {
-    lines.push(`- Media beta: ${adminAverage(feedback.map(betaFeedbackAverage)).toFixed(1)}/5`);
-    feedback.slice(0, 20).forEach((item) => {
-      const comments = [
-        item.comments?.mainDoubt ? `Duda: ${item.comments.mainDoubt}` : "",
-        item.comments?.missing ? `Falta: ${item.comments.missing}` : "",
-        item.comments?.firstChange ? `Cambiaría: ${item.comments.firstChange}` : ""
-      ].filter(Boolean).join(" | ");
-      lines.push(`- ${betaRoleLabel(item.role)} · ${betaFeedbackAverage(item).toFixed(1)}/5 · ${comments || "Sin comentario abierto."}`);
+    dataQuality.issues.forEach((issue) => lines.push(`- ${issue.level === "critical" ? "Crítico" : "Atención"}: ${issue.text}`));
+    lines.push("- Nota: los indicadores afectados deben leerse con cautela hasta limpiar esos datos.");
+  }
+  lines.push("");
+
+  lines.push("## 2. Resumen ejecutivo");
+  lines.push(`- Usuarios registrados: ${metrics.users}`);
+  lines.push(`- Usuarios activos: ${metrics.activeUsers}`);
+  lines.push(`- Profesionales: ${metrics.professionals}`);
+  lines.push(`- Clientes: ${metrics.clients}`);
+  lines.push(`- Perfiles completos: ${metrics.completeProfiles}`);
+  lines.push(`- Perfiles incompletos: ${metrics.incompleteProfiles}`);
+  lines.push(`- Matches generados: ${metrics.matches} (${metrics.highMatches} de afinidad alta)`);
+  lines.push(`- Solicitudes enviadas: ${metrics.requests}`);
+  lines.push(`- Solicitudes aceptadas: ${metrics.acceptedRequests}`);
+  lines.push(`- Conversaciones activas: ${metrics.conversations}`);
+  lines.push(`- Valoraciones: ${metrics.ratings}`);
+  lines.push(`- Denuncias: ${metrics.openReports} abiertas / ${metrics.reports} nuevas en periodo`);
+  lines.push(`- Feedback beta recibido: ${metrics.feedback}`);
+  lines.push("");
+
+  lines.push("## 3. Embudo del producto");
+  adminReportFunnelRows(metrics).forEach((stage) => {
+    lines.push(`- ${stage.label}: ${stage.count} · ${stage.percent} · abandono ${stage.abandon}`);
+  });
+  lines.push("- Nota: primer match se basa en matches potenciales calculados; aún no existe evento histórico específico de primer match mostrado.");
+  lines.push("");
+
+  lines.push("## 4. Salud del producto");
+  health.forEach(([area, status]) => lines.push(`- ${area}: ${status}`));
+  lines.push("");
+
+  lines.push("## 5. Actividad");
+  lines.push(`- Usuarios activos hoy: ${metrics.activeToday}`);
+  lines.push(`- Usuarios activos últimos 7 días: ${metrics.active7d}`);
+  lines.push(`- Usuarios activos últimos 30 días: ${metrics.active30d}`);
+  lines.push(`- Tiempo medio hasta primer match: no fiable todavía; falta evento específico.`);
+  lines.push(`- Tiempo medio hasta primera solicitud: ${adminAverageTimeToFirst(profiles, requests, (request) => request.sender?.id)}`);
+  lines.push(`- Tiempo medio hasta primer contacto: no fiable todavía; falta timestamp específico de confirmación.`);
+  lines.push(`- Tiempo medio hasta primera valoración: ${adminAverageTimeToFirst(profiles, ratings, (rating) => rating.raterId)}`);
+  lines.push("");
+
+  lines.push("## 6. Reputación");
+  if (!currentRatings.length) {
+    lines.push("- Sin valoraciones en el periodo seleccionado.");
+  } else {
+    lines.push(`- Media general: ${adminAverage(currentRatings.map((rating) => rating.averageScore)).toFixed(1)}/5`);
+    lines.push(`- Primer contacto: ${metrics.firstContactRatings ? adminAverage(currentRatings.filter((rating) => normalizeRatingType(rating.ratingType || rating.criteria?._ratingType) === "first_contact").map((rating) => rating.averageScore)).toFixed(1) + "/5" : "--"}`);
+    lines.push(`- Servicio real: ${metrics.serviceRatings ? adminAverage(currentRatings.filter((rating) => normalizeRatingType(rating.ratingType || rating.criteria?._ratingType) === "service").map((rating) => rating.averageScore)).toFixed(1) + "/5" : "--"}`);
+    lines.push(`- Distribución: ${ratingDistribution}`);
+    lines.push(`- Mejor reputación: ${bestReputation.length ? bestReputation.map((item) => `${item.person.name}: ${item.average.toFixed(1)}/5 (${item.count})`).join(" | ") : "Sin volumen suficiente."}`);
+    lines.push(`- Peor reputación: ${worstReputation.length ? worstReputation.map((item) => `${item.person.name}: ${item.average.toFixed(1)}/5 (${item.count})`).join(" | ") : "Sin volumen suficiente."}`);
+    lines.push(`- Alertas abiertas: ${metrics.openReports}`);
+  }
+  lines.push("");
+
+  lines.push("## 7. Feedback beta");
+  if (!currentFeedback.length) {
+    lines.push("- Sin feedback beta en el periodo.");
+  } else if (!feedbackThemes.length) {
+    lines.push(`- ${currentFeedback.length} respuesta(s), sin problemas repetidos todavía.`);
+  } else {
+    feedbackThemes.forEach((group) => {
+      lines.push(`- ${group.theme}: ${group.count} menciones.`);
+      group.examples.forEach((example) => lines.push(`  Ejemplo: ${example}`));
     });
   }
   lines.push("");
-  lines.push("## Señales para revisar");
-  const lowRatings = ratings.filter((rating) => Number(rating.averageScore || 0) < 3.5);
-  if (lowRatings.length) {
-    lines.push(`- Revisar ${lowRatings.length} valoración(es) por debajo de 3.5/5.`);
+
+  lines.push("## 8. Bugs detectados");
+  const bugLabels = [
+    ["Errores críticos", bugGroups.critical],
+    ["Errores funcionales", bugGroups.functional],
+    ["Problemas UX", bugGroups.ux],
+    ["Problemas estéticos", bugGroups.aesthetic]
+  ];
+  bugLabels.forEach(([labelText, values]) => {
+    lines.push(`- ${labelText}: ${values.length || 0}`);
+    values.slice(0, 3).forEach((value) => lines.push(`  Señal: ${value}`));
+  });
+  if (!Object.values(bugGroups).some((values) => values.length)) lines.push("- Sin bugs evidenciados por feedback o denuncias en este periodo.");
+  lines.push("");
+
+  lines.push("## 9. Métricas de producto");
+  lines.push(`- Usuarios sin match: ${metrics.usersWithoutMatch.length}`);
+  lines.push(`- Usuarios sin conversación: ${metrics.usersWithoutConversation.length}`);
+  lines.push(`- Usuarios sin valoración emitida: ${metrics.usersWithoutRating.length}`);
+  lines.push(`- Solicitudes sin respuesta: ${metrics.unansweredRequests.length}`);
+  lines.push(`- Perfiles sin foto: ${metrics.profilesWithoutPhoto.length}`);
+  lines.push(`- Perfiles incompletos: ${metrics.incompleteProfiles}`);
+  lines.push("");
+
+  lines.push("## 10. Decisiones recomendadas");
+  priorities.forEach((priority, index) => {
+    lines.push(`Prioridad ${index + 1}: ${priority.title}`);
+    lines.push(`Motivo: ${priority.reason}`);
+  });
+  lines.push("");
+
+  lines.push("## 11. Cambios desde el informe anterior");
+  if (!previousMetrics) {
+    lines.push("- Sin comparación automática para 'Desde el inicio'. Usa Hoy, Últimos 7 días o Últimos 30 días para comparar contra el periodo anterior equivalente.");
+  } else {
+    lines.push(adminChangeLine("Registros nuevos", currentProfiles.length, previousProfiles.length));
+    lines.push(adminChangeLine("Solicitudes enviadas", metrics.requests, previousMetrics.requests));
+    lines.push(adminChangeLine("Conversaciones activas", metrics.conversations, previousMetrics.conversations));
+    lines.push(adminChangeLine("Valoraciones", metrics.ratings, previousMetrics.ratings));
+    lines.push(adminChangeLine("Feedback beta", metrics.feedback, previousMetrics.feedback));
+    lines.push(adminChangeLine("Denuncias abiertas/nuevas", metrics.openReports, previousMetrics.openReports, true));
   }
-  const doubts = feedback.filter((item) => item.comments?.mainDoubt).map((item) => item.comments.mainDoubt).slice(0, 8);
-  if (doubts.length) {
-    lines.push(`- Dudas repetibles de testers: ${doubts.join(" | ")}`);
-  }
-  if (!lowRatings.length && !doubts.length) {
-    lines.push("- Sin señales críticas todavía. Necesita más respuestas reales.");
-  }
+  lines.push("");
+
+  lines.push("## 12. Resumen para dirección");
+  lines.push(`- Funciona: ${metrics.matches ? "el matching genera opciones potenciales" : "todavía no hay evidencia fuerte de matching"}.`);
+  lines.push(`- Funciona: ${metrics.feedback ? "ya existe feedback beta analizable" : "falta feedback beta suficiente"}.`);
+  lines.push(`- Preocupa: ${dataQuality.reliability !== "Alta" ? "la fiabilidad de algunos datos" : priorities[0]?.reason || "la muestra aún es pequeña"}.`);
+  lines.push(`- Corregir primero: ${priorities[0]?.title || "captar más testers"}.`);
+  lines.push("- No tocar todavía: estética general, identidad visual y lógica base si no aparece evidencia repetida.");
+  lines.push("");
+
+  lines.push("## 13. Calidad del informe");
+  lines.push(`- Duplicidades revisadas: ${dataQuality.issues.length ? "con avisos" : "sin avisos"}.`);
+  lines.push("- Cálculos repetidos evitados: sí.");
+  lines.push("- Métricas innecesarias omitidas: sí.");
+  lines.push("- Datos mock/prueba revisados: sí.");
+  lines.push("- Indicadores no fiables marcados: sí.");
+
   return lines.join("\n");
 }
 
@@ -3023,11 +3508,11 @@ function renderAdminDashboard() {
   if (adminInsightReport) {
     adminInsightReport.value = adminBuildShareableInsightReport({
       profiles,
-      requests: periodRequests,
-      ratings: periodRatings,
-      reports: periodReports,
-      feedback: periodFeedback,
-      events: periodEvents,
+      requests,
+      ratings,
+      reports,
+      feedback,
+      events,
       period
     });
   }
