@@ -3888,6 +3888,32 @@ function formatDate(isoDate) {
   }).format(new Date(isoDate));
 }
 
+function safeContactPhone(phone) {
+  return String(phone || "").replace(/[^+0-9]/g, "");
+}
+
+function buildContactLink(type, value, request) {
+  const labels = {
+    email: "Enviar email",
+    sms: "Enviar SMS",
+    phone: "Llamar"
+  };
+  const link = createElement("a", `button secondary contact-button contact-button-${type}`, labels[type] || "Contactar");
+  const encodedBody = encodeURIComponent(`Hola ${request.sender.name}, he recibido tu mensaje en Fit Match y me gustaría responderte.`);
+
+  if (type === "email") {
+    const subject = encodeURIComponent(`Respuesta desde Fit Match para ${request.sender.name}`);
+    link.href = `mailto:${value}?subject=${subject}&body=${encodedBody}`;
+  } else if (type === "sms") {
+    link.href = `sms:${safeContactPhone(value)}?body=${encodedBody}`;
+  } else {
+    link.href = `tel:${safeContactPhone(value)}`;
+  }
+
+  link.setAttribute("aria-label", `${labels[type] || "Contactar"} con ${request.sender.name}`);
+  return link;
+}
+
 function buildContactMethod(title, value, availableText, unavailableText, children = []) {
   const method = createElement("div", `contact-method ${value ? "contact-method-active" : "contact-method-missing"}`);
   method.append(
@@ -3900,15 +3926,37 @@ function buildContactMethod(title, value, availableText, unavailableText, childr
 
 function buildContactActions(request) {
   const actions = createElement("div", "contact-actions");
+  const contactEmail = request.sender.contactEmail || request.sender.email || "";
+  const contactPhone = request.sender.phone || "";
+  const cleanPhone = safeContactPhone(contactPhone);
+
+  const emailButtons = contactEmail ? createElement("div", "contact-buttons") : null;
+  if (emailButtons) emailButtons.append(buildContactLink("email", contactEmail, request));
+
+  const phoneButtons = cleanPhone ? createElement("div", "contact-buttons") : null;
+  if (phoneButtons) {
+    phoneButtons.append(
+      buildContactLink("sms", contactPhone, request),
+      buildContactLink("phone", contactPhone, request)
+    );
+  }
 
   actions.append(
     createElement("strong", "", "Contacto protegido"),
-    createElement("p", "", "Responde dentro de Fit Match. Email y teléfono no se muestran sin acuerdo previo."),
+    createElement("p", "", "Elige canal. Los datos privados no se muestran en pantalla."),
     buildContactMethod(
-      "Canales directos",
-      "",
-      "",
-      "Ocultos por privacidad."
+      "Email",
+      contactEmail,
+      "Disponible",
+      "No disponible.",
+      emailButtons ? [emailButtons] : []
+    ),
+    buildContactMethod(
+      "Teléfono",
+      cleanPhone,
+      "Disponible",
+      "No disponible.",
+      phoneButtons ? [phoneButtons] : []
     )
   );
 
