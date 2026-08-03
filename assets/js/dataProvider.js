@@ -76,6 +76,8 @@ let remoteAppEvents = [];
 let remoteReports = [];
 let remoteModerationActions = [];
 let ratingsRemoteAvailable = true;
+let betaFeedbackRemoteAvailable = true;
+let appEventsRemoteAvailable = true;
 let reportsRemoteAvailable = true;
 let remoteError = "";
 
@@ -117,6 +119,31 @@ function normalizeAppEvent(event = {}) {
   };
 }
 
+function appEventSemanticKey(event = {}) {
+  const normalized = normalizeAppEvent(event);
+  const metadata = normalized.metadata || {};
+  const userKey = normalized.userId && normalized.userId !== "local"
+    ? normalized.userId
+    : normalized.email || "local";
+  const targetKey = metadata.view
+    || metadata.targetId
+    || metadata.profileId
+    || metadata.requestId
+    || metadata.ratingType
+    || metadata.role
+    || "";
+  const sourceKey = metadata.source || "";
+  const time = new Date(normalized.createdAt || 0).getTime();
+  const bucketSize = normalized.eventType === "view_opened" ? 5 * 60 * 1000 : 2 * 60 * 1000;
+  const bucket = time ? Math.floor(time / bucketSize) : 0;
+  return [normalized.eventType, userKey, targetKey, sourceKey, bucket].join(":");
+}
+
+function appEventDedupeKey(event = {}) {
+  const metadata = parseJsonObject(event.metadata, {});
+  return metadata.clientEventId || metadata._clientEventId || appEventSemanticKey(event);
+}
+
 function readAppEvents() {
   return readStorage(STORAGE_KEYS.appEvents, []).map(normalizeAppEvent);
 }
@@ -128,8 +155,11 @@ function writeAppEvents(events = []) {
 function dedupeAppEvents(events = []) {
   const uniqueEvents = new Map();
   events.map(normalizeAppEvent).forEach((event) => {
-    const key = event.id || [event.eventType, event.userId, event.createdAt].join("-");
-    if (!uniqueEvents.has(key)) uniqueEvents.set(key, event);
+    const key = appEventDedupeKey(event);
+    const current = uniqueEvents.get(key);
+    const currentTime = current ? new Date(current.createdAt || 0).getTime() : 0;
+    const nextTime = new Date(event.createdAt || 0).getTime();
+    if (!current || nextTime >= currentTime) uniqueEvents.set(key, event);
   });
   return Array.from(uniqueEvents.values()).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 }
@@ -1132,7 +1162,13 @@ window.FitMatchDataProvider = {
         remoteRatings = [];
         remotePrivateNotes = {};
         remoteProSubscription = null;
+        remoteBetaFeedback = [];
         remoteAppEvents = [];
+        remoteReports = [];
+        remoteModerationActions = [];
+        betaFeedbackRemoteAvailable = true;
+        appEventsRemoteAvailable = true;
+        reportsRemoteAvailable = true;
       }
     });
 
@@ -1202,6 +1238,9 @@ window.FitMatchDataProvider = {
     remoteAppEvents = [];
     remoteReports = [];
     remoteModerationActions = [];
+    betaFeedbackRemoteAvailable = true;
+    appEventsRemoteAvailable = true;
+    reportsRemoteAvailable = true;
   },
 
   async refreshRemoteData() {
@@ -1299,8 +1338,10 @@ window.FitMatchDataProvider = {
             .order("created_at", { ascending: false })
             .limit(200)
         );
-        remoteBetaFeedback = dedupeBetaFeedback([...(feedbackRows || []).map(normalizeBetaFeedback), ...readBetaFeedback()]);
+        remoteBetaFeedback = dedupeBetaFeedback((feedbackRows || []).map(normalizeBetaFeedback));
+        betaFeedbackRemoteAvailable = true;
       } catch (error) {
+        betaFeedbackRemoteAvailable = false;
         remoteBetaFeedback = readBetaFeedback();
       }
 
@@ -1312,8 +1353,10 @@ window.FitMatchDataProvider = {
             .order("created_at", { ascending: false })
             .limit(200)
         );
-        remoteAppEvents = dedupeAppEvents([...(eventRows || []).map(normalizeAppEvent), ...readAppEvents()]);
+        remoteAppEvents = dedupeAppEvents((eventRows || []).map(normalizeAppEvent));
+        appEventsRemoteAvailable = true;
       } catch (error) {
+        appEventsRemoteAvailable = false;
         remoteAppEvents = readAppEvents();
       }
 
@@ -1326,7 +1369,7 @@ window.FitMatchDataProvider = {
             .order("created_at", { ascending: false })
             .limit(200)
         );
-        remoteReports = dedupeReports([...(reportRows || []).map(normalizeReport), ...readReports()]);
+        remoteReports = dedupeReports((reportRows || []).map(normalizeReport));
         reportsRemoteAvailable = true;
       } catch (error) {
         reportsRemoteAvailable = false;
@@ -1341,7 +1384,7 @@ window.FitMatchDataProvider = {
             .order("created_at", { ascending: false })
             .limit(200)
         );
-        remoteModerationActions = [...(actionRows || []).map(normalizeModerationAction), ...readModerationActions()].slice(0, 200);
+        remoteModerationActions = (actionRows || []).map(normalizeModerationAction).slice(0, 200);
       } catch (error) {
         remoteModerationActions = readModerationActions();
       }
@@ -1780,18 +1823,17 @@ window.FitMatchDataProvider = {
   },
 
   async trackEvent(eventType, metadata = {}) {
+    const clientEventId = createId("event");
     const event = normalizeAppEvent({
+      id: clientEventId,
       eventType,
-      metadata,
+      metadata: { ...metadata, clientEventId },
       userId: currentSession?.user?.id || "local",
       email: currentSession?.user?.email || "",
       createdAt: new Date().toISOString()
     });
-    const localEvents = dedupeAppEvents([event, ...readAppEvents()]).slice(0, 200);
-    writeAppEvents(localEvents);
-    remoteAppEvents = dedupeAppEvents([event, ...remoteAppEvents]).slice(0, 200);
 
-    if (canUseRemote()) {
+    if (canUseRemote() && appEventsRemoteAvailable) {
       try {
         await assertNoError(await supabaseClient.from("app_events").insert({
           user_id: currentSession.user.id,
@@ -1799,11 +1841,16 @@ window.FitMatchDataProvider = {
           event_type: event.eventType,
           metadata: event.metadata
         }));
+        remoteAppEvents = dedupeAppEvents([event, ...remoteAppEvents]).slice(0, 200);
+        return event;
       } catch (error) {
-        // app_events es opcional durante beta; la app no debe romper si falta la tabla.
+        appEventsRemoteAvailable = false;
       }
     }
 
+    const localEvents = dedupeAppEvents([event, ...readAppEvents()]).slice(0, 200);
+    writeAppEvents(localEvents);
+    remoteAppEvents = dedupeAppEvents([event, ...remoteAppEvents]).slice(0, 200);
     return event;
   },
 
@@ -1819,7 +1866,8 @@ window.FitMatchDataProvider = {
   },
 
   listBetaFeedback() {
-    return dedupeBetaFeedback([...(canUseRemote() ? remoteBetaFeedback : []), ...readBetaFeedback()]).slice(0, 200);
+    const source = canUseRemote() && betaFeedbackRemoteAvailable ? remoteBetaFeedback : readBetaFeedback();
+    return dedupeBetaFeedback(source).slice(0, 200);
   },
 
   async saveBetaFeedback(payload = {}) {
@@ -1868,12 +1916,14 @@ window.FitMatchDataProvider = {
   },
 
   listAppEvents() {
-    return dedupeAppEvents([...remoteAppEvents, ...readAppEvents()]).slice(0, 200);
+    const source = canUseRemote() && appEventsRemoteAvailable ? remoteAppEvents : readAppEvents();
+    return dedupeAppEvents(source).slice(0, 200);
   },
 
 
   listReports() {
-    return dedupeReports([...(canUseRemote() ? remoteReports : []), ...readReports()]).slice(0, 200);
+    const source = canUseRemote() && reportsRemoteAvailable ? remoteReports : readReports();
+    return dedupeReports(source).slice(0, 200);
   },
 
   async createReport(payload = {}) {
@@ -1894,11 +1944,10 @@ window.FitMatchDataProvider = {
       priority: payload.priority || "media"
     });
 
-    const localReports = dedupeReports([normalized, ...readReports()]);
-    writeReports(localReports);
-    remoteReports = dedupeReports([normalized, ...remoteReports]);
-
     if (!canUseRemote() || !reportsRemoteAvailable) {
+      const localReports = dedupeReports([normalized, ...readReports()]);
+      writeReports(localReports);
+      remoteReports = dedupeReports([normalized, ...remoteReports]);
       await this.trackEvent("profile_report_created", { targetId: normalized.targetId, reason: normalized.reason, source: "local" });
       return normalized;
     }
@@ -1926,6 +1975,9 @@ window.FitMatchDataProvider = {
       return remoteReport;
     } catch (error) {
       reportsRemoteAvailable = false;
+      const localReports = dedupeReports([normalized, ...readReports()]);
+      writeReports(localReports);
+      remoteReports = dedupeReports([normalized, ...remoteReports]);
       await this.trackEvent("profile_report_created", { targetId: normalized.targetId, reason: normalized.reason, source: "fallback" });
       return normalized;
     }
@@ -1979,7 +2031,8 @@ window.FitMatchDataProvider = {
   },
 
   listModerationActions() {
-    return [...(canUseRemote() ? remoteModerationActions : []), ...readModerationActions()]
+    const source = canUseRemote() ? remoteModerationActions : readModerationActions();
+    return source
       .map(normalizeModerationAction)
       .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
       .slice(0, 200);
@@ -2157,8 +2210,8 @@ window.FitMatchDataProvider = {
   },
 
   listRatings() {
-    const remote = canUseRemote() ? remoteRatings : [];
-    return dedupeRatings([...remote, ...readRatings()]);
+    const source = canUseRemote() && ratingsRemoteAvailable ? remoteRatings : readRatings();
+    return dedupeRatings(source);
   },
 
   getRatingSummary(targetId) {

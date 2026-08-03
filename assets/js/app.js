@@ -399,6 +399,7 @@ let openRatingIds = new Set();
 let recentRatingFeedback = new Map();
 let openConversationIds = new Set();
 let isSavingProfile = false;
+let lastTrackedViewEvent = { key: "", at: 0 };
 
 const HIDDEN_MATCHES_KEY = "fit-match.hidden-matches.v1";
 const MAX_VISIBLE_MATCHES = 5;
@@ -797,6 +798,20 @@ const viewAliases = {
 };
 let activeView = "home";
 
+function shouldTrackViewEvent(viewName, role = "") {
+  const key = `${viewName}:${role || "unknown"}`;
+  const now = Date.now();
+  try {
+    const stored = JSON.parse(window.sessionStorage.getItem("fit-match.last-view-event") || "{}");
+    if (stored.key === key && now - Number(stored.at || 0) < 60 * 1000) return false;
+    window.sessionStorage.setItem("fit-match.last-view-event", JSON.stringify({ key, at: now }));
+  } catch (error) {
+    if (lastTrackedViewEvent.key === key && now - lastTrackedViewEvent.at < 60 * 1000) return false;
+  }
+  lastTrackedViewEvent = { key, at: now };
+  return true;
+}
+
 function normalizeView(viewName) {
   const cleanName = String(viewName || "home").replace("#", "").trim();
   return viewAliases[cleanName] || "home";
@@ -856,7 +871,9 @@ function showView(viewName, { push = true, focus = true } = {}) {
 
   updateNavigationState(nextView);
   updateAdminNavigation();
-  dataProvider.trackEvent?.("view_opened", { view: nextView, role: profile.role });
+  if (shouldTrackViewEvent(nextView, profile.role)) {
+    dataProvider.trackEvent?.("view_opened", { view: nextView, role: profile.role });
+  }
 
   if (nextView === "account") {
     updateAuthPanel();
@@ -2556,8 +2573,86 @@ function adminItemsInRange(items = [], range = null, field = "createdAt") {
   });
 }
 
-function adminUniqueUserCountFromEvents(events = []) {
-  return new Set(events.map((event) => event.userId || event.email).filter(Boolean)).size;
+function adminNormalizeIdentity(value = "") {
+  return String(value || "").trim().toLowerCase();
+}
+
+function adminRegisteredIdentitySet(profiles = []) {
+  const identities = new Set();
+  profiles.forEach((person) => {
+    if (person.id) identities.add(person.id);
+    const email = adminNormalizeIdentity(person.email || person.contactEmail);
+    if (email) identities.add(`email:${email}`);
+  });
+  return identities;
+}
+
+function adminEventUserKey(event = {}) {
+  if (event.userId && event.userId !== "local") return event.userId;
+  const email = adminNormalizeIdentity(event.email);
+  return email ? `email:${email}` : "";
+}
+
+function adminRegisteredEvents(events = [], profiles = []) {
+  const registered = adminRegisteredIdentitySet(profiles);
+  return events.filter((event) => {
+    const key = adminEventUserKey(event);
+    return key && registered.has(key);
+  });
+}
+
+function adminUniqueUserCountFromEvents(events = [], profiles = []) {
+  const source = profiles.length ? adminRegisteredEvents(events, profiles) : events.filter((event) => adminEventUserKey(event));
+  return new Set(source.map(adminEventUserKey).filter(Boolean)).size;
+}
+
+function adminIntersectSets(baseSet = new Set(), candidateSet = new Set()) {
+  return new Set([...baseSet].filter((id) => candidateSet.has(id)));
+}
+
+function adminProfileIdSet(profiles = []) {
+  return new Set(profiles.map((person) => person.id).filter(Boolean));
+}
+
+function adminRequestParticipantIds(requests = [], predicate = () => true) {
+  return new Set(requests.filter(predicate).flatMap(adminRequestUserIds).filter(Boolean));
+}
+
+function adminRatingParticipantIds(ratings = []) {
+  return new Set(ratings.flatMap((rating) => [rating.raterId, rating.targetId]).filter(Boolean));
+}
+
+function adminBuildFunnelStages({ profiles = [], possibleMatches = [], requests = [], ratings = [] } = {}) {
+  const registered = adminProfileIdSet(profiles);
+  const started = adminIntersectSets(registered, adminProfileIdSet(profiles.filter((person) => adminProfileCompletionFor(person) >= 35)));
+  const completed = adminIntersectSets(started, adminProfileIdSet(profiles.filter((person) => adminProfileCompletionFor(person) >= 80)));
+  const matched = adminIntersectSets(completed, new Set(possibleMatches.flatMap((match) => [match.client.id, match.professional.id]).filter(Boolean)));
+  const requested = adminIntersectSets(matched, adminRequestParticipantIds(requests));
+  const contacted = adminIntersectSets(requested, adminRequestParticipantIds(requests, adminHasConversation));
+  const conversations = adminIntersectSets(contacted, adminRequestParticipantIds(requests, adminHasConversation));
+  const rated = adminIntersectSets(conversations, adminRatingParticipantIds(ratings));
+  return [
+    { label: "Registro", count: registered.size },
+    { label: "Perfil empezado", count: started.size },
+    { label: "Perfil completo", count: completed.size },
+    { label: "Match potencial", count: matched.size, note: "estimado por compatibilidad actual" },
+    { label: "Primera solicitud", count: requested.size },
+    { label: "Primer contacto", count: contacted.size },
+    { label: "Primera conversación", count: conversations.size, note: "estimado por solicitud leída o contacto iniciado" },
+    { label: "Primera valoración", count: rated.size }
+  ];
+}
+
+function adminEventQualityKey(event = {}) {
+  const clientEventId = event.metadata?.clientEventId || event.metadata?._clientEventId;
+  if (clientEventId) return `client:${clientEventId}`;
+  if (event.eventType === "view_opened" || event.eventType === "profile_viewed") return "";
+  return [
+    event.eventType,
+    event.userId || event.email || "",
+    event.metadata?.targetId || event.metadata?.profileId || event.metadata?.requestId || event.metadata?.ratingType || "",
+    Math.floor(adminDateMs(event.createdAt) / 120000)
+  ].join(":");
 }
 
 function adminDuplicateGroups(items = [], keyFn = () => "") {
@@ -2593,9 +2688,7 @@ function adminLooksLikeTestData(item = {}) {
     item.email,
     item.userId,
     item.reporterEmail,
-    item.targetName,
-    item.message,
-    item.description
+    item.targetName
   ].filter(Boolean).join(" ").toLowerCase();
   return /\b(test|demo|mock|prueba|ejemplo|dummy)\b/.test(text);
 }
@@ -2617,12 +2710,7 @@ function adminAnalyzeDataQuality({ profiles = [], requests = [], ratings = [], r
     rating.targetId,
     normalizeRatingType(rating.ratingType || rating.criteria?._ratingType)
   ].join(":"));
-  const eventDuplicates = adminDuplicateGroups(events, (event) => [
-    event.eventType,
-    event.userId || event.email,
-    Math.floor(adminDateMs(event.createdAt) / 60000),
-    event.metadata?.view || event.metadata?.targetId || event.metadata?.profileId || ""
-  ].join(":"));
+  const eventDuplicates = adminDuplicateGroups(events, adminEventQualityKey);
   const orphanRequests = requests.filter((request) =>
     (request.sender?.id && !profileIds.has(request.sender.id))
     || (request.recipient?.id && !profileIds.has(request.recipient.id))
@@ -2635,8 +2723,7 @@ function adminAnalyzeDataQuality({ profiles = [], requests = [], ratings = [], r
   const testRecords = [
     ...profiles.filter(adminLooksLikeTestData),
     ...requests.filter(adminLooksLikeTestData),
-    ...reports.filter(adminLooksLikeTestData),
-    ...feedback.filter(adminLooksLikeTestData)
+    ...reports.filter(adminLooksLikeTestData)
   ];
 
   if (profileIdDuplicates.length) issues.push({ level: "critical", text: `IDs de perfil duplicados: ${profileIdDuplicates.length} grupo(s).` });
@@ -2667,10 +2754,12 @@ function adminReportMetrics({ profiles = [], requests = [], ratings = [], report
   const possibleMatches = allMatchPairs.filter((match) => match.score >= 45);
   const matchedUserIds = new Set(possibleMatches.flatMap((match) => [match.client.id, match.professional.id]).filter(Boolean));
   const requestSenderIds = new Set(requests.map((request) => request.sender?.id).filter(Boolean));
+  const requestParticipantIds = adminRequestParticipantIds(requests);
   const conversationRequests = requests.filter(adminHasConversation);
-  const conversationUserIds = new Set(conversationRequests.flatMap(adminRequestUserIds));
+  const conversationUserIds = adminRequestParticipantIds(conversationRequests);
   const contactStartedRequests = requests.filter((request) => request.contactStartedBy?.length);
   const ratedUserIds = new Set(ratings.map((rating) => rating.raterId).filter(Boolean));
+  const ratingParticipantIds = adminRatingParticipantIds(ratings);
   const pendingReports = reports.filter((report) => !["resuelta", "descartada"].includes(report.status));
   const criticalReports = pendingReports.filter((report) => report.priority === "critica");
   const unansweredRequests = requests.filter((request) => !adminHasConversation(request));
@@ -2680,13 +2769,16 @@ function adminReportMetrics({ profiles = [], requests = [], ratings = [], report
   const profilesWithoutPhoto = profiles.filter((person) => !person.photo);
   const firstContactRatings = ratings.filter((rating) => normalizeRatingType(rating.ratingType || rating.criteria?._ratingType) === "first_contact");
   const serviceRatings = ratings.filter((rating) => normalizeRatingType(rating.ratingType || rating.criteria?._ratingType) === "service");
+  const registeredEvents = adminRegisteredEvents(events, profiles);
+  const funnelStages = adminBuildFunnelStages({ profiles, possibleMatches, requests, ratings });
 
   return {
     users: profiles.length,
-    activeUsers: adminUniqueUserCountFromEvents(events),
-    activeToday: adminUniqueUserCountFromEvents(adminItemsInRange(events, { start: Date.now() - 24 * 60 * 60 * 1000, end: Date.now() })),
-    active7d: adminUniqueUserCountFromEvents(adminItemsInRange(events, { start: Date.now() - 7 * 24 * 60 * 60 * 1000, end: Date.now() })),
-    active30d: adminUniqueUserCountFromEvents(adminItemsInRange(events, { start: Date.now() - 30 * 24 * 60 * 60 * 1000, end: Date.now() })),
+    activeUsers: adminUniqueUserCountFromEvents(events, profiles),
+    activeToday: adminUniqueUserCountFromEvents(adminItemsInRange(events, { start: Date.now() - 24 * 60 * 60 * 1000, end: Date.now() }), profiles),
+    active7d: adminUniqueUserCountFromEvents(adminItemsInRange(events, { start: Date.now() - 7 * 24 * 60 * 60 * 1000, end: Date.now() }), profiles),
+    active30d: adminUniqueUserCountFromEvents(adminItemsInRange(events, { start: Date.now() - 30 * 24 * 60 * 60 * 1000, end: Date.now() }), profiles),
+    registeredEvents,
     clients: clients.length,
     professionals: professionals.length,
     completeProfiles: completedProfiles.length,
@@ -2713,29 +2805,23 @@ function adminReportMetrics({ profiles = [], requests = [], ratings = [], report
     possibleMatches,
     matchedUserIds,
     requestSenderIds,
+    requestParticipantIds,
     conversationUserIds,
-    ratedUserIds
+    ratedUserIds,
+    ratingParticipantIds,
+    funnelStages
   };
 }
 
 function adminReportFunnelRows(metrics = {}) {
-  const stages = [
-    ["Registro", metrics.users || 0],
-    ["Perfil completo", metrics.completeProfiles || 0],
-    ["Primer match", metrics.matchedUserIds?.size || 0],
-    ["Primera solicitud", metrics.requestSenderIds?.size || 0],
-    ["Primer contacto", metrics.contactStarted || 0],
-    ["Primera conversación", metrics.conversationUserIds?.size || 0],
-    ["Primera valoración", metrics.ratedUserIds?.size || 0]
-  ];
-  const total = stages[0]?.[1] || 0;
-  return stages.map(([labelText, count], index) => {
-    const previous = index ? stages[index - 1][1] : count;
+  const stages = metrics.funnelStages || [];
+  const total = stages[0]?.count || 0;
+  return stages.map((stage, index) => {
+    const previous = index ? stages[index - 1].count : stage.count;
     return {
-      label: labelText,
-      count,
-      percent: index ? adminPercent(count, previous) : adminPercent(count, total),
-      abandon: Math.max(previous - count, 0)
+      ...stage,
+      percent: index ? adminPercent(stage.count, previous) : adminPercent(stage.count, total),
+      abandon: Math.max(previous - stage.count, 0)
     };
   });
 }
@@ -2952,7 +3038,7 @@ function adminBuildShareableInsightReport({ profiles = [], requests = [], rating
   lines.push(`- Clientes: ${metrics.clients}`);
   lines.push(`- Perfiles completos: ${metrics.completeProfiles}`);
   lines.push(`- Perfiles incompletos: ${metrics.incompleteProfiles}`);
-  lines.push(`- Matches generados: ${metrics.matches} (${metrics.highMatches} de afinidad alta)`);
+  lines.push(`- Matches potenciales: ${metrics.matches} (${metrics.highMatches} de afinidad alta)`);
   lines.push(`- Solicitudes enviadas: ${metrics.requests}`);
   lines.push(`- Solicitudes aceptadas: ${metrics.acceptedRequests}`);
   lines.push(`- Conversaciones activas: ${metrics.conversations}`);
@@ -2963,9 +3049,9 @@ function adminBuildShareableInsightReport({ profiles = [], requests = [], rating
 
   lines.push("## 3. Embudo del producto");
   adminReportFunnelRows(metrics).forEach((stage) => {
-    lines.push(`- ${stage.label}: ${stage.count} · ${stage.percent} · abandono ${stage.abandon}`);
+    lines.push(`- ${stage.label}: ${stage.count} · ${stage.percent} · abandono ${stage.abandon}${stage.note ? ` · ${stage.note}` : ""}`);
   });
-  lines.push("- Nota: primer match se basa en matches potenciales calculados; aún no existe evento histórico específico de primer match mostrado.");
+  lines.push("- Nota: el embudo cuenta usuarios únicos encadenados. Match potencial y conversación son estimaciones porque todavía no existe evento histórico específico de match mostrado ni chat interno.");
   lines.push("");
 
   lines.push("## 4. Salud del producto");
@@ -2976,10 +3062,11 @@ function adminBuildShareableInsightReport({ profiles = [], requests = [], rating
   lines.push(`- Usuarios activos hoy: ${metrics.activeToday}`);
   lines.push(`- Usuarios activos últimos 7 días: ${metrics.active7d}`);
   lines.push(`- Usuarios activos últimos 30 días: ${metrics.active30d}`);
+  lines.push(`- Eventos válidos de usuarios registrados: ${metrics.registeredEvents.length}`);
   lines.push(`- Tiempo medio hasta primer match: no fiable todavía; falta evento específico.`);
-  lines.push(`- Tiempo medio hasta primera solicitud: ${adminAverageTimeToFirst(profiles, requests, (request) => request.sender?.id)}`);
+  lines.push(`- Tiempo medio hasta primera solicitud: ${adminAverageTimeToFirst(profiles, currentRequests, (request) => request.sender?.id)}`);
   lines.push(`- Tiempo medio hasta primer contacto: no fiable todavía; falta timestamp específico de confirmación.`);
-  lines.push(`- Tiempo medio hasta primera valoración: ${adminAverageTimeToFirst(profiles, ratings, (rating) => rating.raterId)}`);
+  lines.push(`- Tiempo medio hasta primera valoración: ${adminAverageTimeToFirst(profiles, currentRatings, (rating) => rating.raterId)}`);
   lines.push("");
 
   lines.push("## 6. Reputación");
@@ -3061,7 +3148,12 @@ function adminBuildShareableInsightReport({ profiles = [], requests = [], rating
   lines.push("");
 
   lines.push("## 13. Calidad del informe");
+  lines.push("- Fuente principal: Supabase cuando está disponible; local solo como respaldo si una tabla opcional no responde.");
   lines.push(`- Duplicidades revisadas: ${dataQuality.issues.length ? "con avisos" : "sin avisos"}.`);
+  lines.push("- Usuarios activos: fiable; solo cuenta usuarios registrados con evento válido.");
+  lines.push("- Registros, perfiles, solicitudes, valoraciones, feedback y denuncias: fiables si Supabase responde.");
+  lines.push("- Matches: estimación de compatibilidad potencial, no evento histórico.");
+  lines.push("- Conversaciones y primer contacto: estimación hasta añadir timestamp/evento específico.");
   lines.push("- Cálculos repetidos evitados: sí.");
   lines.push("- Métricas innecesarias omitidas: sí.");
   lines.push("- Datos mock/prueba revisados: sí.");
@@ -3109,6 +3201,7 @@ function adminRenderFunnel(container, stages = []) {
       createElement("span", "", `vs total ${adminPercent(stage.count, total)}`),
       createElement("span", "", `abandono ${Math.max(previous - stage.count, 0)}`)
     );
+    if (stage.note) meta.append(createElement("span", "", stage.note));
     row.append(header, meta);
     container.append(row);
   });
@@ -3354,10 +3447,8 @@ function renderAdminDashboard() {
   const reports = dataProvider.listReports?.() || [];
   const events = dataProvider.listAppEvents?.() || [];
   const feedback = dataProvider.listBetaFeedback?.() || [];
+  const dashboardMetrics = adminReportMetrics({ profiles, requests, ratings, reports, feedback, events });
   const periodRatings = ratings.filter((item) => adminInPeriod(item, period));
-  const periodReports = reports.filter((item) => adminInPeriod(item, period));
-  const periodRequests = requests.filter((item) => adminInPeriod(item, period));
-  const periodEvents = events.filter((item) => adminInPeriod(item, period));
   const periodFeedback = feedback.filter((item) => adminInPeriod(item, period));
   const possibleMatches = adminPotentialMatches(clients, professionals);
   const allMatchPairs = adminAllMatchPairs(clients, professionals);
@@ -3366,7 +3457,6 @@ function renderAdminDashboard() {
     ? (ratings.reduce((sum, rating) => sum + (Number(rating.averageScore) || 0), 0) / ratings.length).toFixed(1)
     : "--";
   const completedProfiles = profiles.filter((item) => adminProfileCompletionFor(item) >= 80);
-  const activeToday = new Set(events.filter((event) => adminCountSince([event], 1)).map((event) => event.userId || event.email)).size;
   const pendingReports = reports.filter((report) => !["resuelta", "descartada"].includes(report.status));
   const reputationAlerts = profiles.map((person) => adminRatingAlertFor(person, ratings, reports)).filter((alert) => alert.level);
 
@@ -3376,8 +3466,8 @@ function renderAdminDashboard() {
   adminSetText(adminMetricClientsTrend, adminTrendText(clients));
   adminSetText(adminMetricProfessionals, String(professionals.length));
   adminSetText(adminMetricProfessionalsTrend, adminTrendText(professionals));
-  adminSetText(adminMetricActiveToday, String(activeToday));
-  adminSetText(adminMetricActiveTrend, events.length ? `${adminCountSince(events, 7)} eventos 7d · ${adminCountSince(events, 30)} eventos 30d` : "Sin histórico suficiente");
+  adminSetText(adminMetricActiveToday, String(dashboardMetrics.activeToday));
+  adminSetText(adminMetricActiveTrend, dashboardMetrics.registeredEvents.length ? `${dashboardMetrics.active7d} activos 7d · ${dashboardMetrics.active30d} activos 30d` : "Sin histórico suficiente");
   adminSetText(adminMetricCompleteProfiles, String(completedProfiles.length));
   adminSetText(adminMetricCompleteNote, profiles.length ? `${adminPercent(completedProfiles.length, profiles.length)} del total` : "Sin perfiles");
   adminSetText(adminMetricMatches, String(possibleMatches.length));
@@ -3391,23 +3481,9 @@ function renderAdminDashboard() {
   adminSetText(adminMetricBetaFeedback, String(periodFeedback.length));
   adminSetText(adminMetricBetaFeedbackNote, periodFeedback.length ? `media ${adminAverage(periodFeedback.map(betaFeedbackAverage)).toFixed(1)}/5` : "Sin respuestas");
 
-  const matchedUserIds = new Set(possibleMatches.flatMap((match) => [match.client.id, match.professional.id]));
-  const requestSenderIds = new Set(requests.map((request) => request.sender?.id).filter(Boolean));
-  const conversationUserIds = new Set(requests.filter(adminHasConversation).flatMap(adminRequestUserIds));
-  const ratedUserIds = new Set(ratings.map((rating) => rating.raterId).filter(Boolean));
-  const funnelStages = [
-    { label: "Registro iniciado", count: Math.max(profiles.length, new Set(events.map((event) => event.userId || event.email).filter(Boolean)).size) },
-    { label: "Cuenta creada", count: profiles.length },
-    { label: "Perfil empezado", count: profiles.filter((item) => adminProfileCompletionFor(item) >= 35).length },
-    { label: "Perfil completado", count: completedProfiles.length },
-    { label: "Primer match mostrado", count: matchedUserIds.size },
-    { label: "Primera solicitud enviada", count: requestSenderIds.size },
-    { label: "Primer contacto aceptado", count: conversationUserIds.size },
-    { label: "Primera conversación iniciada", count: conversationUserIds.size },
-    { label: "Primera experiencia valorada", count: ratedUserIds.size },
-    { label: "Feedback beta enviado", count: new Set(feedback.map((item) => item.userId || item.email).filter(Boolean)).size }
-  ];
-  adminRenderFunnel(adminFunnelList, funnelStages);
+  const matchedUserIds = dashboardMetrics.matchedUserIds;
+  const usersWithRequests = dashboardMetrics.requestParticipantIds;
+  adminRenderFunnel(adminFunnelList, dashboardMetrics.funnelStages);
 
   if (adminTimeList) {
     adminTimeList.innerHTML = "";
@@ -3420,24 +3496,26 @@ function renderAdminDashboard() {
       const sender = profiles.find((person) => person.id === request.sender?.id);
       return sender ? adminDateMs(request.createdAt) - adminDateMs(sender.createdAt) : 0;
     }).filter((value) => value > 0);
-    const conversationDurations = requests.filter(adminHasConversation).map((request) => adminDateMs(request.readAt || request.createdAt) - adminDateMs(request.createdAt)).filter((value) => value >= 0);
     const ratingDurations = ratings.map((rating) => {
       const rater = profiles.find((person) => person.id === rating.raterId);
       return rater ? adminDateMs(rating.createdAt) - adminDateMs(rater.createdAt) : 0;
     }).filter((value) => value > 0);
     [
-      ["Registro → perfil completo", profileDurations],
-      ["Registro → primera solicitud", requestDurations],
-      ["Solicitud → primer contacto", conversationDurations],
-      ["Registro → primera valoración", ratingDurations]
-    ].forEach(([labelText, values]) => {
-      adminRenderMetricRow(adminTimeList, labelText, values.length ? adminDurationLabel(adminAverage(values)) : "Sin histórico suficiente", values.length ? `mediana ${adminDurationLabel(adminMedian(values))}` : "Necesita más actividad real");
+      { label: "Registro → perfil completo", values: profileDurations, note: "estimado con última actualización del perfil" },
+      { label: "Registro → primera solicitud", values: requestDurations },
+      { label: "Solicitud → primer contacto", unavailable: true, note: "falta timestamp específico de contacto iniciado" },
+      { label: "Registro → primera valoración", values: ratingDurations }
+    ].forEach(({ label, values = [], note = "", unavailable = false }) => {
+      if (unavailable) {
+        adminRenderMetricRow(adminTimeList, label, "Dato no disponible", note);
+        return;
+      }
+      adminRenderMetricRow(adminTimeList, label, values.length ? adminDurationLabel(adminAverage(values)) : "Sin histórico suficiente", values.length ? `mediana ${adminDurationLabel(adminMedian(values))}${note ? ` · ${note}` : ""}` : note || "Necesita más actividad real");
     });
   }
 
   if (adminNoProgressList) {
     adminNoProgressList.innerHTML = "";
-    const usersWithRequests = new Set(requests.flatMap(adminRequestUserIds));
     const noMatches = profiles.filter((person) => !matchedUserIds.has(person.id));
     const matchesNoRequests = profiles.filter((person) => matchedUserIds.has(person.id) && !usersWithRequests.has(person.id));
     const unansweredUsers = profiles.filter((person) => requests.some((request) => adminRequestUserIds(request).includes(person.id) && !adminHasConversation(request)));
