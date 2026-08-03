@@ -767,28 +767,11 @@ function decodeContactValue(value) {
   }
 }
 
-function contactReasons(reasons = [], person = {}) {
+function contactReasons(reasons = []) {
   const cleanReasons = reasons.filter((reason) =>
     !String(reason).startsWith(CONTACT_EMAIL_PREFIX) && !String(reason).startsWith(CONTACT_PHONE_PREFIX)
   );
-  const email = person.contactEmail || person.email || "";
-  const phone = person.phone || "";
-  if (email) cleanReasons.push(`${CONTACT_EMAIL_PREFIX}${encodeContactValue(email)}`);
-  if (phone) cleanReasons.push(`${CONTACT_PHONE_PREFIX}${encodeContactValue(phone)}`);
   return cleanReasons;
-}
-
-function extractContact(reasons = []) {
-  return reasons.reduce((contact, reason) => {
-    const value = String(reason || "");
-    if (value.startsWith(CONTACT_EMAIL_PREFIX)) {
-      contact.email = decodeContactValue(value.slice(CONTACT_EMAIL_PREFIX.length));
-    }
-    if (value.startsWith(CONTACT_PHONE_PREFIX)) {
-      contact.phone = decodeContactValue(value.slice(CONTACT_PHONE_PREFIX.length));
-    }
-    return contact;
-  }, { email: "", phone: "" });
 }
 
 function extractReadState(reasons = []) {
@@ -879,9 +862,9 @@ function requestPersonSnapshot(person, fallbackId, fallbackRole, fallbackName) {
     role: person?.role || fallbackRole || "",
     name: person?.name || fallbackName || "Perfil Fit Match",
     title: person?.title || "",
-    email: person?.email || "",
-    contactEmail: person?.contactEmail || person?.email || "",
-    phone: person?.phone || "",
+    email: "",
+    contactEmail: "",
+    phone: "",
     photo: person?.photo || "",
     city: person?.city || "Online",
     goal: person?.goal || "fuerza",
@@ -896,15 +879,12 @@ function requestPersonSnapshot(person, fallbackId, fallbackRole, fallbackName) {
 function normalizeStoredRequest(request, options = {}) {
   const senderRole = request.senderRole || request.role || "client";
   const recipientRole = request.recipientRole || oppositeRequestRole(senderRole);
-  const contact = extractContact(request.reasons || []);
   const readState = extractReadState(request.reasons || []);
   const deletedBy = request.deletedBy || extractDeletedBy(request.reasons || []);
   const contactStartedBy = request.contactStartedBy || extractMarkerUsers(request.reasons || [], CONTACT_STARTED_BY_PREFIX);
   const serviceCompletedBy = request.serviceCompletedBy || extractMarkerUsers(request.reasons || [], SERVICE_COMPLETED_BY_PREFIX);
   const sender = request.sender || request.profile || requestPersonSnapshot(null, request.senderId, senderRole, "Perfil remitente");
   const recipient = request.recipient || request.target || requestPersonSnapshot(null, request.recipientId, recipientRole, "Perfil destinatario");
-  if (contact.email && !sender.contactEmail && !sender.email) sender.contactEmail = contact.email;
-  if (contact.phone && !sender.phone) sender.phone = contact.phone;
   const profileId = options.profileId || currentSession?.user?.id || "";
   const isIncoming = profileId ? recipient.id === profileId : recipientRole === options.role && senderRole !== options.role;
   const isOutgoing = profileId ? sender.id === profileId : senderRole === options.role;
