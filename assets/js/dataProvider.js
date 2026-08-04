@@ -80,6 +80,7 @@ let betaFeedbackRemoteAvailable = true;
 let appEventsRemoteAvailable = true;
 let reportsRemoteAvailable = true;
 let remoteError = "";
+let passwordRecoveryMode = false;
 
 function readStorage(key, fallback) {
   try {
@@ -555,6 +556,11 @@ function createId(prefix) {
 
 function canUseRemote() {
   return Boolean(supabaseClient && currentSession?.user?.id);
+}
+
+function isPasswordRecoveryUrl() {
+  const locationText = `${window.location.search || ""} ${window.location.hash || ""}`;
+  return /type=recovery|password_recovery/i.test(locationText);
 }
 
 function normalizeRole(role) {
@@ -1154,9 +1160,12 @@ window.FitMatchDataProvider = {
     }
 
     currentSession = data.session;
+    passwordRecoveryMode = isPasswordRecoveryUrl();
     supabaseClient.auth.onAuthStateChange((_event, session) => {
       currentSession = session;
+      if (_event === "PASSWORD_RECOVERY") passwordRecoveryMode = true;
       if (!session) {
+        passwordRecoveryMode = false;
         remoteProfiles = [];
         remoteRequests = [];
         remoteRatings = [];
@@ -1182,6 +1191,7 @@ window.FitMatchDataProvider = {
       isRemote: canUseRemote(),
       session: currentSession,
       user: currentSession?.user || null,
+      passwordRecovery: passwordRecoveryMode,
       error: remoteError
     };
   },
@@ -1225,10 +1235,36 @@ window.FitMatchDataProvider = {
     return data;
   },
 
+  async resetPassword(email) {
+    if (!supabaseClient) throw new Error("Supabase no está disponible en esta página.");
+    const cleanEmail = String(email || "").trim().toLowerCase();
+    if (!cleanEmail) throw new Error("Escribe el email de tu cuenta.");
+    const redirectTo = `${window.location.origin}${window.location.pathname}`;
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(cleanEmail, { redirectTo });
+    if (error) throw error;
+    return { email: cleanEmail };
+  },
+
+  async updatePassword(password) {
+    if (!supabaseClient) throw new Error("Supabase no está disponible en esta página.");
+    if (!currentSession?.user?.id) throw new Error("Abre el enlace de recuperación desde el email antes de guardar la nueva contraseña.");
+    const cleanPassword = String(password || "");
+    if (cleanPassword.length < 6) throw new Error("La contraseña debe tener al menos 6 caracteres.");
+    const { data, error } = await supabaseClient.auth.updateUser({ password: cleanPassword });
+    if (error) throw error;
+    passwordRecoveryMode = false;
+    if (isPasswordRecoveryUrl()) {
+      window.history.replaceState(window.history.state, document.title, `${window.location.origin}${window.location.pathname}`);
+    }
+    await this.refreshRemoteData();
+    return data;
+  },
+
   async signOut() {
     if (!supabaseClient) return;
     await supabaseClient.auth.signOut();
     currentSession = null;
+    passwordRecoveryMode = false;
     remoteProfiles = [];
     remoteRequests = [];
     remoteRatings = [];

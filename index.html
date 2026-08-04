@@ -184,11 +184,23 @@
                     <input id="authPasswordInput" name="login-password" type="password" autocomplete="current-password" placeholder="Tu contraseña" required />
                   </label>
                 </div>
+                <div id="passwordRecoveryFields" class="password-recovery-fields" hidden>
+                  <label>
+                    Nueva contraseña
+                    <input id="newPasswordInput" name="new-password" type="password" autocomplete="new-password" minlength="6" />
+                  </label>
+                  <label>
+                    Confirmar nueva contraseña
+                    <input id="newPasswordConfirmInput" name="new-password-confirm" type="password" autocomplete="new-password" minlength="6" />
+                  </label>
+                  <button id="saveNewPasswordButton" class="button primary" type="button">Guardar nueva contraseña</button>
+                </div>
                 <div class="auth-actions">
                   <button id="signInButton" class="button primary" type="submit" data-auth-action="signin">Iniciar sesión</button>
                   <button id="createAccountRouteButton" class="button secondary" type="button" data-view="register">Crear cuenta cliente</button>
                   <button class="button quiet" id="signOutButton" type="button" hidden>Cerrar sesión</button>
                 </div>
+                <button id="forgotPasswordButton" class="auth-link-button" type="button">¿Has olvidado tu contraseña?</button>
               </form>
             </section>
 
@@ -788,8 +800,14 @@
                 <span><strong id="savedRoleLabel">Cliente</strong> Rol activo</span>
                 <span><strong id="savedRequestsCount">0</strong> Contactos</span>
               </div>
-              <button class="button quiet full" id="clearProfiles" type="button">Eliminar mi cuenta y datos guardados</button>
             </div>
+
+            <section class="danger-zone" aria-labelledby="dangerZoneTitle">
+              <span class="micro-label">Zona de peligro</span>
+              <strong id="dangerZoneTitle">Acciones críticas</strong>
+              <p>Separado para evitar borrados accidentales.</p>
+              <button class="button quiet danger-button full" id="clearProfiles" type="button">Eliminar mi cuenta y todos mis datos</button>
+            </section>
           </aside>
         </div>
       </section>

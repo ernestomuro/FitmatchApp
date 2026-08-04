@@ -91,43 +91,43 @@ const PROFILE_FIELD_COPY = {
     goalLabel: "Qué quieres conseguir",
     goalHint: "Ayuda a encontrarte.",
     sportLabel: "Deporte o disciplina que practicas",
-    sportHint: "Ayuda a afinar coincidencias.",
+    sportHint: "Disciplina principal.",
     modeLabel: "Cómo quieres trabajar",
-    modeHint: "Visible en tu perfil.",
+    modeHint: "Formato preferido.",
     levelLabel: "Tu nivel actual",
-    levelHint: "Ayuda a ajustar el match.",
-    servicesLegend: "Qué tipo de ayuda necesitas",
-    servicesHint: "Selecciona lo que quieres ofrecer o encontrar.",
+    levelHint: "Punto de partida.",
+    servicesLegend: "Qué ayuda buscas",
+    servicesHint: "Marca apoyos concretos.",
     priceLabel: "Presupuesto por sesión",
-    priceHint: "Puedes modificarlo cuando quieras.",
+    priceHint: "Rango orientativo.",
     availabilityLabel: "Cuándo puedes entrenar o reunirte",
-    availabilityHint: "Ayuda a saber cuándo puedes trabajar.",
+    availabilityHint: "Cuándo te viene bien.",
     bioLabel: "¿Qué necesitas contar?",
-    bioHint: "Describe en pocas líneas qué buscas.",
+    bioHint: "Qué buscas y por qué.",
     notesLabel: "¿Qué debería saber el profesional?",
-    notesHint: "Añade detalles que ayuden a mejorar el match.",
+    notesHint: "Contexto que cambia el match.",
     bioPlaceholder: "Qué quieres conseguir, qué has probado antes o qué tipo de acompañamiento buscas.",
     notesPlaceholder: "Ej. lesión de rodilla, media maratón, perder grasa, pádel competitivo, disponibilidad mañanas."
   },
   professional: {
     goalLabel: "Tu especialidad principal",
-    goalHint: "Ayuda a encontrarte.",
+    goalHint: "Tu área fuerte.",
     sportLabel: "Deportes o disciplinas que trabajas",
-    sportHint: "Ayuda a afinar coincidencias.",
+    sportHint: "Disciplina principal.",
     modeLabel: "Cómo ofreces tus servicios",
-    modeHint: "Visible en tu perfil.",
+    modeHint: "Formato de trabajo.",
     levelLabel: "Nivel de cliente que atiendes mejor",
-    levelHint: "Ayuda a ajustar el match.",
+    levelHint: "Cliente ideal.",
     servicesLegend: "Servicios que ofreces",
-    servicesHint: "Selecciona lo que quieres ofrecer o encontrar.",
+    servicesHint: "Marca servicios concretos.",
     priceLabel: "Precio por sesión",
-    priceHint: "Puedes modificarlo cuando quieras.",
+    priceHint: "Importe orientativo.",
     availabilityLabel: "Disponibilidad profesional",
-    availabilityHint: "Ayuda a saber cuándo puedes trabajar.",
+    availabilityHint: "Cuándo puedes atender.",
     bioLabel: "¿Cómo quieres que te recuerden?",
-    bioHint: "Describe en pocas líneas cómo ayudas a tus clientes.",
+    bioHint: "Qué te diferencia.",
     notesLabel: "¿Con qué personas trabajas mejor?",
-    notesHint: "Describe el tipo de cliente con el que consigues mejores resultados.",
+    notesHint: "Tu tipo de cliente ideal.",
     bioPlaceholder: "Tu enfoque, experiencia, especialidades y tipo de acompañamiento que ofreces.",
     notesPlaceholder: "Ej. pérdida de grasa, fuerza, running, readaptación, clientes principiantes, seguimiento online."
   }
@@ -518,6 +518,11 @@ const authTitle = document.querySelector("#authTitle");
 const authStatus = document.querySelector("#authStatus");
 const authEmailInput = document.querySelector("#authEmailInput");
 const authPasswordInput = document.querySelector("#authPasswordInput");
+const forgotPasswordButton = document.querySelector("#forgotPasswordButton");
+const passwordRecoveryFields = document.querySelector("#passwordRecoveryFields");
+const newPasswordInput = document.querySelector("#newPasswordInput");
+const newPasswordConfirmInput = document.querySelector("#newPasswordConfirmInput");
+const saveNewPasswordButton = document.querySelector("#saveNewPasswordButton");
 const accountRoleTitle = document.querySelector("#accountRoleTitle");
 const accountRoleCopy = document.querySelector("#accountRoleCopy");
 const accountHeaderActionButton = document.querySelector("#accountHeaderActionButton");
@@ -1068,11 +1073,15 @@ function setAuthLoading(isLoading) {
   });
   if (signOutButton) signOutButton.disabled = isLoading;
   if (signupSignOutButton) signupSignOutButton.disabled = isLoading;
+  if (forgotPasswordButton) forgotPasswordButton.disabled = isLoading;
+  if (saveNewPasswordButton) saveNewPasswordButton.disabled = isLoading;
 }
 
 function clearAuthInputs() {
   if (authEmailInput) authEmailInput.value = "";
   if (authPasswordInput) authPasswordInput.value = "";
+  if (newPasswordInput) newPasswordInput.value = "";
+  if (newPasswordConfirmInput) newPasswordConfirmInput.value = "";
 }
 
 function updateAuthPanel(message = "") {
@@ -1082,21 +1091,24 @@ function updateAuthPanel(message = "") {
   authPanel.classList.toggle("remote-active", Boolean(state.isRemote));
   authPanel.classList.toggle("remote-unavailable", !state.hasClient);
   const isConnected = Boolean(state.isRemote);
+  const isPasswordRecovery = Boolean(state.passwordRecovery);
   const isProfileReady = hasSavedProfile();
   const connectedEmail = state.user?.email || "esta cuenta";
   document.body.classList.toggle("account-connected", isConnected);
   updateSignupLegalState();
 
   if (signupFields) signupFields.hidden = false;
-  if (authLoginFields) authLoginFields.hidden = isConnected;
+  if (authLoginFields) authLoginFields.hidden = isConnected || isPasswordRecovery;
+  if (passwordRecoveryFields) passwordRecoveryFields.hidden = !isPasswordRecovery;
   if (createAccountRouteButton) {
-    createAccountRouteButton.hidden = false;
+    createAccountRouteButton.hidden = isPasswordRecovery;
     createAccountRouteButton.textContent = isConnected
       ? "Completar perfil"
       : profile.role === "client" ? "Crear cuenta cliente" : "Crear cuenta profesional";
   }
-  if (signInButton) signInButton.hidden = isConnected;
-  if (signOutButton) signOutButton.hidden = !isConnected || isProfileReady;
+  if (signInButton) signInButton.hidden = isConnected || isPasswordRecovery;
+  if (forgotPasswordButton) forgotPasswordButton.hidden = isConnected || isPasswordRecovery;
+  if (signOutButton) signOutButton.hidden = !isConnected || isProfileReady || isPasswordRecovery;
   if (connectedAccountEmail) {
     connectedAccountEmail.hidden = !isConnected;
     connectedAccountEmail.textContent = isConnected ? `Cuenta actual: ${connectedEmail}` : "";
@@ -1115,7 +1127,10 @@ function updateAuthPanel(message = "") {
     return;
   }
 
-  if (isConnected) {
+  if (isPasswordRecovery) {
+    if (authTitle) authTitle.textContent = "Crea una nueva contraseña.";
+    if (authStatus) authStatus.textContent = message || "El enlace de recuperación está activo. Guarda una contraseña nueva para volver a entrar.";
+  } else if (isConnected) {
     if (authTitle) authTitle.textContent = isProfileReady ? "Todo bajo control." : "Cuenta conectada";
     if (authStatus) authStatus.textContent = message || (isProfileReady
       ? "Tu identidad, tu actividad y tus oportunidades reunidas en un solo lugar."
@@ -1494,8 +1509,74 @@ async function handleAuth(action) {
       showView(ownProfile ? "account" : "register");
     }
   } catch (error) {
-    updateAuthPanel(error.message || "No se pudo completar la autenticación.");
+    updateAuthPanel(authErrorMessage(error, "No se pudo completar la autenticación."));
   } finally {
+    setAuthLoading(false);
+  }
+}
+
+function authErrorMessage(error, fallback = "No se pudo completar la operación.") {
+  const message = String(error?.message || "").trim();
+  if (!message) return fallback;
+  if (/invalid login credentials/i.test(message)) return "Email o contraseña incorrectos.";
+  if (/rate limit|too many/i.test(message)) return "Demasiados intentos seguidos. Espera un momento y vuelve a probar.";
+  if (/email/i.test(message) && /invalid/i.test(message)) return "Revisa que el email esté bien escrito.";
+  return message;
+}
+
+async function handleForgotPassword() {
+  if (!authEmailInput) return;
+  const email = validateAuthEmailInput(authEmailInput);
+  if (!email) {
+    updateAuthPanel("Escribe el email de tu cuenta para enviarte el enlace.");
+    authEmailInput.focus();
+    return;
+  }
+
+  setAuthLoading(true);
+  const previousText = forgotPasswordButton?.textContent || "";
+  if (forgotPasswordButton) forgotPasswordButton.textContent = "Enviando enlace...";
+
+  try {
+    await dataProvider.resetPassword?.(email);
+    updateAuthPanel("Si existe una cuenta con ese email, te enviaremos un enlace para crear una nueva contraseña.");
+  } catch (error) {
+    updateAuthPanel(authErrorMessage(error, "No se pudo enviar el email de recuperación."));
+  } finally {
+    if (forgotPasswordButton) forgotPasswordButton.textContent = previousText;
+    setAuthLoading(false);
+  }
+}
+
+async function handleSaveNewPassword() {
+  const password = newPasswordInput?.value || "";
+  const confirmation = newPasswordConfirmInput?.value || "";
+
+  if (password.length < 6) {
+    updateAuthPanel("La nueva contraseña debe tener al menos 6 caracteres.");
+    newPasswordInput?.focus();
+    return;
+  }
+
+  if (password !== confirmation) {
+    updateAuthPanel("Las contraseñas no coinciden.");
+    newPasswordConfirmInput?.focus();
+    return;
+  }
+
+  setAuthLoading(true);
+  const previousText = saveNewPasswordButton?.textContent || "";
+  if (saveNewPasswordButton) saveNewPasswordButton.textContent = "Guardando...";
+
+  try {
+    await dataProvider.updatePassword?.(password);
+    clearAuthInputs();
+    updateAuthPanel("Contraseña actualizada. Ya puedes continuar con tu cuenta.");
+    showView("account");
+  } catch (error) {
+    updateAuthPanel(authErrorMessage(error, "No se pudo actualizar la contraseña."));
+  } finally {
+    if (saveNewPasswordButton) saveNewPasswordButton.textContent = previousText;
     setAuthLoading(false);
   }
 }
@@ -4001,7 +4082,6 @@ function renderMatches() {
     stats.append(
       buildStat(person.role === "client" ? "Presupuesto" : "Precio", priceText(person)),
       buildStat("Ciudad", person.city || "Online"),
-      buildStat("Deporte", person.sport || "Por definir"),
       buildStat("Disponible", person.availability || "Por definir")
     );
 
@@ -4245,17 +4325,28 @@ function renderProfileDetail(person) {
     createElement("strong", "", profileTitle(person)),
     createElement("p", "", person.bio || "Este perfil aún no tiene una descripción amplia.")
   );
+  if (person.notes) {
+    detailCopy.append(createElement(
+      "small",
+      "profile-detail-note",
+      person.role === "professional" ? `Tipo de cliente: ${person.notes}` : `Contexto: ${person.notes}`
+    ));
+  }
   detailHero.append(detailAvatar, detailCopy);
 
   const tags = createElement("div", "meta profile-detail-tags");
-  const tagTexts = [
-    roleLabel(person.role),
-    label("goals", person.goal),
-    person.sport,
-    label("modes", person.mode),
-    label("levels", person.level),
-    ...(person.services || []).map((service) => label("services", service))
-  ].filter(Boolean);
+  const tagTexts = person.role === "professional"
+    ? [
+        roleLabel(person.role),
+        label("goals", person.goal),
+        label("levels", person.level)
+      ].filter(Boolean)
+    : [
+        roleLabel(person.role),
+        label("modes", person.mode),
+        label("levels", person.level),
+        ...(person.services || []).map((service) => label("services", service))
+      ].filter(Boolean);
   [...new Set(tagTexts)].forEach((tagText) => tags.append(createElement("span", "pill", tagText)));
   identity.append(detailHero, tags);
 
@@ -5490,6 +5581,16 @@ function renderRequestHistory() {
 authForm?.addEventListener("submit", (event) => {
   event.preventDefault();
   handleAuth("signin");
+});
+
+forgotPasswordButton?.addEventListener("click", (event) => {
+  event.preventDefault();
+  handleForgotPassword();
+});
+
+saveNewPasswordButton?.addEventListener("click", (event) => {
+  event.preventDefault();
+  handleSaveNewPassword();
 });
 
 
