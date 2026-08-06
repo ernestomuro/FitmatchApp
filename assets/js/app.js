@@ -365,10 +365,10 @@ function createBlankProfile(role) {
     phone: "",
     photo: "",
     city: "",
-    goal: "fuerza",
+    goal: "",
     sport: "",
-    mode: "online",
-    level: "principiante",
+    mode: "",
+    level: "",
     services: [],
     price: "",
     availability: "",
@@ -453,6 +453,7 @@ function restoreHiddenMatches() {
 const roleButtons = document.querySelectorAll(".role-option");
 const form = document.querySelector("#profileForm");
 const profileSubmitButton = form?.querySelector('button[type="submit"]');
+const touchedProfileFields = new Set();
 const matchList = document.querySelector("#matchList");
 const sortInput = document.querySelector("#sortInput");
 const modal = document.querySelector("#modal");
@@ -1186,7 +1187,9 @@ function updateProfileContextCard() {
   if (profileContextScoreLabel) profileContextScoreLabel.textContent = percent >= 80 ? "perfil fuerte" : "perfil en progreso";
   if (profileContextKicker) profileContextKicker.textContent = "Constructor de perfil";
   if (profileContextTitle) profileContextTitle.textContent = isClient ? "Tu perfil cuenta tu punto de partida." : "Tu perfil presenta tu forma de trabajar.";
-  if (profileContextCopy) profileContextCopy.textContent = "Solo te faltan unos pasos para mejorar tu visibilidad.";
+  if (profileContextCopy) profileContextCopy.textContent = percent === 0
+    ? "Empieza por los datos de cuenta y nombre."
+    : "Solo te faltan unos pasos para mejorar tu visibilidad.";
   renderContextSignals(profileContextSignals, isClient
     ? ["Objetivos definidos", "Preferencias claras", "Disponibilidad importante", "Nivel adecuado"]
     : ["Especialidades claras", "Metodología destacada", "Disponibilidad actualizada", "Reseñas futuras"]);
@@ -2062,10 +2065,10 @@ function setFormFromProfile() {
   document.querySelector("#phoneInput").value = profile.phone || "";
   document.querySelector("#cityInput").value = profile.city || "";
   updatePhotoPreview();
-  document.querySelector("#goalInput").value = profile.goal || "fuerza";
+  document.querySelector("#goalInput").value = profile.goal || "";
   document.querySelector("#sportInput").value = profile.sport || "";
-  document.querySelector("#modeInput").value = profile.mode || "online";
-  document.querySelector("#levelInput").value = profile.level || "principiante";
+  document.querySelector("#modeInput").value = profile.mode || "";
+  document.querySelector("#levelInput").value = profile.level || "";
   document.querySelector("#priceInput").value = profile.price || "";
   document.querySelector("#availabilityInput").value = profile.availability || "";
   document.querySelector("#bioInput").value = profile.bio || "";
@@ -2094,39 +2097,106 @@ function readForm() {
   profile.services = checkedServices;
 }
 
+function markProfileFieldTouched(target) {
+  if (target?.id) touchedProfileFields.add(target.id);
+}
+
 function saveDraft() {
   dataProvider.saveProfileDraft(profile);
   updateProfileStatus();
 }
 
-function profileCompletionDetails() {
-  const goalLabelText = profile.role === "client" ? "Objetivo" : "Especialidad";
-  const priceLabelText = profile.role === "client" ? "Presupuesto" : "Precio";
+const PROFILE_SELECT_DEFAULTS = {
+  goal: "fuerza",
+  mode: "online",
+  level: "principiante"
+};
+
+const GENERATED_PROFILE_VALUES = {
+  name: ["perfil sin nombre"],
+  city: ["online"],
+  availability: ["por definir"],
+  bio: ["perfil creado para pruebas reales de fit match."]
+};
+
+function completionText(value = "") {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function completionKey(value = "") {
+  return completionText(value)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function hasUsefulText(value, ignoredValues = []) {
+  const text = completionText(value);
+  return Boolean(text) && !ignoredValues.map(completionKey).includes(completionKey(text));
+}
+
+function hasSelectedProfileValue(data = {}, key = "") {
+  const value = completionText(data[key]);
+  if (!value) return false;
+  const defaultValue = PROFILE_SELECT_DEFAULTS[key];
+  if (!defaultValue || value !== defaultValue) return true;
+  return Boolean(data.id || (data === profile && touchedProfileFields.has(`${key}Input`)));
+}
+
+function liveSignupPasswordReady() {
+  if (currentUser()) return true;
+  const password = signupPasswordInput?.value || "";
+  const confirmation = signupPasswordConfirmInput?.value || "";
+  return password.length >= 6 && password === confirmation;
+}
+
+function liveSignupLegalReady() {
+  if (currentUser()) return dataProvider.hasLegalConsent?.() !== false;
+  return hasVisitedTrustCenter() && requiredChecksCompleted(signupLegalChecks);
+}
+
+function profileCompletionDetails(source = profile, { live = source === profile } = {}) {
+  const data = source || {};
+  const goalLabelText = data.role === "client" ? "Objetivo" : "Especialidad";
+  const priceLabelText = data.role === "client" ? "Presupuesto" : "Precio";
+  const email = data.email || data.contactEmail || currentUser()?.email || "";
+  const accountReady = live
+    ? Boolean(currentUser() || isValidEmail(email))
+    : Boolean(data.id || isValidEmail(email));
+  const passwordReady = live ? liveSignupPasswordReady() : Boolean(data.id || isValidEmail(email));
+  const legalReady = live ? liveSignupLegalReady() : Boolean(data.id || data.createdAt || data.updatedAt);
   const items = [
-    { label: "Nombre", value: profile.name },
-    { label: "Email", value: profile.email || currentUser()?.email },
-    { label: "Ciudad", value: profile.city },
-    { label: goalLabelText, value: profile.goal },
-    { label: "Foto", value: profile.photo },
-    { label: "Deporte o notas", value: profile.sport || profile.notes },
-    { label: "Modalidad", value: profile.mode },
-    { label: "Nivel", value: profile.level },
-    { label: "Servicios", value: profile.services?.length },
-    { label: priceLabelText, value: profile.price },
-    { label: "Disponibilidad", value: profile.availability },
-    { label: "Presentación", value: profile.bio || profile.notes }
+    { label: "Cuenta", weight: 10, complete: accountReady },
+    { label: "Contraseña", weight: 8, complete: passwordReady },
+    { label: "Privacidad", weight: 6, complete: legalReady },
+    { label: "Nombre", weight: 12, complete: hasUsefulText(data.name, GENERATED_PROFILE_VALUES.name) },
+    { label: "Ciudad", weight: 8, complete: hasUsefulText(data.city, GENERATED_PROFILE_VALUES.city) },
+    { label: "Fecha de nacimiento", weight: 5, complete: hasUsefulText(data.birthdate) },
+    { label: "Teléfono", weight: 5, complete: hasUsefulText(data.phone) },
+    { label: "Foto", weight: 5, complete: hasUsefulText(data.photo) },
+    { label: goalLabelText, weight: 10, complete: hasSelectedProfileValue(data, "goal") },
+    { label: "Deporte", weight: 6, complete: hasUsefulText(data.sport) },
+    { label: "Modalidad", weight: 7, complete: hasSelectedProfileValue(data, "mode") },
+    { label: "Nivel", weight: 6, complete: hasSelectedProfileValue(data, "level") },
+    { label: "Servicios", weight: 9, complete: Array.isArray(data.services) && data.services.length > 0 },
+    { label: priceLabelText, weight: 6, complete: hasUsefulText(data.price) },
+    { label: "Disponibilidad", weight: 7, complete: hasUsefulText(data.availability, GENERATED_PROFILE_VALUES.availability) },
+    { label: "Presentación", weight: 8, complete: hasUsefulText(data.bio, GENERATED_PROFILE_VALUES.bio) },
+    { label: "Notas de match", weight: 5, complete: hasUsefulText(data.notes || data.matchNotes) }
   ];
-  const completed = items.filter((item) => Boolean(item.value));
-  const pending = items.filter((item) => !item.value);
+  const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
+  const completedWeight = items.reduce((sum, item) => sum + (item.complete ? item.weight : 0), 0);
+  const completed = items.filter((item) => item.complete);
+  const pending = items.filter((item) => !item.complete);
   return {
     completed,
     pending,
-    percent: Math.round((completed.length / items.length) * 100)
+    percent: totalWeight ? Math.round((completedWeight / totalWeight) * 100) : 0
   };
 }
 
-function profileCompleteness() {
-  return profileCompletionDetails().percent;
+function profileCompleteness(source = profile) {
+  return profileCompletionDetails(source, { live: source === profile }).percent;
 }
 
 function formatAccountDate(value) {
@@ -2268,22 +2338,7 @@ function adminAllContactRequests() {
 }
 
 function adminProfileCompletionFor(person = {}) {
-  const fields = [
-    person.name,
-    person.email,
-    person.city,
-    person.goal,
-    person.sport,
-    person.mode,
-    person.level,
-    (person.services || []).length,
-    person.availability,
-    person.bio,
-    person.notes || person.matchNotes,
-    person.photo
-  ];
-  const completed = fields.filter((value) => Array.isArray(value) ? value.length : Boolean(value)).length;
-  return Math.round((completed / fields.length) * 100);
+  return profileCompletionDetails(person, { live: false }).percent;
 }
 
 function adminTokenize(value = "") {
@@ -2296,7 +2351,7 @@ function adminTokenize(value = "") {
 }
 
 function adminCompatibilityScore(client = {}, professional = {}) {
-  let score = 10;
+  let score = 0;
   const clientServices = client.services || [];
   const professionalServices = professional.services || [];
   const sharedServices = clientServices.filter((service) => professionalServices.includes(service));
@@ -3793,12 +3848,14 @@ function updateProfileStatus() {
   if (profileBuilderProgressCopy) {
     profileBuilderProgressCopy.textContent = percent >= 90
       ? "Tu perfil ya transmite mucha confianza."
-      : "Solo te faltan unos pasos para mejorar tu visibilidad.";
+      : percent === 0
+        ? "Empieza por crear tu cuenta y añadir tu nombre."
+        : "Solo te faltan unos pasos para mejorar tu visibilidad.";
   }
   savedRoleLabel.textContent = roleLabel(profile.role);
   savedRequestsCount.textContent = String(requestCount);
   updateProfileContextCard();
-  if (matchesContextScore) matchesContextScore.textContent = `${Math.round(percent + 8 > 99 ? 99 : percent + 8)}%`;
+  if (matchesContextScore) matchesContextScore.textContent = `${percent}%`;
   renderProfileHome();
 }
 
@@ -3933,7 +3990,7 @@ function sharedServicesBetween(source = {}, target = {}) {
 }
 
 function calculateScoreBetween(source = {}, target = {}) {
-  let score = 10;
+  let score = 0;
 
   if (hasSharedCompatibilityValue(source, target, "goal", "goals")) score += 25;
   if (hasSharedCompatibilityValue(source, target, "mode", "modes")) score += 20;
@@ -4234,6 +4291,7 @@ function updateRole(role, { persistCurrent = true, simulateLoading = true } = {}
 function resetProfileState(role = profile.role) {
   Object.keys(profile).forEach((key) => delete profile[key]);
   Object.assign(profile, createBlankProfile(role));
+  touchedProfileFields.clear();
   dataProvider.clearProfileDraft();
   setFormFromProfile();
   clearSignupCredentials();
@@ -4248,6 +4306,7 @@ function startCleanProfile() {
   const activeRole = profile.role;
   Object.keys(profile).forEach((key) => delete profile[key]);
   Object.assign(profile, createBlankProfile(activeRole));
+  touchedProfileFields.clear();
   dataProvider.clearProfileDraft(activeRole);
   setFormFromProfile();
   resetRequestBox();
@@ -5905,12 +5964,14 @@ form.addEventListener("submit", async (event) => {
 
 form.addEventListener("input", (event) => {
   if (isProcessingPhoto || event.target === photoInput) return;
+  markProfileFieldTouched(event.target);
   readForm();
   saveDraft();
 });
 
 form.addEventListener("change", (event) => {
   if (isProcessingPhoto || event.target === photoInput) return;
+  markProfileFieldTouched(event.target);
   readForm();
   saveDraft();
 });

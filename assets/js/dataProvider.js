@@ -599,23 +599,34 @@ function profileFreshness(profile = {}) {
   return new Date(profile.updatedAt || profile.updated_at || profile.createdAt || profile.created_at || 0).getTime() || 0;
 }
 
-function profileCompleteness(profile = {}) {
-  const fields = [
-    profile.name,
-    profile.email,
-    profile.city,
-    profile.goal,
-    profile.mode,
-    profile.level,
-    profile.sport,
-    profile.availability,
-    profile.bio,
-    profile.notes,
-    profile.photo,
-    profile.phone
+function usefulProfileText(value = "", ignoredValues = []) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  const key = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return Boolean(text) && !ignoredValues.includes(key);
+}
+
+function profileStrengthPercent(profile = {}) {
+  const items = [
+    { weight: 14, complete: usefulProfileText(profile.name, ["perfil sin nombre"]) },
+    { weight: 8, complete: usefulProfileText(profile.city, ["online"]) },
+    { weight: 10, complete: usefulProfileText(profile.goal) },
+    { weight: 6, complete: usefulProfileText(profile.sport) },
+    { weight: 7, complete: usefulProfileText(profile.mode) },
+    { weight: 6, complete: usefulProfileText(profile.level) },
+    { weight: 12, complete: Array.isArray(profile.services) && profile.services.length > 0 },
+    { weight: 7, complete: usefulProfileText(profile.availability, ["por definir"]) },
+    { weight: 12, complete: usefulProfileText(profile.bio, ["perfil creado para pruebas reales de fit match."]) },
+    { weight: 6, complete: usefulProfileText(profile.notes || profile.matchNotes) },
+    { weight: 6, complete: usefulProfileText(profile.photo) },
+    { weight: 6, complete: usefulProfileText(profile.price) }
   ];
-  const servicesCount = Array.isArray(profile.services) ? profile.services.length : 0;
-  return fields.filter(Boolean).length + servicesCount;
+  const total = items.reduce((sum, item) => sum + item.weight, 0);
+  const done = items.reduce((sum, item) => sum + (item.complete ? item.weight : 0), 0);
+  return total ? Math.round((done / total) * 100) : 0;
+}
+
+function profileCompleteness(profile = {}) {
+  return profileStrengthPercent(profile);
 }
 
 function shouldPreferProfile(candidate, current) {
@@ -2214,6 +2225,7 @@ window.FitMatchDataProvider = {
     const directorySize = profile.role === "professional" ? this.listProfiles("client").length : this.listProfiles("professional").length;
     const profileViews = this.listAppEvents().filter((event) => event.eventType === "profile_viewed" && event.metadata?.targetId === profile.id).length;
     const completedSignals = [profile.photo, profile.bio, profile.availability, profile.services?.length, profile.sport || profile.notes, profile.price].filter(Boolean).length;
+    const profileStrength = profileStrengthPercent(profile);
     const matches = Math.max(0, directorySize);
     const estimatedExposure = Math.max(0, matches * 12 + activeContacts * 11 + ratings.length * 9 + completedSignals * 5);
     const views = Math.max(profileViews, estimatedExposure);
@@ -2225,7 +2237,7 @@ window.FitMatchDataProvider = {
       matches,
       contacts: activeContacts,
       conversion,
-      profileStrength: Math.min(100, 45 + completedSignals * 8 + ratings.length * 3)
+      profileStrength
     };
   },
 
