@@ -531,6 +531,8 @@ const signInButton = document.querySelector("#signInButton");
 const connectedAccountEmail = document.querySelector("#connectedAccountEmail");
 const signupConnectedEmail = document.querySelector("#signupConnectedEmail");
 const signupSignOutButton = document.querySelector("#signupSignOutButton");
+const signupConfirmButton = document.querySelector("#signupConfirmButton");
+const signupAccountStatus = document.querySelector("#signupAccountStatus");
 const signupPasswordInput = document.querySelector("#signupPasswordInput");
 const signupPasswordConfirmInput = document.querySelector("#signupPasswordConfirmInput");
 const signupFields = document.querySelector("#signupFields");
@@ -1073,6 +1075,7 @@ function setAuthLoading(isLoading) {
   });
   if (signOutButton) signOutButton.disabled = isLoading;
   if (signupSignOutButton) signupSignOutButton.disabled = isLoading;
+  if (signupConfirmButton) signupConfirmButton.disabled = isLoading;
   if (forgotPasswordButton) forgotPasswordButton.disabled = isLoading;
   if (saveNewPasswordButton) saveNewPasswordButton.disabled = isLoading;
 }
@@ -1118,11 +1121,22 @@ function updateAuthPanel(message = "") {
       ? `Cuenta actual: ${connectedEmail}. Si quieres registrar otro email, cierra esta sesión primero.`
       : "";
   }
+  if (signupConfirmButton) signupConfirmButton.hidden = isConnected || isPasswordRecovery;
+  if (signupAccountStatus) {
+    signupAccountStatus.dataset.tone = isConnected ? "success" : "";
+    signupAccountStatus.textContent = isConnected
+      ? `Cuenta conectada: ${connectedEmail}. Ahora guarda tu perfil.`
+      : "Primero confirma la cuenta. Después guarda el perfil.";
+  }
 
   if (!state.hasClient) {
     if (authTitle) authTitle.textContent = "Supabase no está cargado";
     if (authStatus) authStatus.textContent = state.error || "La app sigue funcionando en modo local. Revisa conexión o vuelve a abrir desde internet.";
     if (signOutButton) signOutButton.hidden = true;
+    if (signupAccountStatus) {
+      signupAccountStatus.dataset.tone = "error";
+      signupAccountStatus.textContent = "No se puede crear la cuenta hasta que Supabase esté disponible.";
+    }
     renderProfileHome();
     return;
   }
@@ -1271,7 +1285,7 @@ function setInputError(selector, message) {
 }
 
 function clearInputErrors() {
-  ["#authEmailInput", "#emailInput", "#birthdateInput", "#phoneInput", "#cityInput"].forEach((selector) => setInputError(selector, ""));
+  ["#authEmailInput", "#emailInput", "#signupPasswordInput", "#signupPasswordConfirmInput", "#birthdateInput", "#phoneInput", "#cityInput"].forEach((selector) => setInputError(selector, ""));
 }
 
 function showProfileValidationError(title, message, selector) {
@@ -1348,6 +1362,129 @@ function setBirthdateLimit() {
   if (input) input.max = new Date().toISOString().slice(0, 10);
 }
 
+function setSignupAccountStatus(message, tone = "") {
+  if (!signupAccountStatus) return;
+  signupAccountStatus.dataset.tone = tone;
+  signupAccountStatus.textContent = message;
+}
+
+function showSignupAccountError(title, message, selector = "") {
+  roleHelp.querySelector("strong").textContent = title;
+  roleHelp.querySelector("span").textContent = message;
+  setSignupAccountStatus(message, "error");
+  if (selector) {
+    setInputError(selector, message);
+    document.querySelector(selector)?.focus();
+  }
+  return null;
+}
+
+function validateSignupCredentials() {
+  clearInputErrors();
+  const email = cleanEmail(profile.email);
+  const password = signupPasswordInput?.value || "";
+  const confirmation = signupPasswordConfirmInput?.value || "";
+  profile.email = email;
+  const emailInput = document.querySelector("#emailInput");
+  if (emailInput) emailInput.value = email;
+
+  if (!email) {
+    return showSignupAccountError(
+      "Falta el email",
+      "Introduce el email de cuenta para crear tu acceso.",
+      "#emailInput"
+    );
+  }
+
+  if (!isValidEmail(email)) {
+    return showSignupAccountError(
+      "Email no válido",
+      "Escribe un email real, por ejemplo nombre@email.com.",
+      "#emailInput"
+    );
+  }
+
+  if (password.length < 6) {
+    return showSignupAccountError(
+      "Falta contraseña",
+      "La contraseña debe tener al menos 6 caracteres.",
+      "#signupPasswordInput"
+    );
+  }
+
+  if (password !== confirmation) {
+    return showSignupAccountError(
+      "Las contraseñas no coinciden",
+      "Revisa la contraseña y su confirmación antes de crear la cuenta.",
+      "#signupPasswordConfirmInput"
+    );
+  }
+
+  return { email, password };
+}
+
+async function createSignupAccount() {
+  readForm();
+
+  if (isRemoteMode()) {
+    updateAuthPanel("Cuenta conectada. Ahora guarda tu perfil.");
+    setSignupAccountStatus("Cuenta conectada. Ahora puedes guardar el perfil.", "success");
+    return "ready";
+  }
+
+  const credentials = validateSignupCredentials();
+  if (!credentials) return false;
+
+  if (!validateSignupLegalConsent()) {
+    setSignupAccountStatus("Revisa privacidad y términos para poder crear la cuenta.", "warning");
+    return false;
+  }
+
+  setAuthLoading(true);
+  const previousText = signupConfirmButton?.textContent || "";
+  if (signupConfirmButton) signupConfirmButton.textContent = "Confirmando...";
+  setSignupAccountStatus("Creando cuenta en Supabase...", "");
+
+  try {
+    const result = await dataProvider.signUp({
+      email: credentials.email,
+      password: credentials.password,
+      role: profile.role,
+      name: profile.name
+    });
+    const authState = dataProvider.getAuthState?.() || {};
+
+    if (result?.pendingEmailConfirmation || !authState.user?.id) {
+      clearSignupCredentials();
+      const pendingMessage = "Cuenta creada pendiente de email. Confirma el enlace y después inicia sesión.";
+      roleHelp.querySelector("strong").textContent = "Revisa tu email";
+      roleHelp.querySelector("span").textContent = pendingMessage;
+      showView("account");
+      updateAuthPanel(pendingMessage);
+      setSignupAccountStatus(pendingMessage, "warning");
+      return "pending";
+    }
+
+    await dataProvider.acceptLegalConsent?.(signupLegalPayload());
+    updateSignupLegalState();
+    clearSignupCredentials();
+    loadOwnRemoteProfile();
+    updateAuthPanel("Cuenta confirmada. Ahora guarda tu perfil.");
+    setSignupAccountStatus("Cuenta conectada. Ahora puedes guardar el perfil.", "success");
+    return "ready";
+  } catch (error) {
+    const message = authErrorMessage(error, "No se pudo crear la cuenta.");
+    roleHelp.querySelector("strong").textContent = "No se pudo crear la cuenta";
+    roleHelp.querySelector("span").textContent = message;
+    updateAuthPanel(message);
+    setSignupAccountStatus(message, "error");
+    return false;
+  } finally {
+    if (signupConfirmButton) signupConfirmButton.textContent = previousText;
+    setAuthLoading(false);
+  }
+}
+
 async function ensureAccountBeforeSaving() {
   if (isRemoteMode()) {
     if (!validateSignupLegalConsent()) return false;
@@ -1358,62 +1495,17 @@ async function ensureAccountBeforeSaving() {
     return true;
   }
 
-  if (!validateSignupLegalConsent()) return false;
+  const accountStatus = await createSignupAccount();
+  if (accountStatus === "ready") return true;
 
-  const email = cleanEmail(profile.email);
-  const password = signupPasswordInput?.value || "";
-  const confirmation = signupPasswordConfirmInput?.value || "";
-  profile.email = email;
-
-  if (!email) {
-    roleHelp.querySelector("strong").textContent = "Falta el email";
-    roleHelp.querySelector("span").textContent = "Introduce el email de cuenta para crear tu acceso antes de guardar el perfil.";
-    setInputError("#emailInput", "Introduce el email de cuenta para crear tu acceso.");
-    document.querySelector("#emailInput")?.focus();
-    return false;
-  }
-
-  if (!isValidEmail(email)) {
-    roleHelp.querySelector("strong").textContent = "Email no válido";
-    roleHelp.querySelector("span").textContent = "Escribe un email real, por ejemplo nombre@email.com.";
-    setInputError("#emailInput", "Escribe un email real, por ejemplo nombre@email.com.");
-    document.querySelector("#emailInput")?.focus();
-    return false;
-  }
-
-  if (password.length < 6) {
-    roleHelp.querySelector("strong").textContent = "Falta contraseña";
-    roleHelp.querySelector("span").textContent = "La contraseña debe tener al menos 6 caracteres.";
-    return false;
-  }
-
-  if (password !== confirmation) {
-    roleHelp.querySelector("strong").textContent = "Las contraseñas no coinciden";
-    roleHelp.querySelector("span").textContent = "Revisa la contraseña y su confirmación antes de crear la cuenta.";
-    return false;
-  }
-
-  setAuthLoading(true);
-  try {
-    await dataProvider.signUp({
-      email,
-      password,
-      role: profile.role,
-      name: profile.name
-    });
-    await dataProvider.acceptLegalConsent?.(signupLegalPayload());
-    updateSignupLegalState();
-    clearSignupCredentials();
-    updateAuthPanel("Cuenta creada. Guardando tu perfil en Supabase...");
-    return true;
-  } catch (error) {
-    roleHelp.querySelector("strong").textContent = "No se pudo crear la cuenta";
-    roleHelp.querySelector("span").textContent = error.message || "Revisa email y contraseña e inténtalo de nuevo.";
-    updateAuthPanel(error.message || "No se pudo crear la cuenta.");
-    return false;
-  } finally {
-    setAuthLoading(false);
-  }
+  roleHelp.querySelector("strong").textContent = accountStatus === "pending"
+    ? "Cuenta pendiente"
+    : "Confirma tu cuenta";
+  roleHelp.querySelector("span").textContent = accountStatus === "pending"
+    ? "Confirma el email y entra con tu cuenta antes de guardar el perfil."
+    : "Pulsa Crear y confirmar cuenta antes de guardar el perfil.";
+  document.querySelector("#signupFields")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  return false;
 }
 
 function loadOwnRemoteProfile() {
@@ -5628,6 +5720,11 @@ authPanel?.addEventListener("click", async (event) => {
 signupSignOutButton?.addEventListener("click", async (event) => {
   event.preventDefault();
   await signOutForNewAccount();
+});
+
+signupConfirmButton?.addEventListener("click", async (event) => {
+  event.preventDefault();
+  await createSignupAccount();
 });
 
 photoInput?.addEventListener("change", async (event) => {

@@ -1206,6 +1206,7 @@ window.FitMatchDataProvider = {
       email,
       password,
       options: {
+        emailRedirectTo: `${window.location.origin}${window.location.pathname}#account`,
         data: {
           role,
           display_name: name || ""
@@ -1216,14 +1217,8 @@ window.FitMatchDataProvider = {
 
     currentSession = data.session || currentSession;
 
-    if (!currentSession) {
-      const login = await supabaseClient.auth.signInWithPassword({ email, password });
-      if (login.error) throw login.error;
-      currentSession = login.data.session;
-    }
-
     if (currentSession) await this.refreshRemoteData();
-    return { ...data, session: currentSession };
+    return { ...data, session: currentSession, pendingEmailConfirmation: Boolean(data.user && !currentSession) };
   },
 
   async signIn({ email, password }) {

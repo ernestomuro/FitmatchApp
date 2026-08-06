@@ -11196,6 +11196,35 @@ body.role-professional .professional-hemisphere::after {
   display: none !important;
 }
 
+.credential-confirm-row {
+  display: grid !important;
+  gap: 10px !important;
+}
+
+.credential-status {
+  margin: 0 !important;
+  color: #52685f !important;
+  font-size: 0.86rem !important;
+  font-weight: 760 !important;
+  line-height: 1.42 !important;
+}
+
+.credential-status[data-tone="success"] {
+  color: #176f4d !important;
+}
+
+.credential-status[data-tone="warning"] {
+  color: #9a6a2d !important;
+}
+
+.credential-status[data-tone="error"] {
+  color: #9a4c3d !important;
+}
+
+#signupConfirmButton[hidden] {
+  display: none !important;
+}
+
 .profile-detail-note {
   display: block !important;
   margin-top: 8px !important;
