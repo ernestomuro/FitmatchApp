@@ -536,6 +536,7 @@ const signupConfirmButton = document.querySelector("#signupConfirmButton");
 const signupAccountStatus = document.querySelector("#signupAccountStatus");
 const signupPasswordInput = document.querySelector("#signupPasswordInput");
 const signupPasswordConfirmInput = document.querySelector("#signupPasswordConfirmInput");
+const passwordToggleButtons = document.querySelectorAll("[data-password-toggle]");
 const signupFields = document.querySelector("#signupFields");
 const signOutButton = document.querySelector("#signOutButton");
 const accountWelcomeCard = document.querySelector("#accountWelcomeCard");
@@ -975,7 +976,7 @@ function signupLegalPayload() {
 
 function signupLegalShouldShow() {
   if (isRemoteMode() && dataProvider.hasLegalConsent?.()) return false;
-  return hasVisitedTrustCenter();
+  return true;
 }
 
 function updateSignupLegalState() {
@@ -1005,17 +1006,10 @@ function showAccountLegalCenter() {
 function validateSignupLegalConsent() {
   if (isRemoteMode() && dataProvider.hasLegalConsent?.()) return true;
 
-  if (!hasVisitedTrustCenter()) {
-    roleHelp.querySelector("strong").textContent = "Primero revisa Privacidad y Legal";
-    roleHelp.querySelector("span").textContent = "Antes de aceptar condiciones, revisa Privacidad y Legal dentro de Cuenta. Después volverás al perfil para confirmar privacidad y términos.";
-    showAccountLegalCenter();
-    return false;
-  }
-
   updateSignupLegalState();
   if (requiredChecksCompleted(signupLegalChecks)) return true;
   roleHelp.querySelector("strong").textContent = "Falta aceptar privacidad y términos";
-  roleHelp.querySelector("span").textContent = "Después de revisar Privacidad y Legal, acepta privacidad, términos y confirma que tu información es veraz.";
+  roleHelp.querySelector("span").textContent = "Acepta privacidad, términos y confirma que tu información es veraz.";
   document.querySelector(".signup-legal-panel")?.scrollIntoView({ behavior: "smooth", block: "center" });
   return false;
 }
@@ -1365,6 +1359,27 @@ function setBirthdateLimit() {
   if (input) input.max = new Date().toISOString().slice(0, 10);
 }
 
+function syncPasswordToggleButton(button, input) {
+  if (!button || !input) return;
+  const isVisible = input.type === "text";
+  button.classList.toggle("is-visible", isVisible);
+  button.setAttribute("aria-pressed", String(isVisible));
+  button.setAttribute("aria-label", isVisible ? "Ocultar contraseña" : "Mostrar contraseña");
+}
+
+function setupPasswordToggles() {
+  passwordToggleButtons.forEach((button) => {
+    const input = document.querySelector(`#${button.dataset.passwordToggle}`);
+    if (!input) return;
+    syncPasswordToggleButton(button, input);
+    button.addEventListener("click", () => {
+      input.type = input.type === "password" ? "text" : "password";
+      syncPasswordToggleButton(button, input);
+      input.focus({ preventScroll: true });
+    });
+  });
+}
+
 function setSignupAccountStatus(message, tone = "") {
   if (!signupAccountStatus) return;
   signupAccountStatus.dataset.tone = tone;
@@ -1462,9 +1477,9 @@ async function createSignupAccount() {
       const pendingMessage = "Cuenta creada pendiente de email. Confirma el enlace y después inicia sesión.";
       roleHelp.querySelector("strong").textContent = "Revisa tu email";
       roleHelp.querySelector("span").textContent = pendingMessage;
-      showView("account");
       updateAuthPanel(pendingMessage);
       setSignupAccountStatus(pendingMessage, "warning");
+      document.querySelector("#signupFields")?.scrollIntoView({ behavior: "smooth", block: "center" });
       return "pending";
     }
 
@@ -2152,7 +2167,7 @@ function liveSignupPasswordReady() {
 
 function liveSignupLegalReady() {
   if (currentUser()) return dataProvider.hasLegalConsent?.() !== false;
-  return hasVisitedTrustCenter() && requiredChecksCompleted(signupLegalChecks);
+  return requiredChecksCompleted(signupLegalChecks);
 }
 
 function profileCompletionDetails(source = profile, { live = source === profile } = {}) {
@@ -6308,6 +6323,7 @@ document.addEventListener("keydown", (event) => {
 
 async function startApp() {
   await dataProvider.init?.();
+  setupPasswordToggles();
   updateSignupLegalState();
   clearAuthInputs();
   window.setTimeout(clearAuthInputs, 120);

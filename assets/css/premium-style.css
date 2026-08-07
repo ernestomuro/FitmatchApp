@@ -804,6 +804,56 @@ input:focus, select:focus, textarea:focus {
 }
 textarea { resize: vertical; min-height: 92px; }
 
+.password-control {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.password-control input {
+  padding-right: 52px !important;
+}
+
+.password-toggle {
+  appearance: none;
+  -webkit-appearance: none;
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(31, 118, 95, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 253, 247, 0.88);
+  color: #35564d;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease), background-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.password-toggle svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.password-toggle:hover,
+.password-toggle:focus-visible,
+.password-toggle.is-visible {
+  border-color: rgba(31, 118, 95, 0.34);
+  background: rgba(241, 249, 238, 0.96);
+  color: #1f765f;
+  box-shadow: 0 8px 22px rgba(24, 50, 41, 0.10);
+  outline: none;
+}
+
 select {
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236C746F' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
   background-repeat: no-repeat;

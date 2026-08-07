@@ -181,23 +181,47 @@
                   </label>
                   <label>
                     Contraseña
-                    <input id="authPasswordInput" name="login-password" type="password" autocomplete="current-password" placeholder="Tu contraseña" required />
+                    <div class="password-control">
+                      <input id="authPasswordInput" name="login-password" type="password" autocomplete="current-password" placeholder="Tu contraseña" required />
+                      <button class="password-toggle" type="button" data-password-toggle="authPasswordInput" aria-label="Mostrar contraseña" aria-pressed="false">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                          <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                      </button>
+                    </div>
                   </label>
                 </div>
                 <div id="passwordRecoveryFields" class="password-recovery-fields" hidden>
                   <label>
                     Nueva contraseña
-                    <input id="newPasswordInput" name="new-password" type="password" autocomplete="new-password" minlength="6" />
+                    <div class="password-control">
+                      <input id="newPasswordInput" name="new-password" type="password" autocomplete="new-password" minlength="6" />
+                      <button class="password-toggle" type="button" data-password-toggle="newPasswordInput" aria-label="Mostrar contraseña" aria-pressed="false">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                          <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                      </button>
+                    </div>
                   </label>
                   <label>
                     Confirmar nueva contraseña
-                    <input id="newPasswordConfirmInput" name="new-password-confirm" type="password" autocomplete="new-password" minlength="6" />
+                    <div class="password-control">
+                      <input id="newPasswordConfirmInput" name="new-password-confirm" type="password" autocomplete="new-password" minlength="6" />
+                      <button class="password-toggle" type="button" data-password-toggle="newPasswordConfirmInput" aria-label="Mostrar contraseña" aria-pressed="false">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                          <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                      </button>
+                    </div>
                   </label>
                   <button id="saveNewPasswordButton" class="button primary" type="button">Guardar nueva contraseña</button>
                 </div>
                 <div class="auth-actions">
                   <button id="signInButton" class="button primary" type="submit" data-auth-action="signin">Iniciar sesión</button>
-                  <button id="createAccountRouteButton" class="button secondary" type="button" data-view="register">Crear cuenta cliente</button>
+                  <button id="createAccountRouteButton" class="button secondary" type="button" data-view="register" data-scroll-target="#signupFields">Crear cuenta cliente</button>
                   <button class="button quiet" id="signOutButton" type="button" hidden>Cerrar sesión</button>
                 </div>
                 <button id="forgotPasswordButton" class="auth-link-button" type="button">¿Has olvidado tu contraseña?</button>
@@ -512,7 +536,7 @@
             Completa tu perfil para aparecer en mejores coincidencias.
           </p>
           <div class="screen-actions top-actions">
-            <button class="button quiet" type="button" data-view="matches">Ver matches</button>
+            <button class="button quiet" type="button" data-view="register" data-scroll-target="#signupFields">Crear cuenta</button>
           </div>
         </div>
 
@@ -576,12 +600,28 @@
                   </label>
                   <label>
                     Contraseña
-                    <input id="signupPasswordInput" name="signup-password" type="password" minlength="6" autocomplete="new-password" aria-describedby="signupPasswordHint" />
+                    <div class="password-control">
+                      <input id="signupPasswordInput" name="signup-password" type="password" minlength="6" autocomplete="new-password" aria-describedby="signupPasswordHint" />
+                      <button class="password-toggle" type="button" data-password-toggle="signupPasswordInput" aria-label="Mostrar contraseña" aria-pressed="false">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                          <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                      </button>
+                    </div>
                     <span id="signupPasswordHint" class="field-hint">Mínimo 6 caracteres.</span>
                   </label>
                   <label>
                     Confirmar contraseña
-                    <input id="signupPasswordConfirmInput" name="signup-password-confirm" type="password" minlength="6" autocomplete="new-password" aria-describedby="signupPasswordConfirmHint" />
+                    <div class="password-control">
+                      <input id="signupPasswordConfirmInput" name="signup-password-confirm" type="password" minlength="6" autocomplete="new-password" aria-describedby="signupPasswordConfirmHint" />
+                      <button class="password-toggle" type="button" data-password-toggle="signupPasswordConfirmInput" aria-label="Mostrar contraseña" aria-pressed="false">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                          <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                      </button>
+                    </div>
                     <span id="signupPasswordConfirmHint" class="field-hint">Debe coincidir con la anterior.</span>
                   </label>
                 </div>
