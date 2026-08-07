@@ -69,6 +69,7 @@ let currentSession = null;
 let remoteProfiles = [];
 let remoteRequests = [];
 let remoteRatings = [];
+let remoteUserAccounts = [];
 let remotePrivateNotes = {};
 let remoteProSubscription = null;
 let remoteBetaFeedback = [];
@@ -163,6 +164,56 @@ function dedupeAppEvents(events = []) {
     if (!current || nextTime >= currentTime) uniqueEvents.set(key, event);
   });
   return Array.from(uniqueEvents.values()).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+}
+
+function normalizeUserAccount(row = {}) {
+  const metadata = parseJsonObject(row.metadata || row.raw_user_meta_data, {});
+  const email = String(row.email || metadata.email || "").trim().toLowerCase();
+  const userId = row.userId || row.user_id || row.id || "";
+  const role = normalizeRole(row.role || metadata.role) || "visitor";
+  const displayName = row.name || row.displayName || row.display_name || metadata.display_name || email || "Cuenta sin perfil";
+  return {
+    id: userId || email || createId("account"),
+    userId,
+    email,
+    role,
+    name: displayName,
+    hasProfile: Boolean(row.hasProfile ?? row.has_profile ?? row.profileSavedAt ?? row.profile_saved_at),
+    profileSavedAt: row.profileSavedAt || row.profile_saved_at || "",
+    createdAt: row.createdAt || row.created_at || new Date().toISOString(),
+    updatedAt: row.updatedAt || row.updated_at || row.last_sign_in_at || row.created_at || new Date().toISOString()
+  };
+}
+
+function accountIdentityKey(account = {}) {
+  if (account.userId) return `id:${account.userId}`;
+  if (account.email) return `email:${account.email}`;
+  return `account:${account.id}`;
+}
+
+function dedupeUserAccounts(accounts = []) {
+  const uniqueAccounts = new Map();
+  accounts.map(normalizeUserAccount).forEach((account) => {
+    const key = accountIdentityKey(account);
+    const current = uniqueAccounts.get(key);
+    const currentTime = current ? new Date(current.updatedAt || current.createdAt || 0).getTime() : 0;
+    const nextTime = new Date(account.updatedAt || account.createdAt || 0).getTime();
+    if (!current || nextTime >= currentTime) uniqueAccounts.set(key, account);
+  });
+  return Array.from(uniqueAccounts.values()).sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
+}
+
+function accountFromProfile(profile = {}) {
+  return normalizeUserAccount({
+    user_id: profile.id,
+    email: profile.email || profile.contactEmail || "",
+    role: profile.role,
+    display_name: profile.name,
+    has_profile: true,
+    profile_saved_at: profile.updatedAt || profile.createdAt,
+    created_at: profile.createdAt,
+    updated_at: profile.updatedAt
+  });
 }
 
 
@@ -989,6 +1040,7 @@ function appProfileFromRemote(profileRow, detailsRow, role) {
     id: profileRow.id,
     role,
     name: profileRow.display_name || "Perfil sin nombre",
+    directoryVisible: profileRow.directory_visible !== false,
     city: profileRow.city || "Online",
     goal: detailsRow.goal,
     sport: detailsRow.sport || "",
@@ -1180,6 +1232,7 @@ window.FitMatchDataProvider = {
         remoteProfiles = [];
         remoteRequests = [];
         remoteRatings = [];
+        remoteUserAccounts = [];
         remotePrivateNotes = {};
         remoteProSubscription = null;
         remoteBetaFeedback = [];
@@ -1274,6 +1327,7 @@ window.FitMatchDataProvider = {
     remoteProfiles = [];
     remoteRequests = [];
     remoteRatings = [];
+    remoteUserAccounts = [];
     remotePrivateNotes = {};
     remoteProSubscription = null;
     remoteBetaFeedback = [];
@@ -1297,6 +1351,19 @@ window.FitMatchDataProvider = {
 
       remoteProfiles = mapRemoteProfiles(profiles, clients, professionals);
       remotePrivateNotes = {};
+
+      try {
+        const accountRows = await assertNoError(
+          await supabaseClient
+            .from("app_user_accounts")
+            .select("*")
+            .order("updated_at", { ascending: false })
+            .limit(500)
+        );
+        remoteUserAccounts = dedupeUserAccounts(accountRows || []);
+      } catch (error) {
+        remoteUserAccounts = [];
+      }
 
       try {
         const privateResult = await supabaseClient
@@ -1522,6 +1589,17 @@ window.FitMatchDataProvider = {
     return role ? profiles.filter((profile) => profile.role === role) : profiles;
   },
 
+  listUserAccounts() {
+    const profileAccounts = this.listProfiles().map(accountFromProfile);
+    if (canUseRemote() && remoteUserAccounts.length) {
+      return dedupeUserAccounts([
+        ...remoteUserAccounts,
+        ...profileAccounts.map((account) => ({ ...account, has_profile: true }))
+      ]);
+    }
+    return dedupeUserAccounts(profileAccounts);
+  },
+
   async saveProfile(profile) {
     if (!canUseRemote()) {
       const normalized = normalizeProfile(profile);
@@ -1604,6 +1682,20 @@ window.FitMatchDataProvider = {
         photo: normalized.photo || ""
       })
     }));
+
+    try {
+      await supabaseClient.from("app_user_accounts").upsert({
+        user_id: user.id,
+        email: user.email || normalized.email || null,
+        role: normalized.role,
+        display_name: normalized.name,
+        has_profile: true,
+        profile_saved_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+    } catch (error) {
+      // La tabla de cuentas auth es opcional hasta ejecutar la migración admin de registros.
+    }
 
     this.saveProfileDraft(normalized);
     await this.trackEvent("profile_saved", { role: normalized.role, profileId: normalized.id, source: "remote" });

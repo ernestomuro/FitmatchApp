@@ -830,6 +830,18 @@ function isAdminSession() {
   return cleanEmail(currentUser()?.email || "") === ADMIN_EMAIL;
 }
 
+function isInternalAdminProfile(person = {}) {
+  const email = cleanEmail(person.email || person.contactEmail || "");
+  if (email && email === ADMIN_EMAIL) return true;
+  if (person.directoryVisible === false || person.isDirectoryVisible === false || person.hiddenFromDirectory === true) return true;
+  const name = normalizeText(person.name || person.displayName || "");
+  return name.includes("ernesto") && name.includes("admin");
+}
+
+function publicProfileRows(profiles = []) {
+  return profiles.filter((person) => !isInternalAdminProfile(person));
+}
+
 function updateAdminNavigation() {
   if (!adminNavButton) return;
   const enabled = isAdminSession();
@@ -928,7 +940,10 @@ function label(group, value) {
 }
 
 function roleLabel(role) {
-  return role === "client" ? "Cliente" : "Profesional";
+  if (role === "client") return "Cliente";
+  if (role === "professional") return "Profesional";
+  if (role === "visitor") return "Visitante";
+  return "Cuenta";
 }
 
 function oppositeRole(role) {
@@ -2857,6 +2872,51 @@ function adminProfileIdSet(profiles = []) {
   return new Set(profiles.map((person) => person.id).filter(Boolean));
 }
 
+function adminAccountIdSet(accounts = [], profiles = []) {
+  const ids = new Set(profiles.map((person) => person.id).filter(Boolean));
+  accounts.forEach((account) => {
+    if (account.userId) ids.add(account.userId);
+    else if (account.id) ids.add(account.id);
+    else if (account.email) ids.add(`email:${adminNormalizeIdentity(account.email)}`);
+  });
+  return ids;
+}
+
+function adminProfileIdentityKeys(profiles = []) {
+  const keys = new Set();
+  profiles.forEach((person) => {
+    if (person.id) keys.add(person.id);
+    const email = adminNormalizeIdentity(person.email || person.contactEmail);
+    if (email) keys.add(`email:${email}`);
+  });
+  return keys;
+}
+
+function adminAccountsWithoutProfile(accounts = [], profiles = []) {
+  const profileKeys = adminProfileIdentityKeys(profiles);
+  return accounts.filter((account) => {
+    const idKey = account.userId || account.id || "";
+    const emailKey = account.email ? `email:${adminNormalizeIdentity(account.email)}` : "";
+    return !account.hasProfile && !profileKeys.has(idKey) && !profileKeys.has(emailKey);
+  });
+}
+
+function adminAccountRows(accounts = [], profiles = []) {
+  const profileRows = profiles.map((person) => ({ ...person, hasProfile: true, userId: person.id }));
+  const missingRows = adminAccountsWithoutProfile(accounts, profiles).map((account) => ({
+    id: account.userId || account.id,
+    userId: account.userId || account.id,
+    email: account.email,
+    role: account.role,
+    name: account.name,
+    city: "Perfil pendiente",
+    hasProfile: false,
+    createdAt: account.createdAt,
+    updatedAt: account.updatedAt
+  }));
+  return [...profileRows, ...missingRows];
+}
+
 function adminRequestParticipantIds(requests = [], predicate = () => true) {
   return new Set(requests.filter(predicate).flatMap(adminRequestUserIds).filter(Boolean));
 }
@@ -2865,8 +2925,8 @@ function adminRatingParticipantIds(ratings = []) {
   return new Set(ratings.flatMap((rating) => [rating.raterId, rating.targetId]).filter(Boolean));
 }
 
-function adminBuildFunnelStages({ profiles = [], possibleMatches = [], requests = [], ratings = [] } = {}) {
-  const registered = adminProfileIdSet(profiles);
+function adminBuildFunnelStages({ accounts = [], profiles = [], possibleMatches = [], requests = [], ratings = [] } = {}) {
+  const registered = adminAccountIdSet(accounts, profiles);
   const started = adminIntersectSets(registered, adminProfileIdSet(profiles.filter((person) => adminProfileCompletionFor(person) >= 35)));
   const completed = adminIntersectSets(started, adminProfileIdSet(profiles.filter((person) => adminProfileCompletionFor(person) >= 80)));
   const matched = adminIntersectSets(completed, new Set(possibleMatches.flatMap((match) => [match.client.id, match.professional.id]).filter(Boolean)));
@@ -2988,7 +3048,19 @@ function adminAnalyzeDataQuality({ profiles = [], requests = [], ratings = [], r
   return { reliability, issues };
 }
 
-function adminReportMetrics({ profiles = [], requests = [], ratings = [], reports = [], feedback = [], events = [] } = {}) {
+function adminReportMetrics({ accounts = [], profiles = [], requests = [], ratings = [], reports = [], feedback = [], events = [] } = {}) {
+  const accountRows = accounts.length ? accounts : profiles.map((person) => ({
+    userId: person.id,
+    email: person.email || person.contactEmail || "",
+    role: person.role,
+    name: person.name,
+    hasProfile: true,
+    createdAt: person.createdAt,
+    updatedAt: person.updatedAt
+  }));
+  const accountsWithoutProfile = adminAccountsWithoutProfile(accountRows, profiles);
+  const clientAccounts = accountRows.filter((item) => item.role === "client");
+  const professionalAccounts = accountRows.filter((item) => item.role === "professional");
   const clients = profiles.filter((item) => item.role === "client");
   const professionals = profiles.filter((item) => item.role === "professional");
   const completedProfiles = profiles.filter((item) => adminProfileCompletionFor(item) >= 80);
@@ -3013,17 +3085,20 @@ function adminReportMetrics({ profiles = [], requests = [], ratings = [], report
   const firstContactRatings = ratings.filter((rating) => normalizeRatingType(rating.ratingType || rating.criteria?._ratingType) === "first_contact");
   const serviceRatings = ratings.filter((rating) => normalizeRatingType(rating.ratingType || rating.criteria?._ratingType) === "service");
   const registeredEvents = adminRegisteredEvents(events, profiles);
-  const funnelStages = adminBuildFunnelStages({ profiles, possibleMatches, requests, ratings });
+  const funnelStages = adminBuildFunnelStages({ accounts: accountRows, profiles, possibleMatches, requests, ratings });
 
   return {
-    users: profiles.length,
+    users: adminAccountIdSet(accountRows, profiles).size,
     activeUsers: adminUniqueUserCountFromEvents(events, profiles),
     activeToday: adminUniqueUserCountFromEvents(adminItemsInRange(events, { start: Date.now() - 24 * 60 * 60 * 1000, end: Date.now() }), profiles),
     active7d: adminUniqueUserCountFromEvents(adminItemsInRange(events, { start: Date.now() - 7 * 24 * 60 * 60 * 1000, end: Date.now() }), profiles),
     active30d: adminUniqueUserCountFromEvents(adminItemsInRange(events, { start: Date.now() - 30 * 24 * 60 * 60 * 1000, end: Date.now() }), profiles),
     registeredEvents,
-    clients: clients.length,
-    professionals: professionals.length,
+    clients: clientAccounts.length || clients.length,
+    professionals: professionalAccounts.length || professionals.length,
+    profileClients: clients.length,
+    profileProfessionals: professionals.length,
+    accountsWithoutProfile,
     completeProfiles: completedProfiles.length,
     incompleteProfiles: incompleteProfiles.length,
     matches: possibleMatches.length,
@@ -3218,6 +3293,7 @@ function adminRecommendationList(metrics = {}, feedbackThemes = [], bugGroups = 
   };
   if (dataQuality.reliability !== "Alta") add("Limpiar datos antes de decidir", `Fiabilidad ${dataQuality.reliability.toLowerCase()}: ${dataQuality.issues[0]?.text || "hay avisos de auditoría"}`);
   if (bugGroups.critical.length) add("Resolver errores críticos", `${bugGroups.critical.length} señal(es) críticas en feedback/denuncias.`);
+  if (metrics.accountsWithoutProfile?.length) add("Recuperar altas sin perfil", `${metrics.accountsWithoutProfile.length} cuenta(s) creadas sin perfil público guardado.`);
   if (metrics.incompleteProfiles) add("Mejorar finalización de perfil", `${metrics.incompleteProfiles} perfil(es) incompleto(s).`);
   if (metrics.usersWithoutMatch.length) add("Revisar equilibrio de matching", `${metrics.usersWithoutMatch.length} usuario(s) sin match potencial.`);
   if (metrics.unansweredRequests.length) add("Simplificar contactos y respuestas", `${metrics.unansweredRequests.length} solicitud(es) sin respuesta.`);
@@ -3227,7 +3303,7 @@ function adminRecommendationList(metrics = {}, feedbackThemes = [], bugGroups = 
   return priorities.slice(0, 5);
 }
 
-function adminBuildShareableInsightReport({ profiles = [], requests = [], ratings = [], reports = [], feedback = [], events = [], period } = {}) {
+function adminBuildShareableInsightReport({ accounts = [], profiles = [], requests = [], ratings = [], reports = [], feedback = [], events = [], period } = {}) {
   const currentRange = adminReportPeriodRange(period);
   const previousRange = adminPreviousPeriodRange(period);
   const currentProfiles = adminItemsInRange(profiles, currentRange);
@@ -3242,9 +3318,9 @@ function adminBuildShareableInsightReport({ profiles = [], requests = [], rating
   const previousReports = previousRange ? adminItemsInRange(reports, previousRange) : [];
   const previousFeedback = previousRange ? adminItemsInRange(feedback, previousRange) : [];
   const dataQuality = adminAnalyzeDataQuality({ profiles, requests, ratings, reports, feedback, events });
-  const metrics = adminReportMetrics({ profiles, requests: currentRequests, ratings: currentRatings, reports: currentReports, feedback: currentFeedback, events: currentEvents });
+  const metrics = adminReportMetrics({ accounts, profiles, requests: currentRequests, ratings: currentRatings, reports: currentReports, feedback: currentFeedback, events: currentEvents });
   const previousMetrics = previousRange
-    ? adminReportMetrics({ profiles, requests: previousRequests, ratings: previousRatings, reports: previousReports, feedback: previousFeedback, events: adminItemsInRange(events, previousRange) })
+    ? adminReportMetrics({ accounts, profiles, requests: previousRequests, ratings: previousRatings, reports: previousReports, feedback: previousFeedback, events: adminItemsInRange(events, previousRange) })
     : null;
   const feedbackThemes = adminFeedbackThemeGroups(currentFeedback);
   const bugGroups = adminBugGroups(currentFeedback, currentReports);
@@ -3279,6 +3355,7 @@ function adminBuildShareableInsightReport({ profiles = [], requests = [], rating
   lines.push(`- Usuarios activos: ${metrics.activeUsers}`);
   lines.push(`- Profesionales: ${metrics.professionals}`);
   lines.push(`- Clientes: ${metrics.clients}`);
+  lines.push(`- Cuentas sin perfil público: ${metrics.accountsWithoutProfile.length}`);
   lines.push(`- Perfiles completos: ${metrics.completeProfiles}`);
   lines.push(`- Perfiles incompletos: ${metrics.incompleteProfiles}`);
   lines.push(`- Matches potenciales: ${metrics.matches} (${metrics.highMatches} de afinidad alta)`);
@@ -3355,6 +3432,7 @@ function adminBuildShareableInsightReport({ profiles = [], requests = [], rating
 
   lines.push("## 9. Métricas de producto");
   lines.push(`- Usuarios sin match: ${metrics.usersWithoutMatch.length}`);
+  lines.push(`- Cuentas sin perfil público: ${metrics.accountsWithoutProfile.length}`);
   lines.push(`- Usuarios sin conversación: ${metrics.usersWithoutConversation.length}`);
   lines.push(`- Usuarios sin valoración emitida: ${metrics.usersWithoutRating.length}`);
   lines.push(`- Solicitudes sin respuesta: ${metrics.unansweredRequests.length}`);
@@ -3659,7 +3737,7 @@ function adminRenderUsers(container, profiles = [], requests = [], ratings = [],
       const lastEvent = recentEventsByUser.get(person.id) || recentEventsByUser.get(person.email);
       body.append(
         createElement("span", "", `Email: ${person.email || "privado/no disponible"}`),
-        createElement("span", "", `Perfil: ${adminProfileCompletionFor(person)}%`),
+        createElement("span", "", `Perfil: ${person.hasProfile === false ? "pendiente" : adminProfileCompletionFor(person) + "%"}`),
         createElement("span", "", `Solicitudes: ${relatedRequests.length}`),
         createElement("span", "", `Valoraciones: ${relatedRatings.length}`),
         createElement("span", "", `Denuncias recibidas: ${receivedReports.length}`),
@@ -3682,7 +3760,9 @@ function renderAdminDashboard() {
   const period = adminPeriodConfig();
   adminSetText(adminPeriodLabel, period.label);
 
-  const profiles = dataProvider.listProfiles();
+  const profiles = publicProfileRows(dataProvider.listProfiles());
+  const accounts = publicProfileRows(dataProvider.listUserAccounts?.() || []);
+  const userRows = adminAccountRows(accounts, profiles);
   const clients = profiles.filter((item) => item.role === "client");
   const professionals = profiles.filter((item) => item.role === "professional");
   const requests = adminAllContactRequests();
@@ -3690,7 +3770,7 @@ function renderAdminDashboard() {
   const reports = dataProvider.listReports?.() || [];
   const events = dataProvider.listAppEvents?.() || [];
   const feedback = dataProvider.listBetaFeedback?.() || [];
-  const dashboardMetrics = adminReportMetrics({ profiles, requests, ratings, reports, feedback, events });
+  const dashboardMetrics = adminReportMetrics({ accounts, profiles, requests, ratings, reports, feedback, events });
   const periodRatings = ratings.filter((item) => adminInPeriod(item, period));
   const periodFeedback = feedback.filter((item) => adminInPeriod(item, period));
   const possibleMatches = adminPotentialMatches(clients, professionals);
@@ -3703,12 +3783,12 @@ function renderAdminDashboard() {
   const pendingReports = reports.filter((report) => !["resuelta", "descartada"].includes(report.status));
   const reputationAlerts = profiles.map((person) => adminRatingAlertFor(person, ratings, reports)).filter((alert) => alert.level);
 
-  adminSetText(adminMetricProfiles, String(profiles.length));
-  adminSetText(adminMetricRoleSplit, `${clients.length} clientes · ${professionals.length} profesionales`);
-  adminSetText(adminMetricClients, String(clients.length));
-  adminSetText(adminMetricClientsTrend, adminTrendText(clients));
-  adminSetText(adminMetricProfessionals, String(professionals.length));
-  adminSetText(adminMetricProfessionalsTrend, adminTrendText(professionals));
+  adminSetText(adminMetricProfiles, String(dashboardMetrics.users));
+  adminSetText(adminMetricRoleSplit, `${dashboardMetrics.clients} clientes · ${dashboardMetrics.professionals} profesionales${dashboardMetrics.accountsWithoutProfile.length ? ` · ${dashboardMetrics.accountsWithoutProfile.length} sin perfil` : ""}`);
+  adminSetText(adminMetricClients, String(dashboardMetrics.clients));
+  adminSetText(adminMetricClientsTrend, adminTrendText(accounts.filter((item) => item.role === "client").length ? accounts.filter((item) => item.role === "client") : clients));
+  adminSetText(adminMetricProfessionals, String(dashboardMetrics.professionals));
+  adminSetText(adminMetricProfessionalsTrend, adminTrendText(accounts.filter((item) => item.role === "professional").length ? accounts.filter((item) => item.role === "professional") : professionals));
   adminSetText(adminMetricActiveToday, String(dashboardMetrics.activeToday));
   adminSetText(adminMetricActiveTrend, dashboardMetrics.registeredEvents.length ? `${dashboardMetrics.active7d} activos 7d · ${dashboardMetrics.active30d} activos 30d` : "Sin histórico suficiente");
   adminSetText(adminMetricCompleteProfiles, String(completedProfiles.length));
@@ -3764,6 +3844,7 @@ function renderAdminDashboard() {
     const unansweredUsers = profiles.filter((person) => requests.some((request) => adminRequestUserIds(request).includes(person.id) && !adminHasConversation(request)));
     const inactive7 = profiles.filter((person) => adminDateMs(person.updatedAt) < Date.now() - 7 * 24 * 60 * 60 * 1000);
     const inactive30 = profiles.filter((person) => adminDateMs(person.updatedAt) < Date.now() - 30 * 24 * 60 * 60 * 1000);
+    adminRenderDetailGroup(adminNoProgressList, "Cuentas sin perfil", dashboardMetrics.accountsWithoutProfile, "Cuenta creada en Supabase, perfil público pendiente.");
     adminRenderDetailGroup(adminNoProgressList, "Perfiles incompletos", profiles.filter((item) => adminProfileCompletionFor(item) < 80), "Menos de 80% de datos útiles.");
     adminRenderDetailGroup(adminNoProgressList, "Usuarios sin matches", noMatches, "Puede indicar desequilibrio oferta/demanda.");
     adminRenderDetailGroup(adminNoProgressList, "Matches sin solicitudes", matchesNoRequests, "Ven resultados pero todavía no contactan.");
@@ -3823,12 +3904,13 @@ function renderAdminDashboard() {
   adminRenderAlerts(adminAlertList, adminBuildAlerts({ profiles, requests, reports, reputationAlerts }));
   adminRenderReports(adminReportList, reports, profiles);
   adminRenderReputation(adminReputationList, profiles, ratings, reports);
-  adminRenderUsers(adminUserList, profiles, requests, ratings, reports, events);
+  adminRenderUsers(adminUserList, userRows, requests, ratings, reports, events);
   adminRenderRatingDetails(adminRatingDetailList, periodRatings, profiles);
   adminRenderBetaFeedback(adminBetaFeedbackList, periodFeedback);
   if (adminInsightReport) {
     adminInsightReport.value = adminBuildShareableInsightReport({
       profiles,
+      accounts,
       requests,
       ratings,
       reports,
@@ -3924,7 +4006,7 @@ function loadRoleProfile(role) {
 }
 
 function activeDirectory() {
-  return dataProvider.getDirectory(profile.role);
+  return publicProfileRows(dataProvider.getDirectory(profile.role));
 }
 
 function normalizeText(value) {
